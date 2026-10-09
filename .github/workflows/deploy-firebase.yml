@@ -1,0 +1,44 @@
+name: Deploy ASAPify Frontend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_API_MODE: live
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: hack2skill-510921.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: hack2skill-510921
+          VITE_FIREBASE_APP_ID: 1:950889990251:web:4a2937a1d2377d9541492e
+          VITE_FIREBASE_MESSAGING_SENDER_ID: '950889990251'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/950889990251/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: asapify-firebase-deployer@hack2skill-510921.iam.gserviceaccount.com
+
+      - name: Deploy Firebase Hosting
+        run: npx firebase-tools@15.32.0 deploy --only hosting --project hack2skill-510921 --non-interactive

@@ -48,11 +48,14 @@ export interface VerificationSummary {
 }
 
 export interface Decision {
+  notifications?: { state: 'outbox_saved' | 'no_recipients'; recipients: number; jobs: number } | null;
   action: 'publish' | 'reject';
   by: string;
   at: string;
   reason: string | null;
   alert_id: string | null;
+  /** Present in live API; absent in older mock fixtures. A saved decision is not proof of delivery. */
+  telegram?: { status: 'pending' | 'sent' | 'failed' | 'unknown'; message_id: number | null; error?: string | null } | null;
 }
 
 export interface ClusterSummary {

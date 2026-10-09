@@ -1,5 +1,8 @@
 # asapify-web
 
+**Integrasi GCP:** lihat [docs/GCP.md](docs/GCP.md) untuk Firebase Hosting, login Google,
+custom claim operator dan API Cloud Run. Mode live kini mengirim token Firebase; mode mock tetap tersedia.
+
 Web operator ASAPify (Google Cloud AI Builder Cup 2026): peta status piksel gambut Sumatra dan Kalimantan (15 provinsi),
 detail kelompok `AWAS` (atribut MAUT, tetangga, verifikasi agen), dan keputusan terbitkan/tolak.
 

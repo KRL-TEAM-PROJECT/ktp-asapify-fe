@@ -3,15 +3,21 @@ import {
   type Api, type Basemap, type ClusterDetail, type ClusterSummary, type GridCompact, type Meta,
   type NightCompact, type NightSummary, type PeatBoundary, type PixelIndex, type ProvinceBoundary,
 } from './types';
+import { getOperatorToken } from './auth';
 
 export const API_MODE: 'mock' | 'live' = import.meta.env.VITE_API_MODE === 'live' ? 'live' : 'mock';
 
 const BASE = `${import.meta.env.VITE_API_BASE ?? ''}/api/v1`;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  let token: string | null = null;
+  if (path.startsWith('/operator/')) {
+    try { token = await getOperatorToken(); }
+    catch { throw new ApiError(401, 'UNAUTHENTICATED', 'Silakan masuk kembali.'); }
+  }
   const r = await fetch(BASE + path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init?.headers },
   });
   if (!r.ok) {
     let code = `HTTP_${r.status}`;
@@ -29,6 +35,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 async function file<T>(url: string | undefined, empty: T): Promise<T> {
   if (!url) return empty;
   const r = await fetch(url);
+  if (!r.ok) throw new ApiError(r.status, 'LAYER_UNAVAILABLE', 'Layer peta belum tersedia.');
   return (await r.json()) as T;
 }
 

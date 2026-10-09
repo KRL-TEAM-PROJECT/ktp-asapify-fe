@@ -2,7 +2,7 @@ import { Suspense, lazy, type ReactNode } from 'react';
 import { BrowserRouter, Link, NavLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { I18nProvider, useI18n } from './i18n';
 import { MotionProvider, m, spring, springSoft } from './motion';
-import { signOut, useUser } from './auth';
+import { signOut, useAuthState, useUser } from './auth';
 import { useTheme } from './lib/theme';
 import { API_MODE } from './api';
 import { currentScenario } from './mock/scenario';
@@ -13,16 +13,19 @@ import { Tentang } from './pages/Tentang';
 // hanya dimuat di rutenya sendiri.
 const PetaOperator = lazy(() => import('./pages/PetaOperator').then((m) => ({ default: m.PetaOperator })));
 const Kelompok = lazy(() => import('./pages/Kelompok').then((m) => ({ default: m.Kelompok })));
+const Notifikasi = lazy(() => import('./pages/Notifikasi').then((m) => ({ default: m.Notifikasi })));
 const KontrakApi = lazy(() => import('./pages/KontrakApi').then((m) => ({ default: m.KontrakApi })));
 
 function PageFallback() {
   return <div className="page-fallback" aria-busy="true"><div className="skel" /></div>;
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
-  const user = useUser();
+function RequireAuth({ children, operator = true }: { children: ReactNode; operator?: boolean }) {
+  const { user, loading } = useAuthState();
   const loc = useLocation();
+  if (loading) return <PageFallback />;
   if (!user) return <Navigate to="/masuk" replace state={{ from: loc.pathname + loc.search }} />;
+  if (operator && user.role !== 'operator') return <Navigate to="/notifikasi" replace />;
   return children;
 }
 
@@ -54,7 +57,8 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
           <span className="mock-badge" title={t('mock.title', { sc: currentScenario() })}>{t('mock.badge')}</span>
         )}
         <nav className="navlinks" aria-label={t('nav.label')}>
-          {user && <NavItem to="/" end>{t('nav.map')}</NavItem>}
+          {user?.role === 'operator' && <NavItem to="/" end>{t('nav.map')}</NavItem>}
+          <NavItem to="/notifikasi">{lang === 'id' ? 'Notifikasi' : 'Notifications'}</NavItem>
           <NavItem to="/tentang">{t('nav.about')}</NavItem>
           <NavItem to="/kontrak-api">
             <span className="nl-full">{t('nav.api')}</span><span className="nl-short">{t('nav.api_short')}</span>
@@ -73,7 +77,7 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
             {theme.pref === 'auto' ? '◐' : theme.pref === 'light' ? '☀' : '☾'}
           </button>
           {user ? (
-            <button className="link-btn" onClick={() => { signOut(); nav('/masuk'); }} title={user.email}>{t('nav.signout')}</button>
+            <button className="link-btn" onClick={() => { void signOut().then(() => nav('/masuk')).catch(() => nav('/masuk')); }} title={user.email}>{t('nav.signout')}</button>
           ) : (
             <NavLink className="link-btn" to="/masuk">{t('nav.signin')}</NavLink>
           )}
@@ -111,6 +115,7 @@ function Root() {
         <Route path="/masuk" element={<Masuk />} />
         <Route path="/tentang" element={<Tentang />} />
         <Route path="/kontrak-api" element={<KontrakApi />} />
+        <Route path="/notifikasi" element={<RequireAuth operator={false}><Notifikasi /></RequireAuth>} />
         <Route path="/" element={<RequireAuth><PetaOperator dark={theme.dark} /></RequireAuth>} />
         <Route path="/kelompok/:id" element={<RequireAuth><Kelompok /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />

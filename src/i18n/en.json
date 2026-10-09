@@ -15,7 +15,6 @@
   "mock.title": "Fictional data generated in the browser; no server connected. Scenario: {sc}",
   "retry": "Retry",
   "load_error": "Could not load data. {msg}",
-
   "err.network": "The server is unreachable. Check your connection, then retry.",
   "err.UNAUTHENTICATED": "Your session has ended. Please sign in again.",
   "err.FORBIDDEN": "This account has no operator access.",
@@ -26,26 +25,21 @@
   "err.ALREADY_CLOSED": "This alert is already closed.",
   "err.REASON_REQUIRED": "Write a reason for rejecting.",
   "err.CAPTION_INVALID": "The message is empty or longer than 1,024 characters.",
-
   "status.safe": "Safe",
   "status.no_obs": "No observation",
   "status.watch": "Watch",
   "status.awas": "AWAS",
   "awas.note": "AWAS calls the agent to verify. The status alone does not mean a fire.",
-
   "evidence.strong": "Strong evidence",
   "evidence.inconclusive": "Inconclusive",
   "evidence.none": "Not verified yet",
-
   "decision.published": "Published",
   "decision.rejected": "Rejected",
   "decision.pending": "Awaiting decision",
-
   "sat.agree": "Himawari + GK2A agree",
   "sat.single": "One satellite",
   "sat.single_note": "AWAS needs both satellites",
   "sat.late": "{min} min late",
-
   "banner.slot": "Slot {slot}",
   "banner.replay": "Replay: data as of {when}.",
   "banner.archive": "Archive night of {date}. The map and the cluster list follow this night.",
@@ -53,7 +47,6 @@
   "banner.one_sat": "{sat} data is late. AWAS needs both satellites, so pixels can reach Watch at most.",
   "banner.day": "Daytime. The map shows the last slot of last night.",
   "banner.cloudy": "Cloud covers more than half of the pixels. Cloudy pixels never count as safe.",
-
   "player.title": "Night of {date}",
   "player.play": "Play this night",
   "player.pause": "Pause",
@@ -66,7 +59,6 @@
   "player.night_prev": "Previous night",
   "player.night_next": "Next night",
   "player.night_latest": "{date} (latest)",
-
   "cal.title": "Night calendar",
   "cal.month": "Month",
   "cal.year": "Year",
@@ -78,7 +70,6 @@
   "cal.legend_none": "faded dates: no data",
   "cal.day_awas": "{date} · AWAS clusters: {n}",
   "cal.day_none": "{date} · no data",
-
   "insp.title": "Pixel",
   "insp.close": "Close",
   "insp.status": "Status",
@@ -89,7 +80,6 @@
   "insp.utility_latest": "Utility (latest slot)",
   "insp.n_sat": "Satellites at slot",
   "insp.open_cluster": "Open cluster {id}",
-
   "lc.title": "Layers",
   "lc.basemap": "Basemap",
   "lc.base_map": "Street map",
@@ -109,21 +99,18 @@
   "lc.why_memory": "device RAM ≤ 2 GB",
   "lc.why_cpu": "limited CPU and RAM",
   "lc.why_motion": "the system asks for reduced motion",
-
   "search.label": "Search",
   "search.placeholder": "C-0924-002, p420_950, or -2.21, 113.92",
   "search.go": "Search",
   "search.none": "No match. Try a cluster ID, a pixel ID, or lat, lon coordinates.",
   "search.outside": "Those coordinates are outside the monitored area (Sumatra and Kalimantan).",
   "search.not_peat": "Those coordinates are not a monitored peat pixel.",
-
   "cluster.f_utility": "Utility",
   "cluster.f_nbr": "Neighbours",
   "cluster.f_sat": "Satellites",
   "cluster.f_ver": "Verification",
   "cluster.f_dec": "Decision",
   "map.nbr": "{k}/8 neighbours",
-
   "map.aria": "Map of Sumatra and Kalimantan peat pixel status",
   "map.clusters_title": "AWAS clusters: {n}",
   "map.sort_label": "Sort clusters",
@@ -147,7 +134,6 @@
   "map.utility": "Utility",
   "map.n_sat": "Satellites",
   "map.no_value": "none",
-
   "island.sumatra": "Sumatra",
   "island.kalimantan": "Kalimantan",
   "prov.11": "Aceh",
@@ -165,18 +151,15 @@
   "prov.63": "South Kalimantan",
   "prov.64": "East Kalimantan",
   "prov.65": "North Kalimantan",
-
   "cluster.back": "Map",
   "cluster.trigger": "Triggered {slot}",
   "cluster.pixels": "{n} pixels",
   "cluster.closed": "Closed",
   "cluster.not_found": "This cluster does not exist.",
-
   "chart.title": "Utility over 3 nights",
   "chart.caption": "{range} · hatched = no observation",
   "chart.aria": "Utility per slot over 3 nights; value at the trigger slot {u}",
   "chart.trigger": "trigger",
-
   "attr.title": "MAUT attributes at the trigger slot",
   "attr.u_H": "Himawari",
   "attr.u_G": "GK2A",
@@ -242,7 +225,6 @@
   "probe.conf_h": "high",
   "probe.frp": "FRP {v} MW",
   "probe.sr": "{id}: {summary}",
-
   "nbr.title": "8 neighbours",
   "nbr.anomaly": "U0 ≥ 0.5",
   "nbr.normal": "normal",
@@ -250,7 +232,6 @@
   "nbr.non_peat": "not peat",
   "nbr.center": "representative pixel",
   "nbr.formula": "u_N = {k}/8 = {v}",
-
   "ver.title": "Agent verification",
   "ver.pending": "The agent has not verified this cluster yet.",
   "ver.at": "Verified {when}",
@@ -264,18 +245,16 @@
   "ver.src.viirs_firms": "VIIRS FIRMS",
   "ver.src.viirs_image": "VIIRS image",
   "ver.src.himawari_image": "Himawari image",
-
   "trace.title": "Agent steps ({n})",
   "trace.note": "Tools the ADK + Gemini agent called, in order.",
-
   "dec.title": "Operator decision",
   "dec.summary": "Summary",
-  "dec.caption": "Telegram message (in Indonesian)",
+  "dec.caption": "Notification text (in Indonesian)",
   "dec.count": "{n}/1024",
   "btn.publish": "Publish to group",
   "btn.reject": "Reject",
   "dec.reason": "Reason for rejecting (required)",
-  "dec.confirm_publish": "Send to the {prov} alert group? You cannot recall a sent message.",
+  "dec.confirm_publish": "Publish information to opted-in subscribers in {prov}? Sent messages cannot be recalled.",
   "dec.confirm": "Yes, send",
   "dec.confirm_reject": "Reject cluster",
   "dec.cancel": "Cancel",
@@ -286,15 +265,13 @@
   "dec.too_long": "The message is longer than 1,024 characters.",
   "dec.reason_required": "Write a reason for rejecting.",
   "dec.sending": "Sending…",
-
-  "login.title": "Operator sign-in",
-  "login.lede": "For operators who review AWAS clusters, read the agent's verification, then publish or reject the alert.",
+  "login.title": "Sign in to ASAPify",
+  "login.lede": "Manage regional notifications. Operators also get map and decision access.",
   "login.btn": "Sign in (demo)",
   "login.note": "Demo: you sign in without an account, and all data inside is fictional.",
   "login.about": "How ASAPify works",
   "login.rule_t": "When a pixel becomes AWAS",
   "login.rule": "Himawari and GK2A must both see heat, and at least 2 of the 8 neighbours must be hot too. An AI agent then checks VIIRS imagery. You decide whether the alert goes out.",
-
   "about.title": "Early detection of smouldering peat in Sumatra and Kalimantan",
   "about.lede": "ASAPify reads two weather satellites every 10 minutes through the night and flags peat pixels that run hotter than they should. An operator reviews each flag and decides whether the provincial Telegram group needs to know.",
   "about.scope": "Coverage: peatland in 15 provinces, 20:00–04:50 WIB. ASAPify reports embers that are already burning; fire-risk mapping is outside its scope.",
@@ -339,7 +316,6 @@
   "about.src_khg": "Indicative map of peat hydrological units, KLHK",
   "about.src_wc": "Land cover; built-up pixels are excluded",
   "about.src_gb": "Province boundaries (ODbL licence)",
-
   "api.title": "Operator screen API contract",
   "api.lede": "For the API/BE team. Each endpoint lists its response shape, the screen that uses it and its errors. JSON examples come from the same mock data the UI shows.",
   "api.legend_backend": "already in backend.html",
@@ -375,5 +351,16 @@
   "api.trimmed": "items trimmed",
   "api.grid_count": "The mock holds {n} pixels; the example shows 2.",
   "api.public": "public",
-  "api.operator": "operator"
+  "api.operator": "operator",
+  "login.google": "Sign in with Google",
+  "login.wait": "Checking account…",
+  "login.live_note": "Use a verified Google account. Map and decision access is restricted to operators.",
+  "login.config_error": "Sign-in is not configured. Contact the ASAPify administrator.",
+  "login.failed": "Sign-in failed. Check your account or popup permission and try again.",
+  "dec.delivery_unconfirmed": "Delivery not confirmed",
+  "dec.delivery_warning": "The decision was saved, but Telegram delivery is not confirmed. Ask the administrator to check delivery before attempting to resend.",
+  "err.DATA_NOT_READY": "Observation data is not available for this time yet.",
+  "err.DELIVERY_NOT_CONFIGURED": "Telegram delivery is not configured yet.",
+  "err.INTEGRATION_NOT_READY": "This integration is not enabled yet.",
+  "err.VERIFICATION_REQUIRED": "Wait for verification before publishing."
 }

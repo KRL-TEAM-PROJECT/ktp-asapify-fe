@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
-import { signIn, useUser } from '../auth';
+import { signIn, useAuthState } from '../auth';
+import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
 import type { Neighbour } from '../types';
 import { NeighbourGrid } from '../components/NeighbourGrid';
@@ -14,10 +16,22 @@ const RULE_DEMO: Neighbour[] = [
 
 export function Masuk() {
   const { t } = useI18n();
-  const user = useUser();
+  const { user, loading, error: authError } = useAuthState();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const nav = useNavigate();
-  const from = (useLocation().state as { from?: string } | null)?.from ?? '/';
-  if (user) return <Navigate to={from} replace />;
+  const candidate = (useLocation().state as { from?: string } | null)?.from ?? '/';
+  const from = candidate.startsWith('/') && !candidate.startsWith('//') ? candidate : '/';
+  if (user) return <Navigate to={user.role === 'operator' ? from : '/notifikasi'} replace />;
+
+  async function login() {
+    setBusy(true); setError(null);
+    try { const u = await signIn(); nav(u.role === 'operator' ? from : '/notifikasi', { replace: true }); }
+    catch (e) {
+      const code = e instanceof Error ? e.message : '';
+      setError(t(code === 'FORBIDDEN' ? 'err.FORBIDDEN' : code === 'AUTH_NOT_CONFIGURED' ? 'login.config_error' : 'login.failed'));
+    } finally { setBusy(false); }
+  }
 
   return (
     <div className="login">
@@ -36,10 +50,11 @@ export function Masuk() {
       >
         <h1>{t('login.title')}</h1>
         <p className="muted">{t('login.lede')}</p>
-        <button className="btn primary wide" onClick={() => { signIn(); nav(from, { replace: true }); }}>
-          {t('login.btn')}
+        <button className="btn primary wide" disabled={busy || loading} onClick={() => { void login(); }}>
+          {t(busy || loading ? 'login.wait' : API_MODE === 'live' ? 'login.google' : 'login.btn')}
         </button>
-        <p className="muted small">{t('login.note')}</p>
+        <p className="muted small">{t(API_MODE === 'live' ? 'login.live_note' : 'login.note')}</p>
+        {(error || authError) && <p className="error" role="alert">{error ?? t(authError === 'FORBIDDEN' ? 'err.FORBIDDEN' : 'login.config_error')}</p>}
         <Link to="/tentang">{t('login.about')}</Link>
       </m.div>
     </div>

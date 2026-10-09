@@ -27,6 +27,12 @@ function maplibreWorker(): Plugin {
 // Mode live tanpa VITE_API_BASE: /api/** diteruskan ke asapify-api lokal saat dev.
 export default defineConfig({
   plugins: [react(), maplibreWorker()],
+  build: {
+    rollupOptions: {
+      input: { app: 'index.html', 'notification-sw': 'src/notification-sw.ts' },
+      output: { entryFileNames: chunk => chunk.name === 'notification-sw' ? 'notification-sw.js' : 'assets/[name]-[hash].js' },
+    },
+  },
   server: {
     port: 5173,
     proxy: { '/api': 'http://localhost:8080' },

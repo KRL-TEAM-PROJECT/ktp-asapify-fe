@@ -15,7 +15,6 @@
   "mock.title": "Data fiktif buatan peramban, belum tersambung ke server. Skenario: {sc}",
   "retry": "Coba lagi",
   "load_error": "Gagal memuat data. {msg}",
-
   "err.network": "Server tidak terjangkau. Periksa koneksi, lalu coba lagi.",
   "err.UNAUTHENTICATED": "Sesi Anda sudah berakhir. Silakan masuk lagi.",
   "err.FORBIDDEN": "Akun ini tidak punya akses operator.",
@@ -26,26 +25,21 @@
   "err.ALREADY_CLOSED": "Peringatan ini sudah ditutup.",
   "err.REASON_REQUIRED": "Tulis alasan penolakan.",
   "err.CAPTION_INVALID": "Pesan kosong atau lebih dari 1.024 karakter.",
-
   "status.safe": "Aman",
   "status.no_obs": "Tidak teramati",
   "status.watch": "Pantau",
   "status.awas": "AWAS",
   "awas.note": "AWAS memanggil agen untuk verifikasi. Status ini belum berarti ada kebakaran.",
-
   "evidence.strong": "Bukti kuat",
   "evidence.inconclusive": "Inkonklusif",
   "evidence.none": "Belum diverifikasi",
-
   "decision.published": "Diterbitkan",
   "decision.rejected": "Ditolak",
   "decision.pending": "Menunggu keputusan",
-
   "sat.agree": "Himawari + GK2A sepakat",
   "sat.single": "Satu satelit",
   "sat.single_note": "AWAS butuh dua satelit",
   "sat.late": "terlambat {min} mnt",
-
   "banner.slot": "Slot {slot}",
   "banner.replay": "Putar ulang: data per {when}.",
   "banner.archive": "Arsip malam {date}. Peta dan daftar kelompok mengikuti malam ini.",
@@ -53,7 +47,6 @@
   "banner.one_sat": "Data {sat} terlambat. AWAS butuh dua satelit, jadi piksel paling tinggi berstatus Pantau.",
   "banner.day": "Siang hari. Peta menampilkan slot terakhir tadi malam.",
   "banner.cloudy": "Awan menutupi lebih dari separuh piksel. Piksel berawan tidak dihitung aman.",
-
   "player.title": "Malam {date}",
   "player.play": "Putar malam ini",
   "player.pause": "Jeda",
@@ -66,7 +59,6 @@
   "player.night_prev": "Malam sebelumnya",
   "player.night_next": "Malam berikutnya",
   "player.night_latest": "{date} (terbaru)",
-
   "cal.title": "Kalender malam",
   "cal.month": "Bulan",
   "cal.year": "Tahun",
@@ -78,7 +70,6 @@
   "cal.legend_none": "tanggal pudar: tidak ada data",
   "cal.day_awas": "{date} · kelompok AWAS: {n}",
   "cal.day_none": "{date} · tidak ada data",
-
   "insp.title": "Piksel",
   "insp.close": "Tutup",
   "insp.status": "Status",
@@ -89,7 +80,6 @@
   "insp.utility_latest": "Utilitas (slot terbaru)",
   "insp.n_sat": "Satelit di slot",
   "insp.open_cluster": "Buka kelompok {id}",
-
   "lc.title": "Lapisan",
   "lc.basemap": "Peta dasar",
   "lc.base_map": "Peta jalan",
@@ -109,21 +99,18 @@
   "lc.why_memory": "RAM perangkat ≤ 2 GB",
   "lc.why_cpu": "prosesor dan RAM terbatas",
   "lc.why_motion": "sistem meminta animasi dikurangi",
-
   "search.label": "Cari",
   "search.placeholder": "C-0924-002, p420_950, atau -2.21, 113.92",
   "search.go": "Cari",
   "search.none": "Tidak ketemu. Coba ID kelompok, ID piksel, atau koordinat lat, lon.",
   "search.outside": "Koordinat itu di luar wilayah pantau (Sumatra dan Kalimantan).",
   "search.not_peat": "Koordinat itu bukan piksel gambut yang dipantau.",
-
   "cluster.f_utility": "Utilitas",
   "cluster.f_nbr": "Tetangga",
   "cluster.f_sat": "Satelit",
   "cluster.f_ver": "Verifikasi",
   "cluster.f_dec": "Keputusan",
   "map.nbr": "{k}/8 tetangga",
-
   "map.aria": "Peta status piksel gambut Sumatra dan Kalimantan",
   "map.clusters_title": "Kelompok AWAS: {n}",
   "map.sort_label": "Urutkan kelompok",
@@ -147,7 +134,6 @@
   "map.utility": "Utilitas",
   "map.n_sat": "Satelit",
   "map.no_value": "tidak ada",
-
   "island.sumatra": "Sumatra",
   "island.kalimantan": "Kalimantan",
   "prov.11": "Aceh",
@@ -165,18 +151,15 @@
   "prov.63": "Kalimantan Selatan",
   "prov.64": "Kalimantan Timur",
   "prov.65": "Kalimantan Utara",
-
   "cluster.back": "Peta",
   "cluster.trigger": "Dipicu {slot}",
   "cluster.pixels": "{n} piksel",
   "cluster.closed": "Ditutup",
   "cluster.not_found": "Kelompok ini tidak ada.",
-
   "chart.title": "Utilitas 3 malam",
   "chart.caption": "{range} · arsir = tidak teramati",
   "chart.aria": "Grafik utilitas per slot selama 3 malam; nilai di slot pemicu {u}",
   "chart.trigger": "pemicu",
-
   "attr.title": "Atribut MAUT di slot pemicu",
   "attr.u_H": "Himawari",
   "attr.u_G": "GK2A",
@@ -242,7 +225,6 @@
   "probe.conf_h": "tinggi",
   "probe.frp": "FRP {v} MW",
   "probe.sr": "{id}: {summary}",
-
   "nbr.title": "Tetangga 8 arah",
   "nbr.anomaly": "U0 ≥ 0,5",
   "nbr.normal": "normal",
@@ -250,7 +232,6 @@
   "nbr.non_peat": "bukan gambut",
   "nbr.center": "piksel perwakilan",
   "nbr.formula": "u_N = {k}/8 = {v}",
-
   "ver.title": "Verifikasi agen",
   "ver.pending": "Agen belum memverifikasi kelompok ini.",
   "ver.at": "Diverifikasi {when}",
@@ -264,18 +245,16 @@
   "ver.src.viirs_firms": "VIIRS FIRMS",
   "ver.src.viirs_image": "Citra VIIRS",
   "ver.src.himawari_image": "Citra Himawari",
-
   "trace.title": "Langkah agen ({n})",
   "trace.note": "Alat yang dipanggil agen ADK + Gemini, berurutan.",
-
   "dec.title": "Keputusan operator",
   "dec.summary": "Ringkasan",
-  "dec.caption": "Pesan Telegram (bahasa Indonesia)",
+  "dec.caption": "Pesan notifikasi (bahasa Indonesia)",
   "dec.count": "{n}/1024",
   "btn.publish": "Terbitkan ke grup",
   "btn.reject": "Tolak",
   "dec.reason": "Alasan penolakan (wajib)",
-  "dec.confirm_publish": "Kirim ke grup peringatan {prov}? Pesan yang sudah terkirim tidak bisa ditarik.",
+  "dec.confirm_publish": "Terbitkan informasi untuk pelanggan wilayah {prov} melalui kanal yang disetujui? Pesan terkirim tidak bisa ditarik.",
   "dec.confirm": "Ya, kirim",
   "dec.confirm_reject": "Tolak kelompok",
   "dec.cancel": "Batal",
@@ -286,15 +265,13 @@
   "dec.too_long": "Pesan lebih dari 1.024 karakter.",
   "dec.reason_required": "Tulis alasan penolakan.",
   "dec.sending": "Mengirim…",
-
-  "login.title": "Masuk operator",
-  "login.lede": "Untuk operator yang memeriksa kelompok AWAS, membaca hasil verifikasi agen, lalu menerbitkan atau menolak peringatan.",
+  "login.title": "Masuk ke ASAPify",
+  "login.lede": "Atur notifikasi wilayahmu. Operator mendapat akses peta dan keputusan.",
   "login.btn": "Masuk (demo)",
   "login.note": "Demo: Anda masuk tanpa akun, dan semua data di dalamnya fiktif.",
   "login.about": "Cara kerja ASAPify",
   "login.rule_t": "Kapan piksel menjadi AWAS",
   "login.rule": "Himawari dan GK2A harus sama-sama melihat panas, dan minimal 2 dari 8 tetangga ikut panas. Agen AI lalu memeriksa citra VIIRS. Anda yang memutuskan apakah peringatan dikirim.",
-
   "about.title": "Deteksi dini gambut membara di Sumatra dan Kalimantan",
   "about.lede": "ASAPify membaca dua satelit cuaca tiap 10 menit sepanjang malam dan menandai piksel gambut yang lebih panas dari seharusnya. Operator memeriksa tanda itu, lalu memutuskan apakah grup Telegram provinsi perlu diberi tahu.",
   "about.scope": "Cakupan: gambut di 15 provinsi, pukul 20.00–04.50 WIB. ASAPify melaporkan bara yang sudah menyala; peta risiko kebakaran berada di luar cakupannya.",
@@ -339,7 +316,6 @@
   "about.src_khg": "Peta Indikatif Kesatuan Hidrologis Gambut, Dit. PKG KLHK",
   "about.src_wc": "Tutupan lahan; piksel permukiman dikeluarkan",
   "about.src_gb": "Batas provinsi (lisensi ODbL)",
-
   "api.title": "Kontrak API layar operator",
   "api.lede": "Untuk tim API/BE. Tiap endpoint mencatat bentuk respons, layar yang memakainya, dan galatnya. Contoh JSON berasal dari data mock yang sama dengan yang tampil di UI.",
   "api.legend_backend": "sudah ada di backend.html",
@@ -375,5 +351,16 @@
   "api.trimmed": "item dipotong",
   "api.grid_count": "Mock berisi {n} piksel; contoh menampilkan 2.",
   "api.public": "publik",
-  "api.operator": "operator"
+  "api.operator": "operator",
+  "login.google": "Masuk dengan Google",
+  "login.wait": "Memeriksa akun…",
+  "login.live_note": "Gunakan akun Google terverifikasi. Akses peta dan keputusan tetap khusus operator.",
+  "login.config_error": "Login belum dikonfigurasi. Hubungi pengelola ASAPify.",
+  "login.failed": "Gagal masuk. Periksa akun atau izin popup, lalu coba lagi.",
+  "dec.delivery_unconfirmed": "Pengiriman belum terkonfirmasi",
+  "dec.delivery_warning": "Keputusan tersimpan, tetapi pengiriman Telegram belum terkonfirmasi. Hubungi pengelola untuk memeriksa status; jangan kirim ulang sebelum diperiksa.",
+  "err.DATA_NOT_READY": "Data observasi belum tersedia untuk waktu ini.",
+  "err.DELIVERY_NOT_CONFIGURED": "Pengiriman Telegram belum dikonfigurasi.",
+  "err.INTEGRATION_NOT_READY": "Integrasi ini belum diaktifkan.",
+  "err.VERIFICATION_REQUIRED": "Tunggu hasil verifikasi sebelum menerbitkan."
 }

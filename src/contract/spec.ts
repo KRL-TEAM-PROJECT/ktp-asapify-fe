@@ -409,16 +409,18 @@ export const SCHEMAS: Schema[] = [
     desc: t('Body keputusan operator.', 'Operator decision body.'),
     fields: [
       { name: 'action', type: "'publish' | 'reject'", req: true, desc: t('Pilihan operator. Tidak ada level.', 'Operator choice. There are no levels.') },
-      { name: 'caption_id', type: 'string ≤ 1024 | null', req: true, desc: t('Wajib untuk publish: caption Telegram (HTML), boleh disunting operator.', 'Required for publish: Telegram caption (HTML), editable by the operator.') },
+      { name: 'caption_id', type: 'string ≤ 1024 | null', req: true, desc: t('Wajib untuk publish: pesan notifikasi, boleh disunting operator; markup lama dihapus untuk kanal teks.', 'Required for publish: notification text, editable by the operator; legacy markup is stripped for text channels.') },
       { name: 'reason', type: 'string | null', req: true, desc: t('Wajib untuk reject.', 'Required for reject.') },
     ],
   },
   {
     name: 'DecisionResponse', origin: 'backend',
-    desc: t('Decision yang tersimpan + hasil kirim Telegram; bentuknya sama dengan field `decision` di detail.', 'Saved Decision + Telegram send result; same shape as the `decision` field in the detail.'),
+    desc: t('Keputusan dan ringkasan outbox tersimpan; status provider dibaca melalui endpoint deliveries.', 'Saved decision and outbox summary; provider status is read through the deliveries endpoint.'),
     fields: [
       { name: '…Decision', type: '—', req: true, desc: t('Semua field Decision.', 'All Decision fields.') },
-      { name: 'telegram', type: "{status: 'sent'|'failed', message_id: number|null} | null", req: true, desc: t('null untuk reject. Gagal kirim tetap 201; keputusan tersimpan.', 'null for reject. A failed send is still 201; the decision is saved.') },
+      { name: 'telegram', type: 'null', req: true, desc: t('Field kompatibilitas; tidak lagi mengirim inline.', 'Compatibility field; no inline send.') },
+      { name: 'notifications', type: "{state: 'outbox_saved'|'no_recipients', recipients: number, jobs: number} | null", req: true, desc: t('Antrean tersimpan, belum berarti pesan diterima.', 'Saved outbox, not proof of delivery.') },
+      { name: 'queue', type: "{state: 'accepted'|'awaiting_recovery', count: number}", req: false, desc: t('Hasil enqueue saat publish; Scheduler memulihkan kegagalan enqueue.', 'Enqueue result for publish; Scheduler recovers enqueue failures.') },
     ],
   },
   {
@@ -641,7 +643,7 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
   },
   decisionRes: {
     action: 'publish', by: 'operator@contoh.id', at: '2023-09-24T15:30:00Z', reason: null,
-    alert_id: 'A-0924-001', telegram: { status: 'sent', message_id: 812 },
+    alert_id: 'A-0924-001', telegram: null, notifications: {state: 'outbox_saved', recipients: 2, jobs: 4}, queue: {state: 'accepted', count: 4},
   },
   decisionErr: { error: { code: 'ALREADY_DECIDED', message: 'Kelompok ini sudah diterbitkan oleh operator lain.' } },
   alerts: [{

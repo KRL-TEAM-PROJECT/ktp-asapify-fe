@@ -1,3 +1,4 @@
+import { DeliveryStatus } from './DeliveryStatus';
 import { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { ApiError, type ClusterDetail, type Decision } from '../types';
@@ -13,6 +14,9 @@ import { IconCheck, IconClock, IconSend, IconX } from './icons';
 export function DecisionState({ decision }: { decision: Decision | null }) {
   const { t } = useI18n();
   if (!decision) return <span className="dec-state"><IconClock size={12} />{t('decision.pending')}</span>;
+  if (decision.action === 'publish' && decision.telegram && decision.telegram.status !== 'sent') {
+    return <span className="dec-state"><IconClock size={12} />{t('dec.delivery_unconfirmed')}</span>;
+  }
   return decision.action === 'publish'
     ? <span className="dec-state"><IconSend size={12} />{t('decision.published')}</span>
     : <span className="dec-state"><IconX size={12} />{t('decision.rejected')}</span>;
@@ -52,6 +56,13 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
           {t(d.action === 'publish' ? 'dec.published_by' : 'dec.rejected_by', { by: d.by, when: fmtSlot(d.at, lang) })}
         </p>
         {d.alert_id && <p className="muted">{t('dec.alert', { id: d.alert_id })}</p>}
+        {d.action === 'publish' && d.telegram && d.telegram.status !== 'sent' && (
+          <p className="error" role="alert">{t('dec.delivery_warning')}</p>
+        )}
+        {d.notifications && <p className="muted" role="status">{lang === 'id'
+          ? `Disimpan ke ${d.notifications.recipients} inbox penerima, ${d.notifications.jobs} rencana kanal. Status kirim ada di pemantauan; ini belum berarti diterima.`
+          : `Saved to ${d.notifications.recipients} recipient inboxes, ${d.notifications.jobs} channel plans. Check delivery monitoring; this does not mean received.`}</p>}
+        {d.alert_id && d.notifications && <DeliveryStatus alertId={d.alert_id} />}
         {d.reason && <blockquote>{d.reason}</blockquote>}
       </m.section>
     );

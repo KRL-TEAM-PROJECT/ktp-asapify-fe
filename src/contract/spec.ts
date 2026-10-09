@@ -419,7 +419,7 @@ export const SCHEMAS: Schema[] = [
     fields: [
       { name: '…Decision', type: '—', req: true, desc: t('Semua field Decision.', 'All Decision fields.') },
       { name: 'telegram', type: 'null', req: true, desc: t('Field kompatibilitas; tidak lagi mengirim inline.', 'Compatibility field; no inline send.') },
-      { name: 'notifications', type: "{state: 'outbox_saved'|'no_recipients', recipients: number, jobs: number} | null", req: true, desc: t('Antrean tersimpan, belum berarti pesan diterima.', 'Saved outbox, not proof of delivery.') },
+      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_recipients', recipients: number, jobs: number} | null", req: true, desc: t('Antrean tersimpan, belum berarti pesan diterima. fanout_pending = keputusan tersimpan tetapi penerima belum selesai diantrekan; sweep backend melanjutkannya. Jumlah pelanggan tidak pernah menggagalkan keputusan.', 'Saved outbox, not proof of delivery. fanout_pending = the decision is saved but recipients are not all queued yet; the backend sweep resumes it. The subscriber count never fails a decision.') },
       { name: 'queue', type: "{state: 'accepted'|'awaiting_recovery', count: number}", req: false, desc: t('Hasil enqueue saat publish; Scheduler memulihkan kegagalan enqueue.', 'Enqueue result for publish; Scheduler recovers enqueue failures.') },
     ],
   },

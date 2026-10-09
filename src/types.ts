@@ -48,7 +48,8 @@ export interface VerificationSummary {
 }
 
 export interface Decision {
-  notifications?: { state: 'outbox_saved' | 'no_recipients'; recipients: number; jobs: number } | null;
+  /** fanout_pending: keputusan tersimpan, penerima masih diantrekan (sweep backend melanjutkan). */
+  notifications?: { state: 'fanout_pending' | 'outbox_saved' | 'no_recipients'; recipients: number; jobs: number } | null;
   action: 'publish' | 'reject';
   by: string;
   at: string;

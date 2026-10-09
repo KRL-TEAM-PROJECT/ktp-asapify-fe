@@ -58,7 +58,7 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
         )}
         <nav className="navlinks" aria-label={t('nav.label')}>
           {user?.role === 'operator' && <NavItem to="/" end>{t('nav.map')}</NavItem>}
-          <NavItem to="/notifikasi">{lang === 'id' ? 'Notifikasi' : 'Notifications'}</NavItem>
+          <NavItem to="/notifikasi">{t('nav.notifications')}</NavItem>
           <NavItem to="/tentang">{t('nav.about')}</NavItem>
           <NavItem to="/kontrak-api">
             <span className="nl-full">{t('nav.api')}</span><span className="nl-short">{t('nav.api_short')}</span>

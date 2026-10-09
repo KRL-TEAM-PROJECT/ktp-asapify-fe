@@ -1,4 +1,3 @@
-import { DeliveryStatus } from './DeliveryStatus';
 import { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { ApiError, type ClusterDetail, type Decision } from '../types';
@@ -9,6 +8,7 @@ import { CAPTION_MAX } from '../lib/caption';
 import { errorText } from '../lib/errors';
 import { exitFast, m, reveal, spring } from '../motion';
 import { IconCheck, IconClock, IconSend, IconX } from './icons';
+import { DeliveryStatus } from './DeliveryStatus';
 
 /** Label keputusan: teks + ikon, tanpa warna level. */
 export function DecisionState({ decision }: { decision: Decision | null }) {
@@ -59,10 +59,11 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
         {d.action === 'publish' && d.telegram && d.telegram.status !== 'sent' && (
           <p className="error" role="alert">{t('dec.delivery_warning')}</p>
         )}
-        {d.notifications && <p className="muted" role="status">{lang === 'id'
-          ? `Disimpan ke ${d.notifications.recipients} inbox penerima, ${d.notifications.jobs} rencana kanal. Status kirim ada di pemantauan; ini belum berarti diterima.`
-          : `Saved to ${d.notifications.recipients} recipient inboxes, ${d.notifications.jobs} channel plans. Check delivery monitoring; this does not mean received.`}</p>}
-        {d.alert_id && d.notifications && <DeliveryStatus alertId={d.alert_id} />}
+        {d.notifications && <p className="muted" role="status">{
+          d.notifications.state === 'fanout_pending' ? t('dec.outbox_pending')
+            : d.notifications.state === 'no_recipients' ? t('dec.outbox_none')
+              : t('dec.outbox', { r: d.notifications.recipients, j: d.notifications.jobs })}</p>}
+        {d.alert_id && d.notifications && <DeliveryStatus alertId={d.alert_id} since={d.at} />}
         {d.reason && <blockquote>{d.reason}</blockquote>}
       </m.section>
     );

@@ -1,5 +1,6 @@
 import { getUserToken } from './auth';
 import { API_MODE } from './api';
+import { ApiError } from './types';
 
 export const CHANNELS = ['telegram', 'fcm', 'web_push', 'whatsapp', 'sms', 'gmail', 'lora', 'bluetooth_mesh'] as const;
 export type Channel = typeof CHANNELS[number];
@@ -25,8 +26,9 @@ export async function notificationRequest<T>(path: string, method = 'GET', data?
     body: data === undefined ? undefined : JSON.stringify(data),
   });
   if (!response.ok) {
+    // Kode galat dipakai UI untuk teks dalam bahasa layar (lib/errors.ts); pesan server hanya cadangan.
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.error?.message ?? `HTTP ${response.status}`);
+    throw new ApiError(response.status, body.error?.code ?? `HTTP_${response.status}`, body.error?.message ?? response.statusText);
   }
   return response.json() as Promise<T>;
 }
@@ -56,7 +58,7 @@ export const notifications = {
     mockAck ??= new Date().toISOString(); return { acknowledged_at: mockAck };
   },
   async telegram(): Promise<{ url: string }> {
-    if (API_MODE !== 'live') throw new Error('Bot Telegram tersedia setelah backend dikonfigurasi.');
+    if (API_MODE !== 'live') throw new ApiError(503, 'TELEGRAM_NOT_CONFIGURED', 'Bot Telegram belum dikonfigurasi.');
     return notificationRequest('/telegram-link', 'POST');
   },
 };

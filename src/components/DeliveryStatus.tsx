@@ -4,14 +4,20 @@ import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
 
 type Row = { channel: string; status: string; error: string | null; acknowledged_at: string | null };
-export function DeliveryStatus({ alertId }: { alertId: string }) {
-  const { lang } = useI18n();
+const OPEN = new Set(['pending', 'sending']);
+const WINDOW_MS = 3_600_000; // masa kirim v1: satu jam sejak terbit (expires_at di backend)
+
+/** Status kirim per kanal. Diperbarui tiap 15 detik selama masa kirim, atau selama masih ada job yang berjalan. */
+export function DeliveryStatus({ alertId, since }: { alertId: string; since: string }) {
+  const { t } = useI18n();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     if (API_MODE !== 'live') return;
     let active = true;
+    let timer: number | undefined;
     async function load() {
+      let open = true;
       try {
         const token = await getUserToken();
         const response = await fetch(`${import.meta.env.VITE_API_BASE ?? ''}/api/v1/operator/alerts/${encodeURIComponent(alertId)}/deliveries`, {
@@ -20,19 +26,21 @@ export function DeliveryStatus({ alertId }: { alertId: string }) {
         if (!response.ok) throw new Error();
         const data = await response.json() as Row[];
         if (active) { setRows(data); setError(false); }
+        open = data.some(row => OPEN.has(row.status));
       } catch { if (active) setError(true); }
+      if (active && (open || Date.now() < Date.parse(since) + WINDOW_MS)) timer = window.setTimeout(() => void load(), 15000);
     }
-    void load(); const timer = setInterval(() => void load(), 15000);
-    return () => { active = false; clearInterval(timer); };
-  }, [alertId]);
+    void load();
+    return () => { active = false; clearTimeout(timer); };
+  }, [alertId, since]);
   if (API_MODE !== 'live') return null;
-  if (error) return <p className="error">{lang === 'id' ? 'Status pengiriman belum dapat dimuat.' : 'Delivery status unavailable.'}</p>;
-  if (!rows) return <p className="muted">{lang === 'id' ? 'Memuat status kanal…' : 'Loading channel status…'}</p>;
+  if (error) return <p className="error">{t('dlv.error')}</p>;
+  if (!rows) return <p className="muted">{t('dlv.loading')}</p>;
   const counts = new Map<string, number>();
   rows.forEach(row => {
-    const label = `${row.channel} · ${row.acknowledged_at ? (lang === 'id' ? 'dikonfirmasi' : 'acknowledged') : row.status}${row.error ? ` (${row.error})` : ''}`;
+    const label = `${t(`notif.ch.${row.channel}`)} · ${row.acknowledged_at ? t('dlv.acked') : t(`dlv.st.${row.status}`)}${row.error ? ` (${row.error})` : ''}`;
     counts.set(label, (counts.get(label) ?? 0) + 1);
   });
-  return <div aria-live="polite"><p className="muted small">{lang === 'id' ? 'accepted = diterima penyedia, belum berarti dibaca. Pembaruan setiap 15 detik.' : 'accepted = provider accepted, not necessarily read. Refreshes every 15 seconds.'}</p>
+  return <div aria-live="polite"><p className="muted small">{t('dlv.note')}</p>
     <ul>{[...counts].map(([label, count]) => <li key={label}>{label}: {count}</li>)}</ul></div>;
 }

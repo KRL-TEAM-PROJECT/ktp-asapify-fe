@@ -238,7 +238,7 @@ export const SCHEMAS: Schema[] = [
     fields: [
       { name: 'id', type: 'string', req: true, desc: t('`C-{MMDD}-{nnn}`; tetap sama selama kelompok tumpang tindih dengan yang aktif.', '`C-{MMDD}-{nnn}`; kept while it overlaps an active cluster.') },
       { name: 'state', type: "'active' | 'closed'", req: true, desc: t('Ditutup setelah 3 malam valid tanpa piksel AWAS.', 'Closed after 3 valid nights without AWAS pixels.') },
-      { name: 'province', type: PROV_T, req: true, desc: t('Provinsi piksel perwakilan; menentukan grup Telegram.', 'Province of the representative pixel; selects the Telegram group.') },
+      { name: 'province', type: PROV_T, req: true, desc: t('Provinsi piksel perwakilan; menentukan pelanggan yang menerima peringatan.', 'Province of the representative pixel; decides which subscribers receive the alert.') },
       { name: 'rep_pixel', type: 'string', req: true, desc: t('pixel_id dengan U tertinggi.', 'pixel_id with the highest U.') },
       { name: 'centroid', type: '[lon, lat]', req: true, desc: t('Titik tengah kelompok; target zoom peta dan caption.', 'Cluster centre; map zoom target and caption.') },
       { name: 'pixels', type: 'string[]', req: true, desc: t('Semua pixel_id anggota.', 'All member pixel_ids.') },
@@ -264,7 +264,7 @@ export const SCHEMAS: Schema[] = [
     name: 'Decision', origin: 'backend',
     desc: t('Keputusan operator atas satu kelompok (sekali per kelompok).', 'Operator decision on one cluster (once per cluster).'),
     fields: [
-      { name: 'action', type: "'publish' | 'reject'", req: true, desc: t('Terbitkan ke grup peringatan atau tolak.', 'Publish to the alert group or reject.') },
+      { name: 'action', type: "'publish' | 'reject'", req: true, desc: t('Terbitkan ke pelanggan provinsi itu atau tolak.', 'Publish to that province\'s subscribers or reject.') },
       { name: 'by', type: 'string (email)', req: true, desc: t('Email operator.', 'Operator email.') },
       { name: 'at', type: ISO, req: true, desc: t('Waktu keputusan.', 'Decision time.') },
       { name: 'reason', type: 'string | null', req: true, desc: t('Wajib untuk reject; null untuk publish.', 'Required for reject; null for publish.') },
@@ -441,18 +441,18 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'Alert', origin: 'backend',
-    desc: t('Peringatan yang sudah diterbitkan ke grup Telegram.', 'Alert published to the Telegram group.'),
+    desc: t('Peringatan yang sudah diterbitkan ke pelanggan.', 'Alert published to subscribers.'),
     fields: [
       { name: 'id', type: 'string', req: true, desc: t('`A-{MMDD}-{nnn}`.', '`A-{MMDD}-{nnn}`.') },
       { name: 'cluster_id', type: 'string', req: true, desc: t('Kelompok asal.', 'Source cluster.') },
-      { name: 'province', type: PROV_T, req: true, desc: t('Grup peringatan tujuan.', 'Target alert group.') },
+      { name: 'province', type: PROV_T, req: true, desc: t('Provinsi tujuan; pelanggan yang memilihnya menerima pesan.', 'Target province; its subscribers receive the message.') },
       { name: 'caption_id', type: 'string', req: true, desc: t('Caption yang terkirim (atau terakhir disunting).', 'Caption sent (or last edited).') },
       { name: 'published_by', type: 'string (email)', req: true, desc: t('Operator penerbit.', 'Publishing operator.') },
       { name: 'published_at', type: ISO, req: true, desc: t('Waktu terbit.', 'Publish time.') },
-      { name: 'status', type: "'active' | 'closed'", req: true, desc: t('closed = caption diedit diawali SELESAI.', 'closed = caption edited to start with SELESAI.') },
+      { name: 'status', type: "'active' | 'closed'", req: true, desc: t('closed = inbox berlabel SELESAI, job yang belum terkirim batal.', 'closed = inbox entries labelled SELESAI, unsent jobs cancelled.') },
       { name: 'closed_at', type: `${ISO} | null`, req: true, desc: t('Waktu ditutup.', 'Close time.') },
       { name: 'closed_by', type: "string | 'system' | null", req: true, desc: t("Email operator, atau 'system' bila kelompok ditutup otomatis.", "Operator email, or 'system' when the cluster closed automatically.") },
-      { name: 'telegram', type: "{status: 'sent'|'failed'|'edited', message_id: number|null, error: string|null}", req: true, desc: t('Status pesan di grup.', 'Message status in the group.') },
+      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_recipients', recipients: number, jobs: number}", req: true, desc: t('Ringkasan antrean; status per kanal dibaca dari /operator/alerts/{id}/deliveries.', 'Queue summary; per-channel status comes from /operator/alerts/{id}/deliveries.') },
     ],
   },
   {
@@ -591,8 +591,8 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'decision', method: 'POST', path: '/operator/clusters/{id}/decision', auth: 'operator',
     title: t('Terbitkan / tolak', 'Publish / reject'),
-    purpose: t('Publish: simpan keputusan, bot mengirim foto + caption ke grup peringatan provinsi. Reject: simpan alasan. Sekali per kelompok; semuanya masuk audit_log. UI memuat ulang detail setelah 201.', 'Publish: save the decision; the bot sends photo + caption to the provincial alert group. Reject: save the reason. Once per cluster; everything goes to audit_log. The UI reloads the detail after 201.'),
-    usedBy: t('Detail kelompok → DecisionPanel (tombol Terbitkan ke grup / Tolak).', 'Cluster detail → DecisionPanel (Publish to group / Reject buttons).'),
+    purpose: t('Publish: simpan keputusan, lalu inbox dan antrean ditulis untuk pelanggan provinsi itu; jumlah pelanggan tidak pernah menggagalkan keputusan. Reject: simpan alasan. Sekali per kelompok; semuanya masuk audit_log. UI memuat ulang detail setelah 201.', 'Publish: save the decision, then inbox entries and a queue are written for that province\'s subscribers; the subscriber count never fails a decision. Reject: save the reason. Once per cluster; everything goes to audit_log. The UI reloads the detail after 201.'),
+    usedBy: t('Detail kelompok → DecisionPanel (tombol Terbitkan / Tolak).', 'Cluster detail → DecisionPanel (Publish / Reject buttons).'),
     params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: t('ID kelompok.', 'Cluster id.') }],
     body: { schema: 'DecisionRequest', example: 'decisionReq' },
     responses: [
@@ -616,7 +616,7 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'close', method: 'POST', path: '/operator/alerts/{id}/close', auth: 'operator',
     title: t('Tutup peringatan', 'Close alert'),
-    purpose: t('Tutup lebih awal oleh operator: caption pesan yang sama diedit jadi diawali SELESAI (editMessageCaption). Penutupan otomatis lewat agent /cluster-closed.', 'Early close by an operator: the same message caption is edited to start with SELESAI (editMessageCaption). Automatic closing goes through agent /cluster-closed.'),
+    purpose: t('Tutup lebih awal oleh operator: inbox berlabel SELESAI dan job yang belum terkirim batal. Penutupan otomatis lewat agent /cluster-closed. Belum diimplementasikan di backend.', 'Early close by an operator: inbox entries get the SELESAI label and unsent jobs are cancelled. Automatic closing goes through agent /cluster-closed. Not implemented in the backend yet.'),
     usedBy: null,
     params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: t('ID peringatan, mis. A-0924-001.', 'Alert id, e.g. A-0924-001.') }],
     body: { schema: 'CloseRequest', example: 'closeReq' },
@@ -628,7 +628,7 @@ export const ENDPOINTS: Endpoint[] = [
 /** Endpoint internal asapify-agent — bukan untuk UI, dicatat agar tim BE tahu batasnya. */
 export const INTERNAL: { method: string; path: string; desc: Txt }[] = [
   { method: 'POST', path: '/verify', desc: t('OIDC sa-jobs / sa-api. Body {cluster_id, trigger_slot, force}. 202 + verification_id.', 'OIDC sa-jobs / sa-api. Body {cluster_id, trigger_slot, force}. 202 + verification_id.') },
-  { method: 'POST', path: '/cluster-closed', desc: t('OIDC sa-jobs. Body {cluster_id}. Edit caption jadi SELESAI bila ada alert terbit.', 'OIDC sa-jobs. Body {cluster_id}. Edits the caption to SELESAI if an alert was published.') },
+  { method: 'POST', path: '/cluster-closed', desc: t('OIDC sa-jobs. Body {cluster_id}. Bila ada alert terbit: tutup alert, beri label SELESAI di inbox, batalkan job yang belum terkirim.', 'OIDC sa-jobs. Body {cluster_id}. If an alert was published: close it, label the inbox entries SELESAI, cancel unsent jobs.') },
 ];
 
 /** Contoh statis untuk endpoint yang tidak punya fixture mock. */
@@ -651,14 +651,14 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
     caption_id: '<b>AWAS · Dugaan gambut membara</b>\n📍 Kalimantan Tengah · -2.05, 113.69 · 6 piksel\n…',
     published_by: 'operator@contoh.id', published_at: '2023-09-23T17:02:00Z',
     status: 'active', closed_at: null, closed_by: null,
-    telegram: { status: 'sent', message_id: 640, error: null },
+    notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
   }],
   closeReq: { reason: 'Kelompok sudah padam menurut BPBD Kalteng' },
   closeRes: {
     id: 'A-0923-001', cluster_id: 'C-0923-001', province: '62',
-    caption_id: 'SELESAI · <b>AWAS · Dugaan gambut membara</b>\n…',
+    caption_id: '<b>AWAS · Dugaan gambut membara</b>\n📍 Kalimantan Tengah · -2.05, 113.69 · 6 piksel\n…',
     published_by: 'operator@contoh.id', published_at: '2023-09-23T17:02:00Z',
     status: 'closed', closed_at: '2023-09-26T02:00:00Z', closed_by: 'operator@contoh.id',
-    telegram: { status: 'edited', message_id: 640, error: null },
+    notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
   },
 };

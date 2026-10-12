@@ -6,8 +6,11 @@ import { useI18n } from '../i18n';
 type Row = { channel: string; status: string; error: string | null; acknowledged_at: string | null };
 const OPEN = new Set(['pending', 'sending']);
 const WINDOW_MS = 3_600_000; // masa kirim v1: satu jam sejak terbit (expires_at di backend)
+// Tiap polling membaca semua job alert + inbox-nya di Firestore; melambat begitu tidak ada job berjalan.
+const POLL_OPEN_MS = 15_000;
+const POLL_IDLE_MS = 60_000;
 
-/** Status kirim per kanal. Diperbarui tiap 15 detik selama masa kirim, atau selama masih ada job yang berjalan. */
+/** Status kirim per kanal. Tiap 15 detik selama ada job berjalan, lalu tiap 60 detik (menunggu konfirmasi) sampai masa kirim habis. */
 export function DeliveryStatus({ alertId, since }: { alertId: string; since: string }) {
   const { t } = useI18n();
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -28,7 +31,7 @@ export function DeliveryStatus({ alertId, since }: { alertId: string; since: str
         if (active) { setRows(data); setError(false); }
         open = data.some(row => OPEN.has(row.status));
       } catch { if (active) setError(true); }
-      if (active && (open || Date.now() < Date.parse(since) + WINDOW_MS)) timer = window.setTimeout(() => void load(), 15000);
+      if (active && (open || Date.now() < Date.parse(since) + WINDOW_MS)) timer = window.setTimeout(() => void load(), open ? POLL_OPEN_MS : POLL_IDLE_MS);
     }
     void load();
     return () => { active = false; clearTimeout(timer); };

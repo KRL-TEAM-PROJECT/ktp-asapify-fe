@@ -2,7 +2,9 @@
 
 Perubahan ini menyambungkan mode live ke token Firebase dan API Cloud Run.
 Mode mock tetap tersedia; mode live tidak membaca login demo dari localStorage.
-Belum ada deployment/tes login Google nyata sampai project disiapkan.
+Status 12 Oktober 2026: live di https://hack2skill-510921.web.app (project `hack2skill-510921`).
+Deploy rutin lewat GitHub Actions, bukan dari laptop; lihat "Deploy ulang" di bawah. Langkah manual 1–5
+hanya untuk project baru.
 
 1. Ikuti setup backend di `ktp-asapify-be/docs/GCP.md`. Project ID Firebase harus sama dengan backend.
 2. Buat Firebase Web App, aktifkan Google provider dan Authorized domains, lalu isi `.env.local`:
@@ -55,9 +57,21 @@ dari repo BE; pengguna keluar dan masuk lagi. Tidak ada email tim yang otomatis 
 - Detail dan deep link `/kelompok/:id` berfungsi; worker MapLibre bertipe JavaScript.
 - Keputusan dengan Telegram `pending`, `failed`, atau `unknown` ditandai belum terkonfirmasi.
 
-Build mock dan live telah diperiksa secara lokal. Login Google nyata, Firebase rewrite, cloud persistence,
-dan Telegram masih memerlukan uji integrasi pada project pengguna. Peringatan ukuran chunk MapLibre
-sudah ada pada aplikasi dasar; perubahan ini mempertahankan pemuatan malasnya.
+Sudah terbukti di project live: login Google, rewrite `/api/**` ke Cloud Run, simpan preferensi dan inbox
+di Firestore, serta penolakan akses tanpa login. Belum diuji: alur operator dengan data nyata, publish, dan
+pengiriman Telegram. Peringatan ukuran chunk MapLibre sudah ada pada aplikasi dasar; pemuatan malasnya tetap.
+
+## Deploy ulang
+
+Workflow `.github/workflows/deploy-firebase.yml` (manual, `workflow_dispatch`) membangun mode live dari
+branch yang dipilih dan men-deploy Hosting lewat Workload Identity Federation (akun
+`asapify-firebase-deployer`, tanpa file kunci). Satu-satunya secret repo: `VITE_FIREBASE_API_KEY`.
+
+```bash
+gh workflow run "Deploy ASAPify Frontend" --repo KRL-TEAM-PROJECT/ktp-asapify-fe --ref main
+```
+
+Deploy hanya dari `main` yang sudah di-review. Workflow ini tidak mengubah backend, rules Firestore, atau izin.
 
 Referensi: https://firebase.google.com/docs/hosting/cloud-run dan
 https://firebase.google.com/docs/auth/admin/custom-claims.
@@ -77,4 +91,5 @@ dihapus ketika logout. Konfirmasi membutuhkan server; UI tidak membuat konfirmas
 `notification-sw.js` dibangun sebagai module service worker dan disajikan no-cache oleh Firebase Hosting.
 Uji dari `npm run build && npm run preview`; Vite dev tidak menyajikan nama worker hasil build.
 
-Target project dari screenshot pengguna: `hack2skill-510921` (nomor `950889990251`). Firebase Web App/config masih perlu diverifikasi di project itu.
+Project: `hack2skill-510921` (nomor `950889990251`). Firebase Web App sudah terdaftar; konfigurasinya ada di workflow deploy.
+`VITE_FIREBASE_VAPID_KEY` belum diisi, jadi push browser belum bisa didaftarkan di versi live.

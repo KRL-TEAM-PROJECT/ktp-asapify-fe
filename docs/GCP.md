@@ -1,95 +1,95 @@
 # Firebase Hosting + Google sign-in
 
-Perubahan ini menyambungkan mode live ke token Firebase dan API Cloud Run.
-Mode mock tetap tersedia; mode live tidak membaca login demo dari localStorage.
-Status 12 Oktober 2026: live di https://hack2skill-510921.web.app (project `hack2skill-510921`).
-Deploy rutin lewat GitHub Actions, bukan dari laptop; lihat "Deploy ulang" di bawah. Langkah manual 1–5
-hanya untuk project baru.
+Live mode sends Firebase tokens to the Cloud Run API.
+Mock mode stays available; live mode never reads the demo login from localStorage.
+Status, 13 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
+Routine deploys go through GitHub Actions, not a laptop; see "Redeploy" below. Manual steps 1–5
+are only for a new project.
 
-1. Ikuti setup backend di `ktp-asapify-be/docs/GCP.md`. Project ID Firebase harus sama dengan backend.
-2. Buat Firebase Web App, aktifkan Google provider dan Authorized domains, lalu isi `.env.local`:
+1. Follow the backend setup in `ktp-asapify-be/docs/GCP.md`. The Firebase project id must match the backend.
+2. Create a Firebase Web App, enable the Google provider and Authorized domains, then fill `.env.local`:
 
 ```dotenv
 VITE_API_MODE=live
 VITE_API_BASE=
-VITE_FIREBASE_API_KEY=SALIN_DARI_FIREBASE_WEB_APP
-VITE_FIREBASE_AUTH_DOMAIN=SALIN_DARI_FIREBASE_WEB_APP
-VITE_FIREBASE_PROJECT_ID=PROJECT_ID_YANG_SAMA
-VITE_FIREBASE_APP_ID=SALIN_DARI_FIREBASE_WEB_APP
+VITE_FIREBASE_API_KEY=COPY_FROM_FIREBASE_WEB_APP
+VITE_FIREBASE_AUTH_DOMAIN=COPY_FROM_FIREBASE_WEB_APP
+VITE_FIREBASE_PROJECT_ID=SAME_PROJECT_ID
+VITE_FIREBASE_APP_ID=COPY_FROM_FIREBASE_WEB_APP
 VITE_PEAT_LAYER_URL=
 VITE_PROVINCES_LAYER_URL=/mock/provinces.geojson
 ```
 
-File batas provinsi yang sudah ada bersumber geoBoundaries; meskipun berada di folder `mock`, file ini
-berisi geometri batas wilayah, bukan titik deteksi. Verifikasi atribusi sebelum publikasi.
-Layer gambut kosong tidak berarti peta gambut telah tersedia. Pasang hasil build peat mask tim setelah siap.
+The bundled province boundary file comes from geoBoundaries; although it sits in the `mock` folder, it holds
+boundary geometry, not detection points. Check the attribution before publishing.
+An empty peat layer does not mean a peat map exists. Install the team's peat mask build once it is ready.
 
-3. Instal dependensi dari lockfile dan build:
+3. Install dependencies from the lockfile and build:
 
 ```bash
 npm ci
 npm run build
 ```
 
-4. Jalankan Firebase CLI resmi dengan akun berwenang, kemudian deploy ke project eksplisit:
+4. Run the official Firebase CLI with an authorised account, then deploy to an explicit project:
 
 ```bash
 npx firebase-tools login
 npx firebase-tools deploy --only hosting --project "$ASAPIFY_PROJECT_ID"
 ```
 
-`firebase.json` meneruskan `/api/**` ke `asapify-api` Jakarta sebelum fallback SPA.
-Pastikan Cloud Run sudah menerima public invoker pada lapisan transport dan **API memverifikasi
-Firebase ID token pada seluruh `/operator/**`**. Token Firebase tidak menggantikan IAM Cloud Run;
-tanpa public transport, Hosting akan menerima 403 sebelum request mencapai aplikasi.
+`firebase.json` rewrites `/api/**` to `asapify-api` in Jakarta before the SPA fallback.
+Make sure Cloud Run accepts public invokers at the transport layer and that **the API verifies the
+Firebase ID token on every `/operator/**`**. A Firebase token does not replace Cloud Run IAM;
+without public transport, Hosting gets a 403 before the request reaches the app.
 
-5. Login pertama membuat pengguna Firebase, tetapi akses aplikasi baru diberikan setelah admin
-menambahkan custom claim `role=operator`. Admin memeriksa UID/email lalu memakai `tools/set_operator.py`
-dari repo BE; pengguna keluar dan masuk lagi. Tidak ada email tim yang otomatis diizinkan.
+5. The first sign-in creates the Firebase user, but app access is only granted after an admin
+adds the custom claim `role=operator`. The admin checks the UID/email, then uses `tools/set_operator.py`
+from the BE repository; the user signs out and in again. No team email is allowed automatically.
 
-## Pemeriksaan
+## Checks
 
-- Login mock lama tidak membuka rute mode live.
-- Selama sesi Firebase dipulihkan, halaman menunggu; tidak buru-buru mengarahkan ke login.
-- Request operator mengirim `Authorization: Bearer <ID token>`; token diperbarui oleh Firebase SDK.
-- Akun non-operator mendapat 403. Logout dan login ulang bekerja pada domain Hosting.
-- Tanpa data pipeline, pesan data belum tersedia muncul; jangan menganggapnya data aman.
-- Detail dan deep link `/kelompok/:id` berfungsi; worker MapLibre bertipe JavaScript.
-- Keputusan dengan Telegram `pending`, `failed`, atau `unknown` ditandai belum terkonfirmasi.
+- An old mock login never opens live-mode routes.
+- While the Firebase session restores, the page waits instead of rushing to the login page.
+- Operator requests send `Authorization: Bearer <ID token>`; the Firebase SDK refreshes the token.
+- Non-operator accounts get 403. Signing out and in again works on the Hosting domain.
+- Without pipeline data, the "data not available" message appears; never read it as safe data.
+- The detail page and the `/clusters/:id` deep link work; the MapLibre worker is served as JavaScript.
+- Decisions whose Telegram status is `pending`, `failed` or `unknown` are marked unconfirmed.
 
-Sudah terbukti di project live: login Google, rewrite `/api/**` ke Cloud Run, simpan preferensi dan inbox
-di Firestore, serta penolakan akses tanpa login. Belum diuji: alur operator dengan data nyata, publish, dan
-pengiriman Telegram. Peringatan ukuran chunk MapLibre sudah ada pada aplikasi dasar; pemuatan malasnya tetap.
+Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, saving preferences and the inbox
+in Firestore, and refusal of access without sign-in. Not tested yet: the operator flow with real data, publishing and
+Telegram delivery. The MapLibre chunk size warning predates this work; it stays lazily loaded.
 
-## Deploy ulang
+## Redeploy
 
-Workflow `.github/workflows/deploy-firebase.yml` (manual, `workflow_dispatch`) membangun mode live dari
-branch yang dipilih dan men-deploy Hosting lewat Workload Identity Federation (akun
-`asapify-firebase-deployer`, tanpa file kunci). Satu-satunya secret repo: `VITE_FIREBASE_API_KEY`.
+The `.github/workflows/deploy-firebase.yml` workflow (manual, `workflow_dispatch`) builds live mode from the
+chosen branch and deploys Hosting through Workload Identity Federation (account
+`asapify-firebase-deployer`, no key file). The only repository secret is `VITE_FIREBASE_API_KEY`.
 
 ```bash
 gh workflow run "Deploy ASAPify Frontend" --repo KRL-TEAM-PROJECT/ktp-asapify-fe --ref main
 ```
 
-Deploy hanya dari `main` yang sudah di-review. Workflow ini tidak mengubah backend, rules Firestore, atau izin.
+Deploy only reviewed `main`. This workflow never changes the backend, Firestore rules or IAM.
 
-Referensi: https://firebase.google.com/docs/hosting/cloud-run dan
+References: https://firebase.google.com/docs/hosting/cloud-run and
 https://firebase.google.com/docs/auth/admin/custom-claims.
 
 ## Notification Engine v1
 
-Halaman `/notifikasi` dapat dibuka semua akun Google terverifikasi. Peta dan keputusan tetap hanya operator.
-Gunakan backend Notification Engine v1 dari repo BE; ikuti `docs/NOTIFICATIONS.md` untuk worker dan indeks.
-Isi `VITE_FIREBASE_MESSAGING_SENDER_ID` dan `VITE_FIREBASE_VAPID_KEY` sebelum build.
-FCM/Web Push hanya simulasi/non-darurat; WhatsApp/SMS/Gmail/LoRa/Bluetooth masih rencana, bukan pengirim aktif.
+The `/notifications` page is open to every verified Google account. The map and decisions stay operator-only.
+Use the Notification Engine v1 backend from the BE repository; follow its `docs/NOTIFICATIONS.md` for the worker and indexes.
+Fill `VITE_FIREBASE_MESSAGING_SENDER_ID` and `VITE_FIREBASE_VAPID_KEY` before building.
+FCM/Web Push are exercise/non-emergency only; WhatsApp/SMS/Gmail/LoRa/Bluetooth are planned, not active senders.
 
-Tombol Telegram membuat deep link sekali pakai; tekan Start di bot lalu simpan preferensi. Push harus
-didaftarkan dari browser yang mengizinkan. Offline diaktifkan lewat checkbox pengguna; hanya shell publik
-dan inbox yang pernah dimuat tersimpan. Token dan respons API tidak masuk service-worker cache. Inbox lokal
-dihapus ketika logout. Konfirmasi membutuhkan server; UI tidak membuat konfirmasi palsu saat offline.
+The Telegram button creates a one-time deep link; press Start in the bot, then save the preferences. Push must be
+registered from a browser that allows it. Offline use is turned on by a user checkbox; only the public shell
+and inboxes that were loaded are stored. Tokens and API responses never enter the service-worker cache. The local
+inbox is deleted on sign-out. Confirmation needs the server; the UI never fakes a confirmation while offline.
 
-`notification-sw.js` dibangun sebagai module service worker dan disajikan no-cache oleh Firebase Hosting.
-Uji dari `npm run build && npm run preview`; Vite dev tidak menyajikan nama worker hasil build.
+`notification-sw.js` is built as a module service worker and served no-cache by Firebase Hosting.
+Test it with `npm run build && npm run preview`; the Vite dev server does not serve the built worker name.
 
-Project: `hack2skill-510921` (nomor `950889990251`). Firebase Web App sudah terdaftar; konfigurasinya ada di workflow deploy.
-`VITE_FIREBASE_VAPID_KEY` belum diisi, jadi push browser belum bisa didaftarkan di versi live.
+Project: `hack2skill-510921` (number `950889990251`). The Firebase Web App is registered; its configuration is in the deploy workflow.
+`VITE_FIREBASE_VAPID_KEY` is not set yet, so browser push cannot be registered on the live site.

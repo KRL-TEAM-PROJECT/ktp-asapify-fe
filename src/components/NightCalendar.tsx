@@ -8,7 +8,7 @@ import { exitFast, m, spring, springSoft } from '../motion';
 import { Select } from './Select';
 
 interface Props {
-  value: string; // malam yang sedang dibuka, YYYY-MM-DD
+  value: string; // night currently open, YYYY-MM-DD
   first: string; // Meta.nights.first
   last: string; // Meta.nights.last
   onPick(night: string): void;
@@ -23,10 +23,10 @@ const addMonths = (ym: string, n: number) => {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
 };
 
-// Satu bulan = 6 baris tetap, jadi tinggi kalender tidak melompat saat pindah bulan.
+// One month = 6 fixed rows, so the calendar height never jumps between months.
 const CELLS = 42;
 
-// Bulan baru masuk dari arah tujuan (maju = dari kanan), bulan lama keluar ke arah sebaliknya.
+// The new month enters from its direction (forward = from the right); the old one leaves the other way.
 const slide: Variants = {
   enter: (dir: number) => ({ opacity: 0, x: dir * 28 }),
   center: { opacity: 1, x: 0, transition: springSoft },
@@ -34,14 +34,14 @@ const slide: Variants = {
 };
 
 /**
- * Kalender malam arsip: satu bulan per tampilan, pindah bulan dan tahun, malam tanpa data
- * dinonaktifkan, malam yang punya kelompok AWAS diberi titik. Isinya dari GET /operator/nights?month=.
+ * Archive night calendar: one month per view, month and year navigation, nights without data
+ * disabled, nights with WARNING clusters marked with a dot. Content from GET /operator/nights?month=.
  */
 export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
-  const { t, lang } = useI18n();
-  const locale = lang === 'id' ? 'id-ID' : 'en-US';
+  const { t } = useI18n();
+  const locale = 'en-US';
   const [month, setMonth] = useState(monthOf(value));
-  const [dir, setDir] = useState(1); // arah pindah bulan terakhir: 1 maju, -1 mundur
+  const [dir, setDir] = useState(1); // direction of the last month change: 1 forward, -1 back
   const goMonth = (ym: string) => { setDir(ym > month ? 1 : -1); setMonth(ym); };
   const [days, setDays] = useState<Map<string, NightSummary> | null>(null);
   const [error, setError] = useState(false);
@@ -65,7 +65,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
     return () => { alive = false; };
   }, [month, retry]);
 
-  // Fokus ke malam terpilih sekali, saat isi bulan pertama selesai dimuat.
+  // Focus the selected night once, when the first month has loaded.
   useEffect(() => {
     if (!days || focused.current) return;
     focused.current = true;
@@ -73,7 +73,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
     (pick('.cal-day.on:not(:disabled)') ?? pick('.cal-day:not(:disabled)'))?.focus();
   }, [days]);
 
-  // Tutup dengan Escape atau klik di luar pemilih malam (tombol pembuka ada di .night-pick).
+  // Close with Escape or a click outside the night picker (the opening button lives in .night-pick).
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     const down = (e: PointerEvent) => { if (!(e.target as Element).closest('.night-pick')) onClose(); };
@@ -84,7 +84,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
 
   const weekdays = useMemo(() => {
     const f = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
-    return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(2023, 0, 2 + i))).replace('.', '')); // 2 Jan 2023 = Senin
+    return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(2023, 0, 2 + i))).replace('.', '')); // 2 Jan 2023 = Monday
   }, [locale]);
   const monthNames = useMemo(() => {
     const f = new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' });
@@ -96,8 +96,8 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
   for (let y = Number(first.slice(0, 4)); y <= Number(last.slice(0, 4)); y++) years.push(y);
   const clamp = (ym: string) => (ym < firstMonth ? firstMonth : ym > lastMonth ? lastMonth : ym);
 
-  const [year, mon] = month.split('-').map(Number); // bukan `m`: itu komponen gerak
-  const lead = (new Date(Date.UTC(year, mon - 1, 1)).getUTCDay() + 6) % 7; // kolom pertama = Senin
+  const [year, mon] = month.split('-').map(Number); // not `m`: that is the motion component
+  const lead = (new Date(Date.UTC(year, mon - 1, 1)).getUTCDay() + 6) % 7; // first column = Monday
   const count = new Date(Date.UTC(year, mon, 0)).getUTCDate();
   const cells: (string | null)[] = [
     ...Array<null>(lead).fill(null),
@@ -106,9 +106,9 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
   while (cells.length < CELLS) cells.push(null);
 
   const dayLabel = (d: string, s: NightSummary | undefined) => {
-    const date = fmtNight(d, lang);
+    const date = fmtNight(d);
     if (!s?.has_data) return t('cal.day_none', { date });
-    return s.awas_clusters > 0 ? t('cal.day_awas', { date, n: s.awas_clusters }) : date;
+    return s.warning_clusters > 0 ? t('cal.day_warning', { date, n: s.warning_clusters }) : date;
   };
 
   return (
@@ -146,7 +146,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
               const s = days?.get(d);
               return (
                 <button
-                  key={d} className={`cal-day${d === value ? ' on' : ''}${s?.awas_clusters ? ' hot' : ''}`}
+                  key={d} className={`cal-day${d === value ? ' on' : ''}${s?.warning_clusters ? ' hot' : ''}`}
                   disabled={!s?.has_data} aria-pressed={d === value} aria-label={dayLabel(d, s)} title={dayLabel(d, s)}
                   onClick={() => onPick(d)}
                 >
@@ -163,7 +163,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
       ) : !days ? (
         <p className="cal-note">{t('cal.loading')}</p>
       ) : (
-        <p className="cal-note"><i className="cal-dot" aria-hidden="true" />{t('cal.legend_awas')} · {t('cal.legend_none')}</p>
+        <p className="cal-note"><i className="cal-dot" aria-hidden="true" />{t('cal.legend_warning')} · {t('cal.legend_none')}</p>
       )}
     </m.div>
   );

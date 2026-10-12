@@ -5,18 +5,18 @@ import { m, springSheet } from '../motion';
 interface Props {
   open: boolean;
   onOpenChange(open: boolean): void;
-  enabled: boolean; // false (layar lebar): panel samping biasa, tanpa seret
+  enabled: boolean; // false (wide screen): a plain side panel, no dragging
   label: string;
   children: ReactNode;
 }
 
-const HANDLE = 56; // tinggi bagian yang tetap terlihat saat tertutup
-const FLICK = 450; // px/detik: lebih cepat dari ini dianggap lemparan, bukan lepas biasa
+const HANDLE = 56; // height of the part that stays visible when closed
+const FLICK = 450; // px/s: faster than this counts as a flick, not a plain release
 
 /**
- * Panel samping di layar lebar; di layar sempit menjadi bottom sheet yang bisa diseret lewat gagangnya
- * (isi panel tetap bisa digulir). Dilepas: arah lemparan menentukan, bila pelan tergantung lewat atau
- * belum setengah jalan. Posisi tutup diukur dari tinggi panel, jadi ikut berubah saat isinya berubah.
+ * Side panel on wide screens; on narrow screens it becomes a bottom sheet dragged by its handle
+ * (the panel content still scrolls). On release, a flick decides by its direction; a slow release by
+ * whether it passed halfway. The closed position is measured from the panel height, so it follows content changes.
  */
 export function Sheet({ open, onOpenChange, enabled, label, children }: Props) {
   const ref = useRef<HTMLElement>(null);
@@ -45,7 +45,7 @@ export function Sheet({ open, onOpenChange, enabled, label, children }: Props) {
   const onDragEnd = (_: unknown, info: PanInfo) => {
     const y = (open ? 0 : closedY) + info.offset.y;
     const next = Math.abs(info.velocity.y) > FLICK ? info.velocity.y < 0 : y < closedY / 2;
-    controls.start({ y: next ? 0 : closedY, transition: springSheet }); // kembali ke posisi bila keadaan tidak berubah
+    controls.start({ y: next ? 0 : closedY, transition: springSheet }); // return to position when the state does not change
     if (next !== open) onOpenChange(next);
   };
 

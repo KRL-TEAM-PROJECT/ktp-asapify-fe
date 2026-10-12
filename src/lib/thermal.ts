@@ -3,8 +3,8 @@ import type { LngLat, ThermalBand, ThermalCrop } from '../types';
 export type Sat = 'himawari' | 'gk2a';
 export const SAT_NAME: Record<Sat, string> = { himawari: 'Himawari-9', gk2a: 'GK2A' };
 
-// Skala warna citra termal kanal panas (3,8–3,9 µm), suhu kecerahan K: awan dingin (abu terang) → tanah
-// malam (gelap) → panas (oranye → putih). Dipakai citra mock, legenda, dan penanda di tooltip.
+// Colour scale for hot-channel thermal images (3.8–3.9 µm), brightness temperature K: cold cloud (light grey) → night
+// ground (dark) → hot (orange → white). Used by mock images, the legend and tooltip swatches.
 export const THERMAL_STOPS: [number, string][] = [
   [270, '#d8dee4'], [282, '#8f9aa5'], [290, '#3c434b'], [298, '#262b31'], [304, '#5b2a1d'],
   [310, '#a8380f'], [316, '#ff6a00'], [324, '#ffb347'], [332, '#fff1bf'], [340, '#ffffff'],
@@ -24,7 +24,7 @@ export function thermalColor(k: number): string {
   return `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Gradien CSS untuk legenda, dari `lo` sampai `hi` K. */
+/** CSS gradient for the legend, from `lo` to `hi` K. */
 export function thermalGradient(lo: number, hi: number): string {
   const n = 12;
   return `linear-gradient(90deg, ${Array.from({ length: n + 1 }, (_, i) => `${thermalColor(lo + ((hi - lo) * i) / n)} ${(i / n) * 100}%`).join(', ')})`;
@@ -36,13 +36,13 @@ function median(v: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-/** Sepasang kanal satu satelit: panas (< 5 µm) dan acuan (≥ 5 µm), dengan latar selisihnya di seluruh crop. */
+/** One satellite's channel pair: hot (< 5 µm) and reference (≥ 5 µm), with the background of their difference across the crop. */
 export interface SatChannels {
   sat: Sat;
   hot: ThermalBand;
   ref: ThermalBand;
-  bgDt: number; // median selisih (panas − acuan) di sel teramati: latar crop
-  sigma: number; // simpangan latar (MAD × 1,4826), dengan lantai 0,3 K
+  bgDt: number; // median difference (hot − reference) over observed cells: the crop background
+  sigma: number; // background spread (MAD × 1.4826), floored at 0.3 K
 }
 
 const memo = new WeakMap<ThermalCrop, SatChannels[]>();
@@ -73,14 +73,14 @@ export interface SatReading {
   sat: Sat;
   hot: { band: string; um: number; k: number | null };
   ref: { band: string; um: number; k: number | null };
-  dt: number | null; // panas − acuan
-  anomaly: number | null; // dt − latar
-  z: number | null; // anomali ÷ simpangan latar
+  dt: number | null; // hot − reference
+  anomaly: number | null; // dt − background
+  z: number | null; // anomaly ÷ background spread
   bgDt: number;
   sigma: number;
 }
 
-/** Bacaan semua satelit di sel (col, row); k null = tertutup awan. */
+/** Readings of every satellite at cell (col, row); k null = covered by cloud. */
 export function readingAt(crop: ThermalCrop, col: number, row: number): SatReading[] {
   const i = row * crop.cols + col;
   return channelsOf(crop).map((c) => {
@@ -99,19 +99,19 @@ export function readingAt(crop: ThermalCrop, col: number, row: number): SatReadi
   });
 }
 
-/** Titik tengah sel (col, row) sebagai [lon, lat]. */
+/** Centre of cell (col, row) as [lon, lat]. */
 export function cellLonLat(crop: ThermalCrop, col: number, row: number): LngLat {
   const [w, s, e, n] = crop.bbox;
   return [w + ((col + 0.5) * (e - w)) / crop.cols, n - ((row + 0.5) * (n - s)) / crop.rows];
 }
 
-/** Sel di pecahan (0–1) lebar/tinggi citra. */
+/** Cell at a fraction (0–1) of the image width/height. */
 export function cellOf(crop: ThermalCrop, fx: number, fy: number): { col: number; row: number } {
   const clamp = (v: number, n: number) => Math.min(n - 1, Math.max(0, Math.floor(v * n)));
   return { col: clamp(fx, crop.cols), row: clamp(fy, crop.rows) };
 }
 
-/** Rentang suhu kecerahan kanal panas satelit pertama, untuk legenda. */
+/** Brightness temperature range of the first satellite's hot channel, for the legend. */
 export function hotRange(crop: ThermalCrop): [number, number] | null {
   const hot = channelsOf(crop)[0]?.hot.values.filter((v): v is number => v != null);
   return hot?.length ? [Math.min(...hot), Math.max(...hot)] : null;

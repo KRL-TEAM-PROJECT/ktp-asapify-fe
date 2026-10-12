@@ -4,41 +4,41 @@ import { T_WATCH } from '../lib/maut';
 import { readingAt, thermalColor } from '../lib/thermal';
 import { rand } from './rand';
 
-// Data FIKTIF suhu per piksel di balik citra termal Himawari, dan angka terukur di balik atribut MAUT.
-// Semuanya dibangun dari satu grid, jadi gambar, tooltip, dan tabel atribut selalu sepakat.
+// FICTIONAL per-pixel temperatures behind the Himawari thermal images, and the measured numbers behind MAUT attributes.
+// Everything is built from one grid, so the image, the tooltip and the attribute table always agree.
 
-const HALF = 0.2; // crop ±0,2° (≈ 44 km), sama dengan citra VIIRS
-export const CROP_CELLS = 20; // 0,4° ÷ 0,02°: satu sel = satu piksel ASAPify
+const HALF = 0.2; // crop ±0.2° (≈ 44 km), same as the VIIRS images
+export const CROP_CELLS = 20; // 0.4° ÷ 0.02°: one cell = one ASAPify pixel
 
-/** Skala normalisasi per atribut (usulan FE): angka terukur di batas bawah → u = 0, batas atas → u = 1. */
+/** Normalisation scale per attribute (FE proposal): the measured number at the lower bound → u = 0, upper bound → u = 1. */
 export const ATTR_SCALES: Record<AttrKey, [number, number]> = {
   u_H: [3, 10], u_G: [3, 10], u_LST: [0, 8], u_SAT: [0, 5], u_T: [0, 3], u_N: [0, 8],
 };
 
 const r1 = (x: number) => Math.round(x * 10) / 10;
 
-/** Elips awan (pusat dan jari-jari sebagai pecahan crop) yang menutupi sel di bawahnya. */
+/** Cloud ellipses (centre and radii as crop fractions) covering the cells below them. */
 const CLOUDS: [number, number, number, number][] = [[0.235, 0.205, 0.27, 0.11], [0.82, 0.78, 0.235, 0.085]];
-const CLOUD_NEAR: [number, number, number, number] = [0.68, 0.44, 0.13, 0.11]; // awan di sisi timur titik panas
+const CLOUD_NEAR: [number, number, number, number] = [0.68, 0.44, 0.13, 0.11]; // cloud on the east side of the hot spot
 
 export interface ThermalSpec {
-  centre: LngLat; // pusat crop = titik berat kelompok
-  pixels: LngLat[]; // piksel kelompok (pusat sel 0,02°)
-  rep: LngLat; // piksel perwakilan
-  targets: { himawari: number; gk2a: number }; // anomali yang diinginkan di piksel perwakilan, K
-  heat: number; // 0–1: seberapa luas dan kuat titik panas di sekitar piksel kelompok
+  centre: LngLat; // crop centre = cluster centroid
+  pixels: LngLat[]; // cluster pixels (0.02° cell centres)
+  rep: LngLat; // representative pixel
+  targets: { himawari: number; gk2a: number }; // desired anomaly at the representative pixel, K
+  heat: number; // 0–1: how wide and strong the hot spot around the cluster pixels is
   cloudNear?: boolean;
   seed: number;
 }
 
-/** Crop ±0,2° di sekitar titik berat, digeser ke garis grid 0,02° terdekat supaya sel crop = piksel ASAPify. */
+/** ±0.2° crop around the centroid, snapped to the nearest 0.02° grid line so crop cells = ASAPify pixels. */
 export function cropBbox([lon, lat]: LngLat): [number, number, number, number] {
   const cLon = GRID_ORIGIN[0] + Math.round((lon - GRID_ORIGIN[0]) / GRID_STEP) * GRID_STEP;
   const cLat = GRID_ORIGIN[1] - Math.round((GRID_ORIGIN[1] - lat) / GRID_STEP) * GRID_STEP;
   return [cLon - HALF, cLat - HALF, cLon + HALF, cLat + HALF].map((v) => Math.round(v * 1000) / 1000) as [number, number, number, number];
 }
 
-/** Sel (kolom, baris) crop yang memuat koordinat. */
+/** Crop cell (col, row) holding the coordinate. */
 export function cropCell(bbox: [number, number, number, number], [lon, lat]: LngLat) {
   return {
     col: Math.floor((lon - bbox[0]) / GRID_STEP + 1e-9),
@@ -60,30 +60,30 @@ export function buildThermal(spec: ThermalSpec): ThermalCrop {
 
   const cloud: boolean[] = [];
   const kernel: number[] = [];
-  const hot0: number[] = []; // latar kanal panas Himawari
-  const ref0: number[] = []; // latar kanal acuan Himawari
+  const hot0: number[] = []; // Himawari hot-channel background
+  const ref0: number[] = []; // Himawari reference-channel background
   const hot1: number[] = []; // GK2A
   const ref1: number[] = [];
   for (let r = 0; r < n; r++) {
     for (let c = 0; c < n; c++) {
       const fx = (c + 0.5) / n, fy = (r + 0.5) / n;
       cloud.push(CLOUDS.some((e) => inEllipse(fx, fy, e)) || (!!spec.cloudNear && inEllipse(fx, fy, CLOUD_NEAR)));
-      // inti = sel kelompok (piksel perwakilan paling panas), halo = lereng suhu di sekitarnya
+      // core = cluster cells (the representative pixel is hottest), halo = the temperature slope around them
       let core = 0;
       cells.forEach((p, i) => { core = Math.max(core, (i === 0 ? 1 : 0.82 + 0.16 * rand(i, spec.seed, 7)) * Math.exp(-((c - p.col) ** 2 + (r - p.row) ** 2) / (2 * sigma * sigma))); });
       const halo = spec.heat * 0.5 * Math.exp(-((c - cx) ** 2 + (r - cy) ** 2) / (2 * 2.4 * 2.4));
       kernel.push(Math.max(core, halo));
-      const drift = 0.9 * ((c / n - 0.5) * 0.8 + (r / n - 0.5) * 0.5); // gradasi pelan di seluruh crop
+      const drift = 0.9 * ((c / n - 0.5) * 0.8 + (r / n - 0.5) * 0.5); // gentle gradient across the crop
       const ref = 296.9 + drift + (rand(c, r, spec.seed) - 0.5) * 0.7;
       ref0.push(ref);
-      hot0.push(ref - 1.6 + (rand(c, r, spec.seed + 1) - 0.5) * 0.9); // malam: 3,9 µm sedikit lebih dingin dari 11 µm
+      hot0.push(ref - 1.6 + (rand(c, r, spec.seed + 1) - 0.5) * 0.9); // night: 3.9 µm is slightly colder than 11 µm
       ref1.push(ref - 0.3 + (rand(c, r, spec.seed + 2) - 0.5) * 0.4);
       hot1.push(ref - 1.4 + (rand(c, r, spec.seed + 3) - 0.5) * 0.6);
     }
   }
   const idx = rep.row * n + rep.col;
 
-  // Amplitudo titik panas dicari supaya anomali di piksel perwakilan tepat sama dengan target.
+  // The hot-spot amplitude is solved so the anomaly at the representative pixel matches the target exactly.
   const make = (aH: number, aG: number): ThermalCrop => {
     const band = (sat: 'himawari' | 'gk2a', id: string, um: number, base: number[], amp: number): ThermalBand => ({
       sat, band: id, um,
@@ -108,14 +108,14 @@ export function buildThermal(spec: ThermalSpec): ThermalCrop {
   return crop;
 }
 
-/** Nilai u → angka terukur yang menghasilkannya; di luar 0–1 (jenuh) dilebihkan sedikit secara deterministik. */
+/** u value → the measured number that produces it; outside 0–1 (saturated) it overshoots slightly, deterministically. */
 export function rawFromU(u: number, [lo, hi]: [number, number], seed: number, over = 0.6): number {
   if (u >= 1) return hi + over + 0.8 * rand(seed, 1);
   if (u <= 0) return lo - (0.4 + 0.8 * rand(seed, 2));
   return lo + u * (hi - lo);
 }
 
-/** Citra termal mock (SVG) digambar dari grid kanal panas Himawari dengan skala warna yang sama dengan legenda. */
+/** Mock thermal image (SVG) drawn from the Himawari hot-channel grid with the same colour scale as the legend. */
 export function himawariImageUrl(crop: ThermalCrop, label: string, seed: number): string {
   const hot = crop.bands.find((b) => b.sat === 'himawari' && b.um < 5)!;
   const rects = hot.values.map((v, i) => {
@@ -133,14 +133,14 @@ export function himawariImageUrl(crop: ThermalCrop, label: string, seed: number)
 
 interface DetailArgs {
   attrs: Attributes;
-  neighbourAnomalies: number; // jumlah tetangga U0 ≥ 0,5
+  neighbourAnomalies: number; // number of neighbours with U0 ≥ 0.5
   crop: ThermalCrop;
   rep: { col: number; row: number };
   nightPeaks: { night: string; peak: number }[];
   seed: number;
 }
 
-/** Angka terukur di balik tiap atribut u, diambil dari grid supaya sama dengan tooltip citra. */
+/** Measured number behind each attribute u, taken from the grid so it matches the image tooltip. */
 export function attributeDetails({ attrs, neighbourAnomalies, crop, rep, nightPeaks, seed }: DetailArgs): Record<AttrKey, AttrDetail> {
   const [h, g] = readingAt(crop, rep.col, rep.row);
   const sat = (s: typeof h): AttrDetail => ({
@@ -156,7 +156,7 @@ export function attributeDetails({ attrs, neighbourAnomalies, crop, rep, nightPe
     ],
   });
 
-  const lst = h.ref.k; // LST dipadankan dengan kanal 11 µm di piksel perwakilan
+  const lst = h.ref.k; // LST is matched to the 11 µm channel at the representative pixel
   const surface = (key: 'u_LST' | 'u_SAT', refKey: 'ts' | 't2m'): AttrDetail => {
     const u = attrs[key];
     if (u == null || lst == null) return { value: null, unit: 'K', scale: ATTR_SCALES[key], parts: [] };
@@ -178,8 +178,8 @@ export function attributeDetails({ attrs, neighbourAnomalies, crop, rep, nightPe
     u_SAT: surface('u_SAT', 't2m'),
     u_T: {
       value: attrs.u_T == null ? null : nightPeaks.filter((p) => p.peak >= T_WATCH).length,
-      unit: 'malam', scale: ATTR_SCALES.u_T, parts: nights,
+      unit: 'nights', scale: ATTR_SCALES.u_T, parts: nights,
     },
-    u_N: { value: neighbourAnomalies, unit: 'piksel', scale: ATTR_SCALES.u_N, parts: [] },
+    u_N: { value: neighbourAnomalies, unit: 'pixels', scale: ATTR_SCALES.u_N, parts: [] },
   };
 }

@@ -4,21 +4,21 @@ import { fmtNum, fmtSlot } from './format';
 
 export const CAPTION_MAX = 1024;
 
-/** Templat caption Telegram (ui.html 03b). Selalu Bahasa Indonesia; angka dari data, tidak diketik ulang. */
+/** Telegram caption template (ui.html 03b). Numbers come from the data, never retyped. */
 export function buildCaption(c: ClusterDetail): string {
   const [lon, lat] = c.centroid;
   const nNbr = Math.round(c.neighbour_support * 8);
   const v = c.verification;
   const reason = v?.evidence.find((e) => e.source !== 'rule_engine')?.finding;
   const verLine = v
-    ? `${v.result === 'strong_evidence' ? 'Bukti kuat' : 'Inkonklusif'}: ${reason ?? '-'}`
-    : 'Belum diverifikasi agen';
+    ? `${v.result === 'strong_evidence' ? 'Strong evidence' : 'Inconclusive'}: ${reason ?? '-'}`
+    : 'Not verified by the agent yet';
   return [
-    '<b>AWAS · Dugaan gambut membara</b>',
-    `📍 ${PROVINCES[c.province].id} · ${lat.toFixed(2)}, ${lon.toFixed(2)} · ${c.pixels.length} piksel`,
-    `🛰️ Himawari + GK2A sepakat · utility ${fmtNum(c.utility_score, 2, 'id')} · tetangga ${nNbr}/8`,
+    '<b>WARNING · Suspected smouldering peat</b>',
+    `📍 ${PROVINCES[c.province].name} · ${lat.toFixed(2)}, ${lon.toFixed(2)} · ${c.pixels.length} pixels`,
+    `🛰️ Himawari + GK2A agree · utility ${fmtNum(c.utility_score, 2)} · neighbours ${nNbr}/8`,
     `🔎 ${verLine}`,
-    `🕙 Slot ${fmtSlot(c.trigger_slot, 'id')}`,
-    'Status AWAS dari aturan satelit; bukan konfirmasi lapangan.',
+    `🕙 Slot ${fmtSlot(c.trigger_slot)}`,
+    'WARNING status comes from satellite rules; it is not a field confirmation.',
   ].join('\n');
 }

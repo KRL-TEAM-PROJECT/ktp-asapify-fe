@@ -10,7 +10,7 @@ import { exitFast, m, reveal, spring } from '../motion';
 import { IconCheck, IconClock, IconSend, IconX } from './icons';
 import { DeliveryStatus } from './DeliveryStatus';
 
-/** Label keputusan: teks + ikon, tanpa warna level. */
+/** Decision label: text + icon, no level colour. */
 export function DecisionState({ decision }: { decision: Decision | null }) {
   const { t } = useI18n();
   if (!decision) return <span className="dec-state"><IconClock size={12} />{t('decision.pending')}</span>;
@@ -34,9 +34,9 @@ const slide = {
   initial: { opacity: 0, y: -8 }, animate: { opacity: 1, y: 0, transition: spring }, exit: { opacity: 0, transition: exitFast },
 };
 
-/** Dua tombol saja: Terbitkan (caption bisa disunting) atau Tolak (alasan wajib). */
+/** Two buttons only: Publish (caption editable) or Reject (reason required). */
 export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: Props) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [caption, setCaption] = useState(initialCaption);
   const [reason, setReason] = useState('');
   const [mode, setMode] = useState<Mode>('idle');
@@ -53,7 +53,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
         <h2 id="dec-h">{t('dec.title')}</h2>
         <p className="decided">
           {d.action === 'publish' ? <IconCheck /> : <IconX />}
-          {t(d.action === 'publish' ? 'dec.published_by' : 'dec.rejected_by', { by: d.by, when: fmtSlot(d.at, lang) })}
+          {t(d.action === 'publish' ? 'dec.published_by' : 'dec.rejected_by', { by: d.by, when: fmtSlot(d.at) })}
         </p>
         {d.alert_id && <p className="muted">{t('dec.alert', { id: d.alert_id })}</p>}
         {d.action === 'publish' && d.telegram && d.telegram.status !== 'sent' && (
@@ -79,7 +79,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
     try {
       await api.decide(cluster.id, {
         action,
-        caption_id: action === 'publish' ? caption : null,
+        caption: action === 'publish' ? caption : null,
         reason: action === 'reject' ? reason.trim() : null,
       });
       onDecided();
@@ -97,7 +97,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
       <div className="dec-summary">
         <span className="lbl">{t('dec.summary')}</span>
         <p>
-          AWAS · U {fmtNum(cluster.utility_score, 2, lang)} · {t('map.nbr', { k: Math.round(cluster.neighbour_support * 8) })} ·{' '}
+          WARNING · U {fmtNum(cluster.utility_score, 2)} · {t('map.nbr', { k: Math.round(cluster.neighbour_support * 8) })} ·{' '}
           {cluster.n_sat >= 2 ? t('sat.agree') : t('sat.single')} ·{' '}
           {v ? t(v.result === 'strong_evidence' ? 'evidence.strong' : 'evidence.inconclusive') : t('evidence.none')}
         </p>
@@ -112,7 +112,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
         onChange={(e) => setCaption(e.target.value)} aria-invalid={tooLong}
       />
 
-      {/* Blok yang muncul/hilang memudar masuk-keluar; elemen di bawahnya (layout="position") meluncur ke tempat barunya. */}
+      {/* Blocks that appear/disappear fade in and out; elements below them (layout="position") slide to their new place. */}
       <AnimatePresence initial={false}>
         {mode === 'reject' && (
           <m.div key="reason" className="expand" {...slide}>

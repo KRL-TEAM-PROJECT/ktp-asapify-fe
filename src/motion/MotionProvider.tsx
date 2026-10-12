@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { LazyMotion, MotionConfig } from 'motion/react';
 
-// Elemen `initial={{ opacity: 0 }}` baru terlihat setelah fitur gerak termuat. Bila chunk-nya gagal diambil
-// (jaringan putus, atau tab lama setelah deploy baru), tandai <html> supaya CSS menampilkan semuanya tanpa gerak.
+// Elements with `initial={{ opacity: 0 }}` only appear once the motion features load. If that chunk fails
+// (network down, or an old tab after a new deploy), mark <html> so CSS shows everything without motion.
 const loadFeatures = () =>
   import('./features').then(
     (m) => m.default,
@@ -13,9 +13,9 @@ const loadFeatures = () =>
   );
 
 /**
- * Satu pembungkus untuk seluruh aplikasi. Hanya komponen `m` (bukan `motion`) yang dipakai: intinya ikut
- * bundel awal (±17 KB gzip), fitur gerak (animasi, gestur, layout, drag; ±20 KB gzip) dimuat belakangan.
- * `reducedMotion="user"` mematikan gerak transform dan layout bila sistem meminta (opacity tetap).
+ * One wrapper for the whole app. Only `m` components (not `motion`) are used: the core ships in the
+ * initial bundle (±17 KB gzip); motion features (animation, gestures, layout, drag; ±20 KB gzip) load later.
+ * `reducedMotion="user"` turns off transform and layout motion when the system asks (opacity stays).
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
   return (
@@ -25,7 +25,7 @@ export function MotionProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Mode ringan (HP lemah / penghemat data) mematikan gerak transform seperti reduced-motion. */
+/** Lite mode (weak phone / data saver) turns off transform motion like reduced-motion. */
 export function LiteMotion({ lite, children }: { lite: boolean; children: ReactNode }) {
   return <MotionConfig reducedMotion={lite ? 'always' : 'user'}>{children}</MotionConfig>;
 }

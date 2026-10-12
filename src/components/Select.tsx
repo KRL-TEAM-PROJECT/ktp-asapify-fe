@@ -12,18 +12,18 @@ interface Props {
   value: string;
   items: Item[];
   onChange(value: string): void;
-  label?: string; // nama aksesibel bila tidak ada label terlihat
-  labelledBy?: string; // id label terlihat
+  label?: string; // accessible name when there is no visible label
+  labelledBy?: string; // id of the visible label
   size?: 'md' | 'sm';
-  align?: 'start' | 'end'; // sisi daftar pilihan menempel
+  align?: 'start' | 'end'; // the side the option list sticks to
   className?: string;
 }
 
 const MAX_H = 300;
 
 /**
- * Dropdown buatan sendiri (pola ARIA listbox) pengganti <select> bawaan, supaya tampil sama di semua
- * browser. Keyboard: panah, Home/End, Enter/Spasi, Escape, dan ketik huruf untuk melompat ke pilihan.
+ * Custom dropdown (ARIA listbox pattern) replacing the native <select>, so it looks the same in every
+ * browser. Keyboard: arrows, Home/End, Enter/Space, Escape, and typing letters to jump to an option.
  */
 export function Select({ value, items, onChange, label, labelledBy, size = 'md', align = 'start', className = '' }: Props) {
   const id = useId();
@@ -36,13 +36,13 @@ export function Select({ value, items, onChange, label, labelledBy, size = 'md',
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [place, setPlace] = useState<{ up: boolean; maxH: number }>({ up: false, maxH: MAX_H });
-  const [hl, setHl] = useState<{ top: number; h: number } | null>(null); // sorotan pilihan aktif yang meluncur
+  const [hl, setHl] = useState<{ top: number; h: number } | null>(null); // sliding highlight of the active option
   const root = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
   const typed = useRef({ text: '', at: 0 });
 
-  /** Indeks pilihan aktif berikutnya dari `from` ke arah `step`; -1 bila habis. */
+  /** Index of the next enabled option from `from` in direction `step`; -1 when none is left. */
   const nextEnabled = (from: number, step: 1 | -1) => {
     for (let i = from; i >= 0 && i < flat.length; i += step) if (!flat[i].disabled) return i;
     return -1;
@@ -51,7 +51,7 @@ export function Select({ value, items, onChange, label, labelledBy, size = 'md',
   const show = () => {
     const cur = indexOf.get(value) ?? -1;
     setActive(cur >= 0 && !flat[cur].disabled ? cur : nextEnabled(0, 1));
-    setHl(null); // sorotan dipasang ulang di posisi pilihan aktif tanpa meluncur dari sisa pembukaan lalu
+    setHl(null); // the highlight is reset at the active option without sliding from the previous opening
     setOpen(true);
   };
   const hide = (refocus = true) => {
@@ -65,8 +65,8 @@ export function Select({ value, items, onChange, label, labelledBy, size = 'md',
     if (o.value !== value) onChange(o.value);
   };
 
-  // Buka ke atas bila ruang di bawah tombol tidak cukup, lalu pindahkan fokus ke daftar. Ruang dihitung
-  // terhadap wadah pemotong terdekat (mis. panel yang bisa digulir), bukan hanya jendela.
+  // Open upwards when there is not enough room below the button, then move focus to the list. Room is measured
+  // against the nearest clipping container (e.g. a scrollable panel), not just the window.
   useLayoutEffect(() => {
     if (!open || !btn.current || !list.current) return;
     const r = btn.current.getBoundingClientRect();
@@ -86,8 +86,8 @@ export function Select({ value, items, onChange, label, labelledBy, size = 'md',
     list.current.focus({ preventScroll: true });
   }, [open]);
 
-  // Gulir di dalam daftar saja (scrollIntoView ikut menggulir panel induk) dan ukur posisi sorotan.
-  // Daftar berposisi absolut, jadi offsetTop opsi = posisinya di isi daftar yang digulir.
+  // Scroll inside the list only (scrollIntoView would also scroll the parent panel) and measure the highlight.
+  // The list is absolutely positioned, so an option's offsetTop = its position in the scrolled list content.
   useLayoutEffect(() => {
     const ul = list.current;
     const el = open && active >= 0 ? ul?.querySelector<HTMLElement>(`[data-i="${active}"]`) : null;
@@ -120,7 +120,7 @@ export function Select({ value, items, onChange, label, labelledBy, size = 'md',
       case 'Home': e.preventDefault(); move(nextEnabled(0, 1)); break;
       case 'End': e.preventDefault(); move(nextEnabled(flat.length - 1, -1)); break;
       case 'Enter': case ' ': e.preventDefault(); pick(active); break;
-      case 'Escape': e.preventDefault(); e.stopPropagation(); hide(); break; // jangan ikut menutup kalender induk
+      case 'Escape': e.preventDefault(); e.stopPropagation(); hide(); break; // do not also close the parent calendar
       case 'Tab': hide(false); break;
       default: {
         if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;

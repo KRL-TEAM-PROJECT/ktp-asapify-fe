@@ -13,38 +13,38 @@ import { IconCrosshair, IconThermo } from './icons';
 
 interface Props {
   img: EvidenceImg;
-  centre: LngLat; // koordinat kelompok = pusat crop
-  clusterPixels: string[]; // id piksel anggota kelompok
+  centre: LngLat; // cluster coordinate = crop centre
+  clusterPixels: string[]; // pixel ids of the cluster members
   repPixel: string;
   viirs: ViirsDetection[];
-  /** Anomali (K) yang mulai dianggap panas di tooltip; dari skala atribut u_H. */
+  /** Anomaly (K) from which the tooltip calls a cell hot; from the u_H attribute scale. */
   hotFrom?: number;
 }
 
 type Bbox = [number, number, number, number];
-/** Siapa yang sedang memeriksa: kursor, jari (tetap sampai ketuk di luar), atau keyboard. */
+/** Who is probing: the cursor, a finger (stays until a tap outside), or the keyboard. */
 type Via = 'mouse' | 'touch' | 'key';
 type Probe = { kind: 'pt'; fx: number; fy: number; via: Via } | { kind: 'det'; i: number; via: Via };
 
-const HIT_MOUSE = 9; // px: titik VIIRS terdekat dalam jarak ini yang dipilih saat kursor lewat
-const HIT_TOUCH = 16; // px: jari lebih kasar
-const KEY_STEP = 0.05; // langkah panah di citra tanpa grid (VIIRS), pecahan lebar citra
+const HIT_MOUSE = 9; // px: the nearest VIIRS point within this distance is picked on hover
+const HIT_TOUCH = 16; // px: a finger is coarser
+const KEY_STEP = 0.05; // arrow-key step on images without a grid (VIIRS), as a fraction of the image width
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 
-// Hanya satu tooltip citra terbuka sekali waktu: yang baru menutup yang lama (kursor di satu citra, fokus di citra lain).
+// Only one image tooltip is open at a time: a new one closes the old one (cursor on one image, focus on another).
 let closeActive: (() => void) | null = null;
 
-/** Posisi koordinat di citra sebagai pecahan lebar/tinggi (sumbu lon/lat linear). */
+/** Position of a coordinate in the image as a fraction of width/height (linear lon/lat axes). */
 const toFrac = (bbox: Bbox, lon: number, lat: number) => ({ fx: (lon - bbox[0]) / (bbox[2] - bbox[0]), fy: (bbox[3] - lat) / (bbox[3] - bbox[1]) });
 
 /**
- * Citra bukti. Crop ±0,2° (≈ 44 km); lingkaran = radius 5 km dari koordinat kelompok. Citra termal
- * Himawari punya tooltip suhu per piksel (kedua satelit); citra VIIRS punya tooltip koordinat dan titik
- * deteksi FIRMS. Kursor, ketukan, dan tombol panah semuanya bisa dipakai.
+ * Evidence image. Crop ±0.2° (≈ 44 km); circle = 5 km radius around the cluster coordinate. Himawari thermal
+ * images have a per-pixel temperature tooltip (both satellites); VIIRS images have a coordinate tooltip and
+ * FIRMS detection points. Cursor, tap and arrow keys all work.
  */
 export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hotFrom }: Props) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const tipId = useId();
   const frame = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
@@ -69,7 +69,7 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
     return fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1 ? [{ d, i, fx, fy }] : [];
   }), [viirs, bbox, img.source]);
 
-  // Piksel perwakilan: tempat keyboard mulai dan sumber baris ringkasan di keterangan.
+  // Representative pixel: where the keyboard starts and the source of the summary line in the caption.
   const home = useMemo(() => {
     const c = pixelCenter(repPixel);
     if (!thermal || !c) return { fx: 0.5, fy: 0.5, reading: null };
@@ -79,12 +79,12 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
   }, [thermal, bbox, repPixel]);
   const range = thermal ? hotRange(thermal) : null;
 
-  // ---------- kursor / jari / keyboard ----------
+  // ---------- cursor / finger / keyboard ----------
   const frac = (e: PointerEvent) => {
     const r = frame.current!.getBoundingClientRect();
     return { fx: clamp01((e.clientX - r.left) / r.width), fy: clamp01((e.clientY - r.top) / r.height) };
   };
-  /** Pada citra berkisi, gerak di dalam sel yang sama tidak mengubah apa pun. */
+  /** On gridded images, moving within the same cell changes nothing. */
   const point = (fx: number, fy: number, via: Via) => setProbe((p) => {
     if (thermal && p?.kind === 'pt' && p.via === via) {
       const a = cellOf(thermal, p.fx, p.fy), b = cellOf(thermal, fx, fy);
@@ -92,7 +92,7 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
     }
     return { kind: 'pt', fx, fy, via };
   });
-  /** Titik VIIRS yang paling dekat dengan pointer (px), asal dalam jangkauan; titik yang bertumpuk tidak saling menutupi. */
+  /** The VIIRS point nearest to the pointer (px), if within reach; stacked points never hide one another. */
   const nearestDet = (e: PointerEvent, reach: number) => {
     const r = frame.current!.getBoundingClientRect();
     let best: { i: number; dist: number } | null = null;
@@ -111,15 +111,15 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
   const onMove = (e: PointerEvent) => { if (e.pointerType !== 'touch') probeAt(e, 'mouse', HIT_MOUSE); };
   const onDown = (e: PointerEvent) => { if (e.pointerType === 'touch') probeAt(e, 'touch', HIT_TOUCH); };
   const onLeave = (e: PointerEvent) => { if (e.pointerType !== 'touch') setProbe((p) => (p?.via === 'mouse' ? null : p)); };
-  // Gestur jari yang berubah jadi gulir halaman dibatalkan browser: jangan tinggalkan tooltip menggantung.
+  // A finger gesture that turns into a page scroll is cancelled by the browser: never leave a tooltip hanging.
   const onCancel = () => setProbe((p) => (p?.via === 'touch' ? null : p));
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') { if (probe) { e.stopPropagation(); setProbe(null); } return; }
     const a = ARROWS[e.key];
-    if (!a || e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey) return; // jangan rebut pintasan browser
+    if (!a || e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey) return; // never steal browser shortcuts
     e.preventDefault();
-    if (probe?.kind !== 'pt') { point(home.fx, home.fy, 'key'); return; } // tekan pertama: mulai dari piksel perwakilan
+    if (probe?.kind !== 'pt') { point(home.fx, home.fy, 'key'); return; } // first press: start at the representative pixel
     if (thermal) {
       const c = cellOf(thermal, probe.fx, probe.fy);
       const col = Math.min(thermal.cols - 1, Math.max(0, c.col + a[0]));
@@ -130,7 +130,7 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
     }
   };
 
-  // Ketukan di luar citra menutup tooltip yang dipasang jari.
+  // A tap outside the image closes a tooltip opened by a finger.
   const touching = probe?.via === 'touch';
   useEffect(() => {
     if (!touching) return;
@@ -139,8 +139,8 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
     return () => document.removeEventListener('pointerdown', down);
   }, [touching]);
 
-  // Selama tooltip terbuka: Escape menutupnya dari mana pun (WCAG 1.4.13), tooltip lain menutup yang ini, dan
-  // menutup bila citra sudah tergulir keluar layar (tooltip tidak boleh menggantung tanpa penunjuknya).
+  // While a tooltip is open: Escape closes it from anywhere (WCAG 1.4.13), another tooltip closes this one, and
+  // it closes when the image scrolls off screen (a tooltip must never hang without its anchor).
   const open = probe != null;
   useEffect(() => {
     if (!open) return;
@@ -159,7 +159,7 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
     };
   }, [open]);
 
-  // ---------- apa yang ditunjuk ----------
+  // ---------- what is being pointed at ----------
   const cell = thermal && probe?.kind === 'pt' ? cellOf(thermal, probe.fx, probe.fy) : null;
   const here: LngLat | null = probe?.kind === 'pt' ? [bbox[0] + probe.fx * (bbox[2] - bbox[0]), bbox[3] - probe.fy * (bbox[3] - bbox[1])] : null;
   const cellInfo = useMemo(() => {
@@ -182,17 +182,17 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
   };
   const anchorKey = !probe ? 'none' : probe.kind === 'det' ? `d${probe.i}` : cell ? `${cell.col},${cell.row}` : `${probe.fx.toFixed(3)},${probe.fy.toFixed(3)}`;
 
-  // Pembaca layar: ringkasan angka di sel yang sedang diperiksa lewat keyboard.
+  // Screen readers: a summary of the numbers in the cell probed with the keyboard.
   const srText = useMemo(() => {
     if (probe?.via !== 'key' || !cellInfo) return '';
     const parts = cellInfo.readings.map((r) => (r.hot.k == null
       ? t('probe.cloud')
-      : `${r.sat === 'himawari' ? 'Himawari' : 'GK2A'} ${r.hot.band} ${fmtC(r.hot.k, lang)}${r.ref.k != null ? `, ${r.ref.band} ${fmtC(r.ref.k, lang)}` : ''}${r.anomaly != null ? `, ${t('probe.row_anom')} ${fmtSigned(r.anomaly, 1, lang)} K` : ''}`));
+      : `${r.sat === 'himawari' ? 'Himawari' : 'GK2A'} ${r.hot.band} ${fmtC(r.hot.k)}${r.ref.k != null ? `, ${r.ref.band} ${fmtC(r.ref.k)}` : ''}${r.anomaly != null ? `, ${t('probe.row_anom')} ${fmtSigned(r.anomaly, 1)} K` : ''}`));
     return t('probe.sr', { id: cellInfo.id, summary: parts.join('; ') });
-  }, [probe?.via, cellInfo, lang, t]);
+  }, [probe?.via, cellInfo, t]);
 
-  const label = `${t(`ver.src.${img.source}`)} · ${fmtSlot(img.observed_at, lang)}`;
-  const mk = toFrac(bbox, centre[0], centre[1]); // penanda di koordinat kelompok, bukan selalu di tengah crop
+  const label = `${t(`ver.src.${img.source}`)} · ${fmtSlot(img.observed_at)}`;
+  const mk = toFrac(bbox, centre[0], centre[1]); // marker at the cluster coordinate, not always at the crop centre
   const marker = { left: `${mk.fx * 100}%`, top: `${mk.fy * 100}%` };
   const cellPos = cell && thermal ? { left: `${(cell.col / thermal.cols) * 100}%`, top: `${(cell.row / thermal.rows) * 100}%` } : null;
   const crossPos = !thermal && probe?.kind === 'pt' ? { left: `${probe.fx * 100}%`, top: `${probe.fy * 100}%` } : null;
@@ -245,7 +245,7 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
               <button
                 key={`${d.src}-${d.time_utc}`} type="button" className={`viirs-dot${d.distance_km <= 2 ? ' near' : ''}`}
                 style={{ left: `${fx * 100}%`, top: `${fy * 100}%` }}
-                aria-label={`${t('probe.viirs_pt', { sat: satLabel(d.src) })}, ${fmtSlot(d.time_utc, lang)}, ${t('probe.from_marker', { km: fmtNum(d.distance_km, 1, lang) })}`}
+                aria-label={`${t('probe.viirs_pt', { sat: satLabel(d.src) })}, ${fmtSlot(d.time_utc)}, ${t('probe.from_marker', { km: fmtNum(d.distance_km, 1) })}`}
                 aria-describedby={probe?.kind === 'det' && probe.i === i ? tipId : undefined}
                 onFocus={(e) => { if (e.currentTarget.matches(':focus-visible')) setProbe({ kind: 'det', i, via: 'key' }); }}
                 onBlur={() => setProbe((p) => (p?.kind === 'det' && p.via === 'key' ? null : p))}
@@ -262,19 +262,19 @@ export function EvidenceImage({ img, centre, clusterPixels, repPixel, viirs, hot
 
       {range && (
         <div className="thermal-legend" aria-hidden="true" title={t('probe.legend')}>
-          <span>{fmtC(range[0], lang)}</span>
+          <span>{fmtC(range[0])}</span>
           <i style={{ background: thermalGradient(range[0], range[1]) }} />
-          <span>{fmtC(range[1], lang)}</span>
+          <span>{fmtC(range[1])}</span>
         </div>
       )}
 
       <figcaption>
         <b>{t(`ver.src.${img.source}`)}</b>
         <span>{img.layer}</span>
-        <span>{fmtSlot(img.observed_at, lang)} · {t('ver.age', { h: fmtNum(img.age_h, 1, lang) })}</span>
+        <span>{fmtSlot(img.observed_at)} · {t('ver.age', { h: fmtNum(img.age_h, 1) })}</span>
         {home.reading?.hot.k != null && home.reading.anomaly != null && (
           <span className="evimg-rep">
-            {t('probe.rep_line', { c: `${fmtC(home.reading.hot.k, lang)} (${home.reading.hot.band})`, a: fmtSigned(home.reading.anomaly, 1, lang) })}
+            {t('probe.rep_line', { c: `${fmtC(home.reading.hot.k)} (${home.reading.hot.band})`, a: fmtSigned(home.reading.anomaly, 1) })}
           </span>
         )}
       </figcaption>

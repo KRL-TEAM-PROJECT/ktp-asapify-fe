@@ -1,4 +1,4 @@
-/* Token warna + huruf persis ../asapify/ui.html */
+/* Colour + type tokens exactly as ../asapify/ui.html */
 :root {
   --font-display: 'IBM Plex Sans Condensed', 'Arial Narrow', system-ui, sans-serif;
   --font-body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
@@ -10,10 +10,10 @@
   --amber: #a86f00; --amber-soft: #fbeccc;
   --ember: #c2410c; --ember-soft: #fbe1d4;
   --topbar: 57px;
-  /* kontrol: cincin fokus dan bayangan lapisan melayang, sama untuk semua komponen */
+  /* controls: focus ring and floating-layer shadow, shared by every component */
   --ring: 0 0 0 3px color-mix(in srgb, var(--sat) 28%, transparent);
   --shadow-pop: 0 10px 30px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.08);
-  /* gerak CSS murni (tekan, sakelar): pegas teredam yang sama rasanya dengan pegas motion di komponen */
+  /* pure CSS motion (press, switch): a damped spring that feels like the motion springs in components */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -58,7 +58,7 @@ img { max-width: 100%; display: block; }
 button { font: inherit; color: inherit; }
 .muted { color: var(--ink-dim); }
 .small { font-size: 13px; }
-/* Mono hanya untuk data (ID, angka, waktu, kode); label memakai huruf badan. */
+/* Mono only for data (IDs, numbers, times, codes); labels use the body face. */
 .lbl { font-size: 12.5px; font-weight: 500; color: var(--ink-dim); }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -76,18 +76,12 @@ button { font: inherit; color: inherit; }
   transition: color 0.15s, background-color 0.15s; }
 .navlinks a:hover { color: var(--ink); background: var(--surface-2); }
 .navlinks a.active { color: var(--ink); background: transparent; }
-.nl-label { position: relative; display: inline-flex; align-items: center; } /* di atas .pill-bg */
-/* latar aktif yang meluncur antar tautan/segmen (layoutId bersama, lihat App.tsx) */
+.nl-label { position: relative; display: inline-flex; align-items: center; } /* above .pill-bg */
+/* active background sliding between links (shared layoutId, see App.tsx) */
 .pill-bg { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
 .nav-bg { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
-.seg-bg { background: var(--ink); }
 .nl-short { display: none; }
 .tools { display: flex; align-items: center; gap: 6px; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { position: relative; border: 0; background: transparent; font-family: var(--font-mono); font-size: 12px; padding: 0 9px; min-height: 36px; min-width: 36px; cursor: pointer; color: var(--ink-dim);
-  transition: color 0.2s; }
-.seg button > span { position: relative; }
-.seg button[aria-pressed="true"] { color: var(--surface); }
 .icon-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; min-width: 38px; min-height: 38px; cursor: pointer; font-size: 15px;
   transition: background-color 0.15s, border-color 0.15s, transform 0.4s var(--ease-spring); }
 .icon-btn:active:not(:disabled) { transform: scale(0.9); transition-duration: 0.15s, 0.15s, 0.08s; }
@@ -95,7 +89,7 @@ button { font: inherit; color: inherit; }
 .link-btn { border: 0; background: none; color: var(--sat); cursor: pointer; padding: 0 6px; min-height: 38px; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; }
 .link-btn:hover { text-decoration: underline; }
 
-/* ---------- umum ---------- */
+/* ---------- general ---------- */
 .route { height: 100%; }
 .main { padding: 24px 16px 64px; }
 .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
@@ -112,15 +106,15 @@ button { font: inherit; color: inherit; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
 
-/* pills: status selalu ikon + label */
+/* pills: status is always icon + label */
 .pill { display: inline-flex; align-items: center; gap: 5px; justify-self: start; font-size: 12.5px; font-weight: 500; line-height: 1.3; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .pill.grey { background: var(--surface-2); color: var(--ink-dim); }
 .pill.outline { box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-dim); }
 .pill.ai, .pill.sat { background: var(--sat-soft); color: var(--sat); }
-.pill.waspada { background: var(--amber-soft); color: var(--amber); white-space: normal; }
+.pill.caution { background: var(--amber-soft); color: var(--amber); white-space: normal; }
 .st-safe { background: var(--moss-soft); color: var(--moss); }
 .st-watch { background: var(--amber-soft); color: var(--amber); }
-.st-awas { background: var(--ember); color: #fff; }
+.st-warning { background: var(--ember); color: #fff; }
 .st-no_observation { background: repeating-linear-gradient(45deg, var(--surface-2) 0 4px, var(--line) 4px 6px); color: var(--ink); }
 .dec-state { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-dim); }
 
@@ -135,28 +129,28 @@ button { font: inherit; color: inherit; }
 .btn.danger { background: var(--ember); border-color: var(--ember); color: #fff; }
 .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--ember) 86%, #000); border-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .icon-btn, .chip, .map-btn, .night-btn, .play-btn, .opt input, .cal-day, .navlinks a, .seg button { transition: none !important; }
+  .btn, .icon-btn, .chip, .map-btn, .night-btn, .play-btn, .opt input, .cal-day, .navlinks a { transition: none !important; }
   .btn:active:not(:disabled), .icon-btn:active:not(:disabled), .chip:active, .map-btn:active, .night-btn:active, .play-btn:active:not(:disabled), .cal-day:active:not(:disabled) { transform: none; }
 }
 .btn.wide { width: 100%; }
 
-/* <details> membuka/menutup dengan tinggi mengalir; browser tanpa ::details-content cukup langsung berganti */
+/* <details> opens/closes with a flowing height; browsers without ::details-content simply switch */
 @supports selector(::details-content) {
   details { interpolate-size: allow-keywords; }
   details::details-content { block-size: 0; opacity: 0; overflow: clip; transition: block-size 0.32s var(--ease-snap), opacity 0.22s, content-visibility 0.32s allow-discrete; }
   details[open]::details-content { block-size: auto; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { details::details-content { transition: none !important; } }
-/* fitur gerak gagal dimuat (lihat src/motion/MotionProvider.tsx): jangan biarkan elemen yang mulai dari transparan tetap hilang */
+/* motion features failed to load (see src/motion/MotionProvider.tsx): never leave elements that start transparent invisible */
 .no-motion [style*="opacity"] { opacity: 1 !important; }
 
-/* ---------- peta operator ---------- */
+/* ---------- operator map ---------- */
 .main-map { height: calc(100dvh - var(--topbar)); }
 .map-page { height: 100%; display: grid; grid-template-columns: 360px minmax(0, 1fr); }
 .panel { background: var(--bg); border-right: 1px solid var(--line); overflow-y: auto; padding: 14px; display: grid; gap: 12px; align-content: start; }
 .panel .grab { display: none; }
 .map-wrap { position: relative; min-width: 0; }
-.map-wrap > .map { position: absolute; inset: 0; } /* menang atas .maplibregl-map { position: relative } */
+.map-wrap > .map { position: absolute; inset: 0; } /* wins over .maplibregl-map { position: relative } */
 .banners { display: grid; gap: 6px; }
 .banner { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; line-height: 1.4; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); color: var(--ink-dim); }
 .banner .ok { color: var(--moss); }
@@ -168,7 +162,7 @@ button { font: inherit; color: inherit; }
 .chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid transparent; border-radius: 999px; padding: 0 12px; min-height: 36px; font-size: 13px; font-weight: 500; cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s, transform 0.4s var(--ease-spring); }
 .chip:active { transform: scale(0.94); transition-duration: 0.15s, 0.15s, 0.15s, 0.08s; }
-/* chip mati: garis tipis + ikon pudar, tanpa coretan */
+/* chip off: thin outline + faded icon, no strike-through */
 .chip[aria-pressed="false"] { background: transparent; color: var(--ink-dim); border-color: var(--line); }
 .chip[aria-pressed="false"] svg { opacity: 0.5; }
 .chip[aria-pressed="false"]:hover { border-color: var(--ink-dim); color: var(--ink); }
@@ -194,7 +188,7 @@ button { font: inherit; color: inherit; }
 .sel-grp + .sel-grp, .sel-opt + .sel-grp { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 2px; }
 .sel-grp-label { display: block; padding: 8px 10px 4px; font-size: 12px; font-weight: 600; color: var(--ink-dim); }
 .sel-opt { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 0 10px; border-radius: 6px; font-size: 14px; cursor: pointer; }
-/* sorotan pilihan aktif: satu elemen yang meluncur antar pilihan (posisi dari Select.tsx) */
+/* active option highlight: one element sliding between options (position from Select.tsx) */
 .sel-hl { position: absolute; z-index: 0; top: 0; left: 4px; right: 4px; border-radius: 6px; background: var(--surface-2); pointer-events: none; }
 .sel.sm .sel-opt { min-height: 34px; font-size: 13px; }
 .sel-opt.chosen { font-weight: 600; }
@@ -234,15 +228,15 @@ button { font: inherit; color: inherit; }
   .map-page { display: block; position: relative; overflow: hidden; }
   .map-wrap { position: absolute; inset: 0; }
   .panel { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 62%; border-right: 0; border-top: 1px solid var(--line);
-    border-radius: 14px 14px 0 0; box-shadow: 0 -6px 24px rgb(0 0 0 / 0.12); padding-top: 4px; } /* naik-turun diatur Sheet.tsx (seret + pegas) */
+    border-radius: 14px 14px 0 0; box-shadow: 0 -6px 24px rgb(0 0 0 / 0.12); padding-top: 4px; } /* up/down is driven by Sheet.tsx (drag + spring) */
   .panel .grab { display: grid; place-items: center; width: 100%; min-height: 34px; border: 0; background: transparent; cursor: grab; position: sticky; top: -4px; background: var(--bg); z-index: 1;
-    touch-action: none; /* gagang diseret, bukan menggulir halaman */ }
+    touch-action: none; /* the handle drags; it never scrolls the page */ }
   .panel .grab:active { cursor: grabbing; }
   .panel .grab span { width: 40px; height: 4px; border-radius: 2px; background: var(--line); transition: width 0.3s var(--ease-spring), background-color 0.15s; }
   .panel .grab:hover span, .panel .grab:active span { width: 52px; background: var(--ink-dim); }
 }
 
-/* ---------- detail kelompok ---------- */
+/* ---------- cluster detail ---------- */
 .detail-head { display: grid; gap: 8px; }
 .back { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; text-decoration: none; font-size: 14px; justify-self: start; }
 .title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -252,7 +246,7 @@ button { font: inherit; color: inherit; }
 .chart svg { width: 100%; height: auto; display: block; }
 .chart .ax { font-family: var(--font-mono); font-size: 10.5px; fill: var(--ink-dim); }
 .chart figcaption { font-size: 12.5px; color: var(--ink-dim); }
-/* parameter MAUT: angka terukur, u, bobot, sumbangan; baris kedua = angka pendukung */
+/* MAUT parameters: measured number, u, weight, contribution; second row = supporting numbers */
 .attrs { display: grid; }
 .attr-cols, .attr { display: grid; grid-template-columns: minmax(0, 1fr) 124px 84px 38px 40px 40px; column-gap: 10px; align-items: center; font-size: 13.5px; }
 .attrs.no-meas .attr-cols, .attrs.no-meas .attr { grid-template-columns: minmax(0, 1fr) minmax(0, 140px) 38px 40px 40px; }
@@ -270,7 +264,7 @@ button { font: inherit; color: inherit; }
 .attr-bar i.hot { background: var(--ember); }
 .attr-bar em { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
 .attr-bar.has-tip { cursor: help; }
-.attr-bar.has-tip::before { content: ""; position: absolute; inset: -8px 0; } /* area sorot lebih tinggi dari batangnya */
+.attr-bar.has-tip::before { content: ""; position: absolute; inset: -8px 0; } /* hover area taller than the bar */
 .attr-bar.has-tip:focus-visible { outline: 2px solid var(--sat); outline-offset: 3px; }
 .attr-nums { display: contents; }
 .attr-nums .lab { display: none; }
@@ -283,13 +277,13 @@ button { font: inherit; color: inherit; }
 .attr-formula { font-family: var(--font-mono); font-size: 12px; color: var(--ink); overflow-wrap: anywhere; }
 .attr.total { border-bottom: 0; border-top: 2px solid var(--line); margin-top: -1px; font-weight: 600; }
 
-/* detail dua kolom (1024–1199 px): kolom kartu sempit, kecilkan kolom angka supaya nama atribut tetap terbaca */
+/* two-column detail (1024–1199 px): narrow card column, shrink the number columns so attribute names stay readable */
 @media (min-width: 1024px) and (max-width: 1199px) {
   .attr-cols, .attr { grid-template-columns: minmax(0, 1fr) 104px 70px 34px 36px 36px; column-gap: 8px; }
   .attrs.no-meas .attr-cols, .attrs.no-meas .attr { grid-template-columns: minmax(0, 1fr) minmax(0, 110px) 34px 36px 36px; }
 }
 
-/* ---------- tooltip mengambang (components/FloatingTip) ---------- */
+/* ---------- floating tooltip (components/FloatingTip) ---------- */
 .tip { position: fixed; left: 0; top: 0; z-index: 200; width: max-content; max-width: min(330px, calc(100vw - 16px)); display: grid; gap: 5px; padding: 9px 12px 10px;
   background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-pop); font-size: 12.5px; line-height: 1.4; pointer-events: none; }
 .tip-arrow { position: absolute; bottom: -6px; width: 10px; height: 10px; margin-left: -5px; background: var(--surface); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); transform: rotate(45deg); }
@@ -331,7 +325,7 @@ button { font: inherit; color: inherit; }
 .evimg-missing { display: grid; place-items: center; height: 100%; font-size: 13px; color: var(--ink-dim); }
 .evimg-marker { position: absolute; width: 22.7%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 2px solid #ff3b30; border-radius: 50%; box-shadow: 0 0 0 1px rgb(255 255 255 / 0.7); }
 .evimg-marker::after { content: ""; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; border-radius: 50%; background: #ff3b30; transform: translate(-50%, -50%); }
-/* citra interaktif: kursor/ketuk/panah memeriksa piksel (components/EvidenceImage) */
+/* interactive images: cursor/tap/arrows probe pixels (components/EvidenceImage) */
 .evimg-frame.probeable { cursor: crosshair; touch-action: pan-y pinch-zoom; }
 .evimg-frame.probeable:focus-visible { outline: 2px solid var(--sat); outline-offset: 2px; border-radius: 8px; }
 .probe-members { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
@@ -343,7 +337,7 @@ button { font: inherit; color: inherit; }
 .probe-cross::before { left: -8px; top: 0; width: 16px; height: 1px; }
 .probe-cross::after { left: 0; top: -8px; width: 1px; height: 16px; }
 .viirs-dot { position: absolute; z-index: 3; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0; border-radius: 50%; border: 2px solid #4cc2ff; background: rgb(76 194 255 / 0.28); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.55);
-  pointer-events: none; /* titik terdekat dipilih lewat bingkai (EvidenceImage), jadi titik bertumpuk tetap bisa dijangkau */ }
+  pointer-events: none; /* the nearest point is picked through the frame (EvidenceImage), so stacked points stay reachable */ }
 .viirs-dot.near { border-color: #ffb340; background: rgb(255 179 64 / 0.3); }
 .viirs-dot:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(0 0 0 / 0.65); }
 .evimg-hint { position: absolute; z-index: 2; left: 6px; top: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 7px; border-radius: 999px; font-size: 11px; font-weight: 500; color: #fff;
@@ -380,12 +374,12 @@ button { font: inherit; color: inherit; }
 .field-label span:last-child { font-family: var(--font-mono); font-weight: 400; }
 .field-label .over { color: var(--ember); font-weight: 600; }
 .dec-summary { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; display: grid; gap: 2px; font-size: 13.5px; }
-.expand { display: grid; gap: 10px; } /* label + isian yang masuk/keluar sebagai satu blok */
+.expand { display: grid; gap: 10px; } /* label + field entering/leaving as one block */
 .confirm { background: var(--amber-soft); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
 .decided { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .decision blockquote { margin: 0; padding: 6px 12px; border-left: 3px solid var(--line); color: var(--ink-dim); }
 
-/* ---------- masuk ---------- */
+/* ---------- login ---------- */
 .login { min-height: calc(100dvh - var(--topbar) - 88px); max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); gap: 40px; align-items: center; }
 .login-aside { display: grid; gap: 12px; align-content: center; max-width: 42ch; }
 .login-aside h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.3px; }
@@ -393,11 +387,11 @@ button { font: inherit; color: inherit; }
 .login-card { width: 100%; gap: 14px; padding: 28px; }
 .login-card h1 { font-size: 26px; }
 
-/* ---------- tentang ---------- */
+/* ---------- about ---------- */
 .about { gap: 32px; }
 .about-head { display: grid; gap: 12px; max-width: 68ch; }
 .lede { font-size: 17px; color: var(--ink); }
-/* Garis atas langkah = pelakunya: aturan (moss), agen AI (sat), manusia (ink). */
+/* A step's top border = who acts: rules (moss), AI agent (sat), person (ink). */
 .steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
 .step { border-top: 3px solid var(--moss); padding-top: 10px; display: grid; gap: 4px; align-content: start; }
 .step.by-ai { border-top-color: var(--sat); }
@@ -436,7 +430,6 @@ button { font: inherit; color: inherit; }
   .brand small, .mock-badge, .nl-full { display: none; }
   .nl-short { display: inline; }
   .navlinks a { padding: 0 7px; font-size: 13.5px; }
-  .seg button { min-width: 30px; padding: 0 6px; }
   .link-btn { padding: 0 4px; font-size: 13.5px; }
   .status-def div, .kv div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .w-row { grid-template-columns: minmax(0, 1fr) 44px; }
@@ -447,11 +440,10 @@ button { font: inherit; color: inherit; }
   .card { padding: 14px; }
   .topnav { padding: 0 12px; }
   .topnav-in { gap: 6px; }
-  .brand { font-size: 0; gap: 0; } /* titik saja; teks tetap ada untuk pembaca layar */
+  .brand { font-size: 0; gap: 0; } /* dot only; the text stays for screen readers */
   .brand i { margin: 0 6px; }
   .navlinks { gap: 0; }
   .navlinks a { padding: 0 5px; }
-  .seg button { min-width: 28px; padding: 0 5px; }
   .icon-btn { min-width: 34px; }
 }
 
@@ -459,10 +451,10 @@ button { font: inherit; color: inherit; }
 .slot-time { font-weight: 500; }
 .slot-sats { display: flex; gap: 10px; }
 
-/* ---------- overlay peta ---------- */
+/* ---------- map overlays ---------- */
 .map-overlay { position: absolute; z-index: 3; pointer-events: none; }
 .map-overlay > * { pointer-events: auto; }
-.map-overlay.top-left { z-index: 4; top: 10px; left: 10px; /* panel Lapisan di atas pemutar slot */ display: grid; gap: 8px; justify-items: start; max-width: min(300px, calc(100% - 64px)); }
+.map-overlay.top-left { z-index: 4; top: 10px; left: 10px; /* Layers panel above the slot player */ display: grid; gap: 8px; justify-items: start; max-width: min(300px, calc(100% - 64px)); }
 .map-overlay.bottom { left: 50%; bottom: 30px; transform: translateX(-50%); width: min(580px, calc(100% - 20px)); }
 .map-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--surface); color: var(--ink); font-size: 13.5px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
@@ -479,10 +471,10 @@ button { font: inherit; color: inherit; }
 .opt { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 14px; cursor: pointer; }
 .opt input { appearance: none; flex: none; margin: 0; cursor: pointer; transition: background-color 0.2s, background-position 0.4s var(--ease-snap), border-color 0.15s, box-shadow 0.25s var(--ease-snap); }
 .opt input:focus-visible { outline: 2px solid var(--sat); outline-offset: 2px; }
-/* radio: lingkaran, isi moss dengan titik putih */
+/* radio: circle, moss fill with a white dot */
 .opt input[type="radio"] { width: 18px; height: 18px; border: 1.5px solid var(--ink-dim); border-radius: 50%; background: var(--surface); }
 .opt input[type="radio"]:checked { border-color: var(--moss); background: var(--moss); box-shadow: inset 0 0 0 3.5px var(--surface); }
-/* sakelar: kenop digambar dengan gradien (pseudo-elemen pada input tidak andal di semua browser) */
+/* switch: the knob is drawn with gradients (pseudo-elements on inputs are unreliable across browsers) */
 .opt.switch { justify-content: space-between; }
 .opt input[type="checkbox"] { width: 34px; height: 20px; border-radius: 999px;
   background: radial-gradient(circle, #fff 7px, transparent 7.5px) 0 0 / 20px 20px no-repeat, var(--line); }
@@ -506,7 +498,7 @@ button { font: inherit; color: inherit; }
 .hist-cells i.h-N { background: repeating-linear-gradient(45deg, var(--surface-2) 0 2px, var(--ink-dim) 2px 3px); }
 .hist-cells::after { content: ""; position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); left: calc(100% * (var(--now) + 0.5) / 54 - 1px); }
 
-/* ---------- pemutar slot = pita malam (elemen khas) ---------- */
+/* ---------- slot player = night ribbon (signature element) ---------- */
 .player { background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: 12px;
   padding: 8px 12px 6px; display: grid; gap: 6px; box-shadow: 0 6px 24px rgb(0 0 0 / 0.18); font-family: var(--font-mono); font-size: 11px; }
 .is-lite .player { backdrop-filter: none; background: var(--surface); }
@@ -529,7 +521,7 @@ button { font: inherit; color: inherit; }
 .night-btn:hover { border-color: var(--ink-dim); }
 .night-btn[aria-expanded="true"] { border-color: var(--sat); box-shadow: var(--ring); }
 
-/* kalender malam: muncul di atas pemutar */
+/* night calendar: opens above the player */
 .cal { position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 10; width: 296px; display: grid; gap: 8px; padding: 10px 12px 12px; transform-origin: 100% 100%;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 28px rgb(0 0 0 / 0.22);
   font-family: var(--font-body); font-size: 13px; }
@@ -539,7 +531,7 @@ button { font: inherit; color: inherit; }
 .cal-head .icon-btn { font-size: 16px; line-height: 1; }
 .cal-head .icon-btn:disabled { opacity: 0.4; cursor: default; }
 .cal-dows, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
-/* hari bulan lama/baru bergeser di dalam kotak ini; ruang 3px menjaga cincin fokus tidak terpotong */
+/* old/new month days slide inside this box; 3px of room keeps the focus ring from being clipped */
 .cal-body { position: relative; margin: -3px; padding: 3px; overflow: clip; }
 .cal-dows { margin-top: -2px; }
 .cal-dow { padding: 2px 0; text-align: center; font-size: 11.5px; color: var(--ink-dim); }
@@ -558,9 +550,9 @@ button { font: inherit; color: inherit; }
 .ribbon:focus-within { outline: 2px solid var(--sat); outline-offset: 3px; }
 .ribbon-row { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 6px; align-items: center; }
 .ribbon-row b { font-size: 9.5px; font-weight: 500; color: var(--ink-dim); text-align: center; }
-.awas-row b { color: var(--ember); }
+.warning-row b { color: var(--ember); }
 .ribbon-cells { display: grid; grid-template-columns: repeat(54, minmax(0, 1fr)); gap: 1px; height: 9px; }
-.awas-row .ribbon-cells { height: 12px; }
+.warning-row .ribbon-cells { height: 12px; }
 .ribbon-cells i { background: var(--surface-2); border-radius: 1px; }
 .ribbon-cells i.have { background: var(--moss); }
 .ribbon-cells i.have.late { background: var(--amber); }
@@ -569,14 +561,14 @@ button { font: inherit; color: inherit; }
 .ribbon-cells i.hot { background: color-mix(in srgb, var(--ember) calc(var(--a) * 100%), var(--surface-2)); }
 .ribbon-now { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: var(--ink); pointer-events: none;
   left: calc(18px + (100% - 18px) * (var(--now) + 0.5) / 54 - 1px); transition: left 0.18s var(--ease-snap); }
-.ribbon.playing .ribbon-now { transition-duration: 0.55s; transition-timing-function: linear; } /* sama dengan jeda satu tik pemutar */
+.ribbon.playing .ribbon-now { transition-duration: 0.55s; transition-timing-function: linear; } /* same as one player tick */
 .is-lite .ribbon-now { transition: none; }
 .ribbon-range { position: absolute; left: 18px; top: -4px; bottom: -4px; margin: 0; opacity: 0; cursor: pointer;
   width: calc((100% - 18px) * (var(--latest) + 1) / 54); }
 .ribbon-axis { position: relative; height: 12px; margin-left: 18px; font-size: 9.5px; color: var(--ink-dim); }
 .ribbon-axis span { position: absolute; left: calc(100% * var(--i) / 54); transform: translateX(-2px); }
 
-/* ---------- pencarian ---------- */
+/* ---------- search ---------- */
 .search { display: grid; gap: 4px; }
 .search-row { display: flex; gap: 6px; }
 .search input { flex: 1; min-width: 0; min-height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); transition: border-color 0.15s, box-shadow 0.15s;
@@ -587,7 +579,7 @@ button { font: inherit; color: inherit; }
 .page-fallback { padding: 16px; height: 100%; }
 .page-fallback .skel { height: 100%; min-height: 240px; }
 
-/* kontrol bawaan MapLibre mengikuti tema */
+/* built-in MapLibre controls follow the theme */
 .maplibregl-ctrl-group { background: var(--surface) !important; border: 1px solid var(--line); box-shadow: 0 1px 4px rgb(0 0 0 / 0.12) !important; }
 .maplibregl-ctrl-group button + button { border-top-color: var(--line) !important; }
 .maplibregl-ctrl-group button { width: 36px !important; height: 36px !important; }
@@ -607,7 +599,7 @@ button { font: inherit; color: inherit; }
   .player .link-btn { margin-left: auto; }
 }
 
-/* ---------- detail: baris fakta ---------- */
+/* ---------- detail: fact row ---------- */
 .facts { margin: 0; display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
 .facts div { flex: 1 1 120px; padding: 8px 14px; border-right: 1px solid var(--line); display: grid; gap: 2px; align-content: start; }
 .facts div:last-child { border-right: 0; }
@@ -615,7 +607,7 @@ button { font: inherit; color: inherit; }
 .facts dd { margin: 0; font-family: var(--font-mono); font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; min-height: 28px; display: flex; align-items: center; }
 .facts div.hot dd { color: var(--ember); }
 
-/* ---------- tabel umum ---------- */
+/* ---------- general tables ---------- */
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .table-wrap table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
 .table-wrap th, .table-wrap td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
@@ -624,7 +616,7 @@ button { font: inherit; color: inherit; }
 .table-wrap tbody th { font-weight: 500; white-space: nowrap; }
 .table-wrap td.type { font-family: var(--font-mono); font-size: 12px; color: var(--ink-dim); min-width: 150px; }
 
-/* ---------- kontrak API ---------- */
+/* ---------- API contract ---------- */
 .contract { max-width: 1240px; }
 .contract-head { display: grid; gap: 10px; max-width: 80ch; }
 .legend-tags { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; align-items: center; }

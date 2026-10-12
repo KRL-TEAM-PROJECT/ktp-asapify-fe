@@ -1,29 +1,29 @@
 import type { LngLat, PixelIndex, ProvinceCode, Status, StatusCode } from '../types';
 
-export const CODE_STATUS: Record<StatusCode, Status> = { S: 'SAFE', N: 'NO_OBSERVATION', W: 'WATCH', A: 'AWAS' };
-export const STATUS_CODE: Record<Status, StatusCode> = { SAFE: 'S', NO_OBSERVATION: 'N', WATCH: 'W', AWAS: 'A' };
+export const CODE_STATUS: Record<StatusCode, Status> = { S: 'SAFE', N: 'NO_OBSERVATION', W: 'WATCH', A: 'WARNING' };
+export const STATUS_CODE: Record<Status, StatusCode> = { SAFE: 'S', NO_OBSERVATION: 'N', WATCH: 'W', WARNING: 'A' };
 
-/** Grid 0,02° gabungan Sumatra + Kalimantan; `pixel_id` = p{baris}_{kolom} dari pojok kiri atas ini (PixelIndex.origin/step). */
+/** Combined 0.02° Sumatra + Kalimantan grid; `pixel_id` = p{row}_{col} from this top-left corner (PixelIndex.origin/step). */
 export const GRID_ORIGIN: LngLat = [94.9, 6.2];
 export const GRID_STEP = 0.02;
 
-/** Sel grid (baris, kolom) yang memuat koordinat ini, dan id pikselnya. */
+/** The grid cell (row, col) holding this coordinate, and its pixel id. */
 export function gridCellAt(lon: number, lat: number) {
   const row = Math.floor((GRID_ORIGIN[1] - lat) / GRID_STEP + 1e-9);
   const col = Math.floor((lon - GRID_ORIGIN[0]) / GRID_STEP + 1e-9);
   return { row, col, id: `p${row}_${col}` };
 }
 
-/** Titik tengah piksel dari id `p{baris}_{kolom}`, atau null bila bukan id yang sah. */
+/** Pixel centre from id `p{row}_{col}`, or null when the id is invalid. */
 export function pixelCenter(id: string): LngLat | null {
   const m = /^p(\d+)_(\d+)$/.exec(id);
   return m ? [GRID_ORIGIN[0] + (Number(m[2]) + 0.5) * GRID_STEP, GRID_ORIGIN[1] - (Number(m[1]) + 0.5) * GRID_STEP] : null;
 }
 
-export const NIGHT_SLOTS = 54; // 20.00–04.50 WIB = 13.00–21.50 UTC
+export const NIGHT_SLOTS = 54; // 20:00–04:50 UTC+7 = 13:00–21:50 UTC
 export const SLOT_MS = 600_000;
 
-/** Awal malam (13.00 UTC = 20.00 WIB) yang memuat waktu ini, dalam ms. */
+/** Start of the night (13:00 UTC = 20:00 UTC+7) holding this time, in ms. */
 export function nightStart(iso: string): number {
   const t = Date.parse(iso);
   const d = new Date(t);
@@ -31,10 +31,10 @@ export function nightStart(iso: string): number {
   return t >= start ? start : start - 86_400_000;
 }
 
-/** Tanggal WIB saat malam dimulai, YYYY-MM-DD. */
+/** UTC+7 date when the night starts, YYYY-MM-DD. */
 export const nightOf = (iso: string) => new Date(nightStart(iso)).toISOString().slice(0, 10);
 
-/** Indeks slot 0–53 dalam malamnya; -1 bila null. */
+/** Slot index 0–53 within its night; -1 when null. */
 export function slotIndex(iso: string | null, start: number): number {
   if (iso == null) return -1;
   return Math.max(-1, Math.min(NIGHT_SLOTS - 1, Math.floor((Date.parse(iso) - start) / SLOT_MS)));
@@ -73,7 +73,7 @@ function lookup(ix: PixelIndex) {
   return m;
 }
 
-/** Indeks sel gambut di koordinat ini, atau -1. */
+/** Index of the peat cell at this coordinate, or -1. */
 export function cellAt(ix: PixelIndex, lon: number, lat: number): number {
   const row = Math.floor((ix.origin[1] - lat) / ix.step);
   const col = Math.floor((lon - ix.origin[0]) / ix.step);
@@ -85,7 +85,7 @@ export function cellByPixelId(ix: PixelIndex, id: string): number {
   return m ? (lookup(ix).get(Number(m[1]) * 100_000 + Number(m[2])) ?? -1) : -1;
 }
 
-/** Kotak pembatas sekumpulan sel: [[w, s], [e, n]]. */
+/** Bounding box of a set of cells: [[w, s], [e, n]]. */
 export function cellsBounds(ix: PixelIndex, cells: number[]): [[number, number], [number, number]] {
   let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
   for (const i of cells) {

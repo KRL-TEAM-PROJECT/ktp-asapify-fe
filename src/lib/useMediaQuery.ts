@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-/** Mengikuti media query; dipakai untuk membedakan panel samping (lebar) dan bottom sheet (sempit). */
+/** Follows a media query; used to tell the side panel (wide) from the bottom sheet (narrow). */
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (notify) => {

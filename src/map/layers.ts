@@ -3,12 +3,11 @@ import type { Feature, FeatureCollection, Point, Polygon, Position } from 'geojs
 import type { Basemap, PeatBoundary, PixelIndex, ProvinceBoundary, ProvinceCode, Status, ViirsDetection } from '../types';
 import { STATUS_CODE, cellCenter, cellsBounds } from '../lib/grid';
 import { PROVINCES } from '../lib/provinces';
-import type { Lang } from '../i18n';
 
-// Layer peta. Geometri sel dibangun SEKALI dari indeks piksel; status per slot, filter status,
-// dan sorotan memakai feature-state + ekspresi paint, jadi memutar slot tidak memicu re-tiling.
+// Map layers. Cell geometry is built ONCE from the pixel index; per-slot status, the status filter
+// and highlights use feature-state + paint expressions, so playing slots never re-tiles.
 
-export type BasemapId = string; // 'peta' | 'polos' | id basemap raster dari API
+export type BasemapId = string; // 'streets' | 'plain' | raster basemap id from the API
 export type LayerKey = 'status' | 'peat' | 'provinces' | 'clusters' | 'viirs';
 export const LAYER_KEYS: LayerKey[] = ['status', 'clusters', 'peat', 'provinces', 'viirs'];
 
@@ -29,9 +28,9 @@ const VECTOR = {
   dark: 'https://tiles.openfreemap.org/styles/dark',
 };
 
-/** Gaya dasar: vektor OpenFreeMap, raster dari API, atau polos (tanpa tile sama sekali). */
+/** Base style: OpenFreeMap vector, a raster from the API, or plain (no tiles at all). */
 export function styleFor(basemap: BasemapId, dark: boolean, list: Basemap[]): string | StyleSpecification {
-  if (basemap === 'peta') return VECTOR[dark ? 'dark' : 'light'];
+  if (basemap === 'streets') return VECTOR[dark ? 'dark' : 'light'];
   const raster = list.find((b) => b.id === basemap);
   const style: StyleSpecification = {
     version: 8,
@@ -46,15 +45,15 @@ export function styleFor(basemap: BasemapId, dark: boolean, list: Basemap[]): st
   return style;
 }
 
-interface Palette { safe: string; safeOp: number; watch: string; awas: string; ink: string; halo: string; sat: string; hatch: string }
+interface Palette { safe: string; safeOp: number; watch: string; warning: string; ink: string; halo: string; sat: string; hatch: string }
 const PALETTE: Record<'light' | 'dark', Palette> = {
-  light: { safe: '#3c6a4c', safeOp: 0.16, watch: '#f0c46a', awas: '#c2410c', ink: '#1b2520', halo: '#ffffff', sat: '#2c628c', hatch: '#7d887f' },
-  dark: { safe: '#7fbf93', safeOp: 0.13, watch: '#e0a93e', awas: '#f26b2f', ink: '#e4ebe5', halo: '#121815', sat: '#7fb3dc', hatch: '#7d8b83' },
+  light: { safe: '#3c6a4c', safeOp: 0.16, watch: '#f0c46a', warning: '#c2410c', ink: '#1b2520', halo: '#ffffff', sat: '#2c628c', hatch: '#7d887f' },
+  dark: { safe: '#7fbf93', safeOp: 0.13, watch: '#e0a93e', warning: '#f26b2f', ink: '#e4ebe5', halo: '#121815', sat: '#7fb3dc', hatch: '#7d8b83' },
 };
-// Di atas citra satelit, Aman perlu sedikit lebih tegas.
+// Over satellite imagery, Safe needs a little more weight.
 const satSafeOp = 0.28;
 
-// ---------- konversi data ----------
+// ---------- data conversion ----------
 
 function cellPolygons(ix: PixelIndex | null): FeatureCollection<Polygon, { p: string }> {
   if (!ix) return EMPTY_FC as FeatureCollection<Polygon, { p: string }>;
@@ -86,8 +85,8 @@ function clusterShapes(ix: PixelIndex | null, clusters: Record<string, number[]>
   return { outlines, labels };
 }
 
-/** Satu titik label per provinsi: pusat kotak poligon terbesarnya. Nama dari kode BPS, mengikuti bahasa UI. */
-function provinceLabels(fc: ProvinceBoundary, lang: Lang): FeatureCollection<Point, { name: string; code: string }> {
+/** One label point per province: the centre of its largest polygon's box. Names come from the BPS code. */
+function provinceLabels(fc: ProvinceBoundary): FeatureCollection<Point, { name: string; code: string }> {
   return {
     type: 'FeatureCollection',
     features: fc.features.map((f) => {
@@ -95,21 +94,21 @@ function provinceLabels(fc: ProvinceBoundary, lang: Lang): FeatureCollection<Poi
       for (const poly of f.geometry.coordinates) if (poly[0].length > best.length) best = poly[0];
       const xs = best.map((c) => c[0]), ys = best.map((c) => c[1]);
       const c: [number, number] = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
-      const name = PROVINCES[f.properties.code]?.[lang] ?? f.properties.name;
+      const name = PROVINCES[f.properties.code]?.name ?? f.properties.name;
       return { type: 'Feature' as const, properties: { name, code: f.properties.code }, geometry: { type: 'Point' as const, coordinates: c } };
     }),
   };
 }
 
-// Topeng: kotak jauh lebih besar dari wilayah pantau, dengan provinsi terpilih sebagai lubang.
+// Mask: a box much larger than the monitored region, with the selected province as a hole.
 const WORLD: Position[] = [[80, -20], [135, -20], [135, 20], [80, 20], [80, -20]];
 const ringArea = (r: Position[]) => r.reduce((a, p, i) => { const q = r[(i + 1) % r.length]; return a + (q[0] - p[0]) * (q[1] + p[1]); }, 0);
 
-/** Garis batas provinsi terpilih, topeng peredup di luar provinsi, dan titik labelnya. */
-function provinceFocus(fc: ProvinceBoundary, code: ProvinceCode | '', lang: Lang) {
+/** Outline of the selected province, a dimming mask outside it, and its label point. */
+function provinceFocus(fc: ProvinceBoundary, code: ProvinceCode | '') {
   const f = code ? fc.features.find((x) => x.properties.code === code) : undefined;
   if (!f) return { line: EMPTY_FC, mask: EMPTY_FC, label: EMPTY_FC };
-  // MapLibre mengenali lubang dari arah putar yang berlawanan dengan cincin luar.
+  // MapLibre recognises holes by a winding order opposite to the outer ring.
   const outer = Math.sign(ringArea(WORLD));
   const holes = f.geometry.coordinates.map(([r]) => (Math.sign(ringArea(r)) === outer ? [...r].reverse() : r));
   return {
@@ -118,7 +117,7 @@ function provinceFocus(fc: ProvinceBoundary, code: ProvinceCode | '', lang: Lang
       type: 'FeatureCollection' as const,
       features: [{ type: 'Feature' as const, properties: {}, geometry: { type: 'Polygon' as const, coordinates: [WORLD, ...holes] } }],
     },
-    label: provinceLabels({ type: 'FeatureCollection', features: [f] }, lang),
+    label: provinceLabels({ type: 'FeatureCollection', features: [f] }),
   };
 }
 
@@ -135,7 +134,7 @@ export function selectionShape(ix: PixelIndex | null, cell: number): FeatureColl
   return { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] } }] };
 }
 
-// ---------- gambar (arsir + ikon status) ----------
+// ---------- images (hatching + status icons) ----------
 
 function canvasImage(size: number, draw: (c: CanvasRenderingContext2D) => void): ImageData {
   const cv = document.createElement('canvas');
@@ -154,10 +153,10 @@ function addImages(map: MlMap, p: Palette) {
     c.strokeStyle = p.hatch; c.lineWidth = 1.6;
     c.beginPath(); c.moveTo(-2, 10); c.lineTo(10, -2); c.moveTo(-2, 2); c.lineTo(2, -2); c.moveTo(6, 10); c.lineTo(10, 6); c.stroke();
   }));
-  put('ico-awas', canvasImage(40, (c) => {
-    c.fillStyle = '#ffffff'; c.strokeStyle = p.awas; c.lineWidth = 3; c.lineJoin = 'round';
+  put('ico-warning', canvasImage(40, (c) => {
+    c.fillStyle = '#ffffff'; c.strokeStyle = p.warning; c.lineWidth = 3; c.lineJoin = 'round';
     c.beginPath(); c.moveTo(20, 4); c.lineTo(37, 34); c.lineTo(3, 34); c.closePath(); c.fill(); c.stroke();
-    c.fillStyle = p.awas; c.fillRect(18.5, 14, 3, 11); c.fillRect(18.5, 27.5, 3, 3);
+    c.fillStyle = p.warning; c.fillRect(18.5, 14, 3, 11); c.fillRect(18.5, 27.5, 3, 3);
   }), 2);
   put('ico-watch', canvasImage(40, (c) => {
     c.fillStyle = '#ffffff'; c.strokeStyle = '#7a5200'; c.lineWidth = 2.6;
@@ -167,7 +166,7 @@ function addImages(map: MlMap, p: Palette) {
   }), 2);
 }
 
-// ---------- ekspresi ----------
+// ---------- expressions ----------
 
 const S: ExpressionSpecification = ['coalesce', ['feature-state', 's'], 'S'];
 const shown = (statuses: Status[]): ExpressionSpecification => ['in', S, ['literal', statuses.map((s) => STATUS_CODE[s])]];
@@ -178,27 +177,27 @@ function pixelPaint(o: PaintOpts) {
   const p = PALETTE[o.dark ? 'dark' : 'light'];
   const safeOp = o.satellite ? satSafeOp : p.safeOp;
   return {
-    fillColor: ['match', S, 'A', p.awas, 'W', p.watch, p.safe] as ExpressionSpecification,
+    fillColor: ['match', S, 'A', p.warning, 'W', p.watch, p.safe] as ExpressionSpecification,
     fillOpacity: ['case', shown(o.statuses), ['match', S, 'A', 0.95, 'W', 0.82, 'N', 0, safeOp], 0] as ExpressionSpecification,
     hatchOpacity: ['case', ['all', ['==', S, 'N'], shown(o.statuses)], 0.75, 0] as ExpressionSpecification,
-    awasIcon: ['case', ['all', ['==', S, 'A'], shown(o.statuses)], 1, 0] as ExpressionSpecification,
+    warningIcon: ['case', ['all', ['==', S, 'A'], shown(o.statuses)], 1, 0] as ExpressionSpecification,
     watchIcon: ['case', ['all', ['==', S, 'W'], shown(o.statuses)], 1, 0] as ExpressionSpecification,
   };
 }
 
-/** Pasang semua sumber + layer (setiap style.load, termasuk ganti basemap/tema). */
-export function installLayers(map: MlMap, o: PaintOpts, data: MapData, selectedCell: number, province: ProvinceCode | '', lang: Lang) {
+/** Install every source + layer (on each style.load, including basemap/theme changes). */
+export function installLayers(map: MlMap, o: PaintOpts, data: MapData, selectedCell: number, province: ProvinceCode | '') {
   const p = PALETTE[o.dark ? 'dark' : 'light'];
   addImages(map, p);
   const { outlines, labels } = clusterShapes(data.index, data.clusters);
-  const focus = provinceFocus(data.provinces, province, lang);
+  const focus = provinceFocus(data.provinces, province);
   const pp = pixelPaint(o);
 
   map.addSource('province-mask', { type: 'geojson', data: focus.mask });
   map.addSource('province-focus', { type: 'geojson', data: focus.line });
   map.addSource('province-focus-label', { type: 'geojson', data: focus.label });
   map.addSource('provinces', { type: 'geojson', data: data.provinces });
-  map.addSource('province-labels', { type: 'geojson', data: provinceLabels(data.provinces, lang) });
+  map.addSource('province-labels', { type: 'geojson', data: provinceLabels(data.provinces) });
   map.addSource('pixels', { type: 'geojson', data: cellPolygons(data.index), buffer: 0, tolerance: 0 });
   map.addSource('peat', { type: 'geojson', data: data.peat });
   map.addSource('clusters', { type: 'geojson', data: outlines });
@@ -206,7 +205,7 @@ export function installLayers(map: MlMap, o: PaintOpts, data: MapData, selectedC
   map.addSource('selection', { type: 'geojson', data: selectionShape(data.index, selectedCell) });
   map.addSource('viirs', { type: 'geojson', data: viirsPoints(data.viirs) });
 
-  // Bayangan di luar provinsi terpilih: dalam provinsi tetap terang, sekitarnya meredup.
+  // Shade outside the selected province: inside stays bright, the surroundings dim.
   map.addLayer({ id: 'province-mask', type: 'fill', source: 'province-mask', paint: { 'fill-color': o.dark ? '#000000' : p.ink, 'fill-opacity': o.dark ? 0.45 : 0.16 } });
   map.addLayer({ id: 'provinces-line', type: 'line', source: 'provinces', paint: { 'line-color': p.ink, 'line-width': 1.1, 'line-opacity': 0.45 } });
   map.addLayer({ id: 'pixel-fill', type: 'fill', source: 'pixels', paint: { 'fill-color': pp.fillColor, 'fill-opacity': pp.fillOpacity } });
@@ -224,7 +223,7 @@ export function installLayers(map: MlMap, o: PaintOpts, data: MapData, selectedC
     id: 'province-focus', type: 'line', source: 'province-focus', layout: { 'line-join': 'round' },
     paint: { 'line-color': p.ink, 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 1.8, 10, 3] },
   });
-  map.addLayer({ id: 'cluster-glow', type: 'line', source: 'clusters', paint: { 'line-color': p.awas, 'line-width': 10, 'line-blur': 8, 'line-opacity': 0.6 } });
+  map.addLayer({ id: 'cluster-glow', type: 'line', source: 'clusters', paint: { 'line-color': p.warning, 'line-width': 10, 'line-blur': 8, 'line-opacity': 0.6 } });
   map.addLayer({ id: 'clusters', type: 'line', source: 'clusters', paint: { 'line-color': p.ink, 'line-width': 1.8, 'line-dasharray': [2.5, 1.5] } });
   map.addLayer({ id: 'clusters-selected', type: 'line', source: 'clusters', filter: ['==', ['get', 'id'], ''], paint: { 'line-color': p.sat, 'line-width': 3.5 } });
   const icon = (id: string, image: string, opacity: ExpressionSpecification) => map.addLayer({
@@ -236,7 +235,7 @@ export function installLayers(map: MlMap, o: PaintOpts, data: MapData, selectedC
     paint: { 'icon-opacity': opacity },
   });
   icon('icon-watch', 'ico-watch', pp.watchIcon);
-  icon('icon-awas', 'ico-awas', pp.awasIcon);
+  icon('icon-warning', 'ico-warning', pp.warningIcon);
   map.addLayer({ id: 'selection', type: 'line', source: 'selection', paint: { 'line-color': p.sat, 'line-width': 3 } });
   map.addLayer({
     id: 'province-label', type: 'symbol', source: 'province-labels', maxzoom: 8,
@@ -268,12 +267,12 @@ export function setStatusPaint(map: MlMap, o: PaintOpts) {
   const pp = pixelPaint(o);
   map.setPaintProperty('pixel-fill', 'fill-opacity', pp.fillOpacity);
   map.setPaintProperty('pixel-hatch', 'fill-opacity', pp.hatchOpacity);
-  map.setPaintProperty('icon-awas', 'icon-opacity', pp.awasIcon);
+  map.setPaintProperty('icon-warning', 'icon-opacity', pp.warningIcon);
   map.setPaintProperty('icon-watch', 'icon-opacity', pp.watchIcon);
 }
 
 const LAYERS_OF: Record<LayerKey, string[]> = {
-  status: ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-watch', 'icon-awas'],
+  status: ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-watch', 'icon-warning'],
   peat: ['peat-boundary'],
   provinces: ['provinces-line', 'province-label'],
   clusters: ['cluster-glow', 'clusters', 'clusters-selected', 'clusters-label'],
@@ -291,17 +290,17 @@ export function applyVisibility(map: MlMap, vis: Record<LayerKey, boolean>, lite
 
 export function applyFilters(map: MlMap, province: ProvinceCode | '', selectedCluster: string | null) {
   const prov: ExpressionSpecification = province ? ['==', ['get', 'p'], province] : ['boolean', true];
-  for (const id of ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-watch', 'icon-awas', 'cluster-glow', 'clusters', 'clusters-label']) {
+  for (const id of ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-watch', 'icon-warning', 'cluster-glow', 'clusters', 'clusters-label']) {
     map.setFilter(id, prov);
   }
   map.setFilter('clusters-selected', ['==', ['get', 'id'], selectedCluster ?? '']);
-  // Label provinsi terpilih digambar tebal oleh province-focus-label; jangan dobel.
+  // province-focus-label draws the selected province's label in bold; never draw it twice.
   map.setFilter('province-label', province ? ['!=', ['get', 'code'], province] : null);
 }
 
-/** Ganti sorotan provinsi (atau bahasa labelnya) tanpa memasang ulang layer. */
-export function updateProvinceFocus(map: MlMap, fc: ProvinceBoundary, province: ProvinceCode | '', lang: Lang) {
-  const focus = provinceFocus(fc, province, lang);
+/** Change the province highlight without reinstalling layers. */
+export function updateProvinceFocus(map: MlMap, fc: ProvinceBoundary, province: ProvinceCode | '') {
+  const focus = provinceFocus(fc, province);
   updateSource(map, 'province-mask', focus.mask);
   updateSource(map, 'province-focus', focus.line);
   updateSource(map, 'province-focus-label', focus.label);
@@ -310,13 +309,11 @@ export function updateProvinceFocus(map: MlMap, fc: ProvinceBoundary, province: 
 const OWN_SOURCES = new Set(['provinces', 'province-labels', 'province-mask', 'province-focus', 'province-focus-label', 'pixels', 'peat', 'clusters', 'cluster-labels', 'selection', 'viirs']);
 
 /**
- * Label peta dasar vektor (OpenFreeMap/OpenMapTiles) mengikuti bahasa UI: name:id atau name:en,
- * jatuh ke nama lokal OSM bila terjemahannya tidak ada. Label nomor jalan dibiarkan.
+ * Vector basemap labels (OpenFreeMap/OpenMapTiles) in English: name:en, falling back to the
+ * local OSM name when no translation exists. Road number labels are left alone.
  */
-export function localizeBasemap(map: MlMap, lang: Lang) {
-  const field: ExpressionSpecification = lang === 'id'
-    ? ['coalesce', ['get', 'name:id'], ['get', 'name']]
-    : ['coalesce', ['get', 'name:en'], ['get', 'name_en'], ['get', 'name']];
+export function localizeBasemap(map: MlMap) {
+  const field: ExpressionSpecification = ['coalesce', ['get', 'name:en'], ['get', 'name_en'], ['get', 'name']];
   for (const l of map.getStyle().layers ?? []) {
     if (l.type !== 'symbol' || OWN_SOURCES.has(l.source)) continue;
     const tf = map.getLayoutProperty(l.id, 'text-field');

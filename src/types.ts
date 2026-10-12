@@ -1,11 +1,11 @@
 import type { FeatureCollection, MultiPolygon, Point, Polygon } from 'geojson';
 
-// Bentuk data mengikuti backend.html bagian 03–05. Field bertanda "FE" adalah
-// usulan FE untuk isi GET /operator/clusters/{id} yang belum dirinci di sana.
+// Data shapes follow backend.html sections 03–05. Fields marked "FE" are the FE's
+// proposal for the GET /operator/clusters/{id} content that is not detailed there.
 
-export type Status = 'SAFE' | 'NO_OBSERVATION' | 'WATCH' | 'AWAS';
+export type Status = 'SAFE' | 'NO_OBSERVATION' | 'WATCH' | 'WARNING';
 export type EvidenceResult = 'strong_evidence' | 'inconclusive';
-// Kode BPS: 10 provinsi Sumatra + 5 provinsi Kalimantan.
+// BPS codes: 10 Sumatra provinces + 5 Kalimantan provinces.
 export type ProvinceCode =
   | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '21'
   | '61' | '62' | '63' | '64' | '65';
@@ -23,7 +23,7 @@ export interface Meta {
   replay: boolean;
   n_sat: 0 | 1 | 2;
   sats: { himawari: SatState; gk2a: SatState };
-  nights: { first: string; last: string }; // FE: malam arsip, YYYY-MM-DD (tanggal WIB awal malam)
+  nights: { first: string; last: string }; // FE: archive nights, YYYY-MM-DD (UTC+7 date when the night starts)
 }
 
 export interface PixelProps {
@@ -48,7 +48,7 @@ export interface VerificationSummary {
 }
 
 export interface Decision {
-  /** fanout_pending: keputusan tersimpan, penerima masih diantrekan (sweep backend melanjutkan). */
+  /** fanout_pending: the decision is saved, recipients are still being queued (the backend sweep resumes it). */
   notifications?: { state: 'fanout_pending' | 'outbox_saved' | 'no_recipients'; recipients: number; jobs: number } | null;
   action: 'publish' | 'reject';
   by: string;
@@ -90,8 +90,7 @@ export interface Neighbour {
 export type EvidenceSource = 'rule_engine' | 'viirs_firms' | 'viirs_image' | 'himawari_image';
 export interface Evidence {
   source: EvidenceSource;
-  finding: string; // Bahasa Indonesia
-  finding_en: string;
+  finding: string;
   observed_at: string | null;
   age_h: number | null;
 }
@@ -103,17 +102,17 @@ export interface ToolCall {
   ok: boolean;
 }
 
-/** Satu kanal termal pada crop: suhu kecerahan tiap sel (≈ 2 km), baris atas dulu, kelvin 1 desimal; null = tertutup awan. */
+/** One thermal channel of a crop: brightness temperature per cell (≈ 2 km), top row first, kelvin to 1 decimal; null = cloud. */
 export interface ThermalBand {
   sat: 'himawari' | 'gk2a';
   band: string; // 'B07' | 'B14' (Himawari-9 AHI), 'SW038' | 'IR105' (GK2A AMI)
-  um: number; // panjang gelombang tengah, µm; < 5 = kanal panas (3,8–3,9), ≥ 5 = kanal acuan (10–11)
+  um: number; // centre wavelength, µm; < 5 = hot channel (3.8–3.9), ≥ 5 = reference channel (10–11)
   values: (number | null)[]; // cols × rows
 }
 
-/** Data di balik citra termal supaya UI bisa menampilkan angka suhu per sel (FE). */
+/** The data behind a thermal image so the UI can show per-cell temperatures (FE). */
 export interface ThermalCrop {
-  bbox: [number, number, number, number]; // [lon_barat, lat_selatan, lon_timur, lat_utara] persis seperti citra
+  bbox: [number, number, number, number]; // [west_lon, south_lat, east_lon, north_lat] exactly like the image
   cols: number;
   rows: number;
   bands: ThermalBand[];
@@ -125,9 +124,9 @@ export interface EvidenceImg {
   layer: string;
   observed_at: string;
   age_h: number;
-  marker_drawn: boolean; // false → UI menggambar penanda koordinat sendiri
-  bbox?: [number, number, number, number]; // FE: [lon_barat, lat_selatan, lon_timur, lat_utara]; tanpa ini UI mengira ±0,2° dari koordinat kelompok
-  thermal?: ThermalCrop; // FE: hanya himawari_image
+  marker_drawn: boolean; // false → the UI draws its own coordinate marker
+  bbox?: [number, number, number, number]; // FE: [west_lon, south_lat, east_lon, north_lat]; without it the UI assumes ±0.2° around the cluster
+  thermal?: ThermalCrop; // FE: himawari_image only
 }
 
 export interface ViirsDetection {
@@ -136,34 +135,33 @@ export interface ViirsDetection {
   distance_km: number;
   confidence: string;
   frp: number;
-  lat: number; // FE: untuk layer peta viirs
+  lat: number; // FE: for the VIIRS map layer
   lon: number;
 }
 
 export interface VerificationDetail extends VerificationSummary {
   smoke_visible: boolean | null;
   evidence: Evidence[];
-  summary_id: string;
-  summary_en: string;
+  summary: string;
   tool_trace: ToolCall[]; // FE
   images: EvidenceImg[]; // FE
   viirs: ViirsDetection[]; // FE
 }
 
-/** Satu angka pendukung atribut (mis. suhu kecerahan B07 di piksel perwakilan). */
+/** One supporting number of an attribute (e.g. the B07 brightness temperature at the representative pixel). */
 export interface AttrPart {
   key: string; // b07 | b14 | sw038 | ir105 | dt | bg_dt | sigma | lst | ts | t2m | night_peak
   value: number | null;
   unit: string; // 'K' | 'U'
-  abs?: boolean; // true = suhu mutlak (tampil °C + K); selain itu selisih/angka biasa
-  at?: string; // night_peak: malam YYYY-MM-DD
+  abs?: boolean; // true = absolute temperature (shown as °C + K); otherwise a difference/plain number
+  at?: string; // night_peak: night YYYY-MM-DD
 }
 
-/** Angka terukur di balik satu atribut MAUT u (FE): value dinormalisasi linear lewat scale lalu dipotong ke 0–1. */
+/** Measured number behind one MAUT attribute u (FE): value is normalised linearly through scale, then clipped to 0–1. */
 export interface AttrDetail {
-  value: number | null; // null = tidak tersedia (sama dengan atribut null)
-  unit: string; // 'K' | 'malam' | 'piksel'
-  scale: [number, number]; // value untuk u = 0 dan u = 1
+  value: number | null; // null = not available (same as a null attribute)
+  unit: string; // 'K' | 'nights' | 'pixels'
+  scale: [number, number]; // value for u = 0 and u = 1
   parts: AttrPart[];
 }
 
@@ -177,56 +175,56 @@ export interface ClusterDetail extends Omit<ClusterSummary, 'verification'> {
 
 export interface DecisionRequest {
   action: 'publish' | 'reject';
-  caption_id: string | null;
+  caption: string | null;
   reason: string | null;
 }
 
-// ---------- format ringkas peta (usulan FE) ----------
+// ---------- compact map format (FE proposal) ----------
 
-/** Daftar piksel gambut statis; urutannya = indeks sel di semua respons ringkas. */
+/** Static list of peat pixels; its order = the cell index in every compact response. */
 export interface PixelIndex {
   version: string;
-  origin: LngLat; // pojok kiri atas grid gabungan Sumatra + Kalimantan: [94.9, 6.2]
+  origin: LngLat; // top-left corner of the combined Sumatra + Kalimantan grid: [94.9, 6.2]
   step: number; // 0.02
   rows: number[];
   cols: number[];
-  province: number[]; // kode BPS provinsi per sel, mis. 16 = Sumatera Selatan
+  province: number[]; // BPS province code per cell, e.g. 16 = South Sumatra
 }
 
+/** Compact status codes: S = SAFE, N = NO_OBSERVATION, W = WATCH, A = WARNING. */
 export type StatusCode = 'S' | 'N' | 'W' | 'A';
 
-/** Status semua piksel pada satu slot. */
+/** Status of every pixel in one slot. */
 export interface GridCompact {
   pixels_version: string;
   slot: string;
   n_sat: 0 | 1 | 2;
-  status: string; // satu StatusCode per sel
-  utility: string; // base64 Uint8 per sel: round(U × 250); 255 = null
-  clusters: Record<string, number[]>; // cluster_id → indeks sel
+  status: string; // one StatusCode per cell
+  utility: string; // base64 Uint8 per cell: round(U × 250); 255 = null
+  clusters: Record<string, number[]>; // cluster_id → cell indices
 }
 
-/** Status per slot untuk satu malam (pemutar slot). */
+/** Status per slot for one night (slot player). */
 export interface NightCompact {
   pixels_version: string;
-  night: string; // tanggal WIB saat malam dimulai, YYYY-MM-DD
-  slots: string[]; // 54 slot UTC, 13.00–21.50
-  status: (string | null)[]; // per slot; null = belum dievaluasi / tidak ada data
+  night: string; // UTC+7 date when the night starts, YYYY-MM-DD
+  slots: string[]; // 54 UTC slots, 13:00–21:50
+  status: (string | null)[]; // per slot; null = not evaluated yet / no data
   n_sat: (0 | 1 | 2 | null)[];
-  clusters: Record<string, number[]>; // kelompok yang AWAS malam itu → indeks sel
+  clusters: Record<string, number[]>; // clusters at WARNING that night → cell indices
 }
 
-/** Ringkasan satu malam untuk kalender: ada data atau tidak, dan berapa kelompok yang AWAS. */
+/** One night for the calendar: whether there is data, and how many clusters reached WARNING. */
 export interface NightSummary {
   night: string; // YYYY-MM-DD
   has_data: boolean;
-  awas_clusters: number;
+  warning_clusters: number;
 }
 
 export interface Basemap {
   id: string;
-  label_id: string;
-  label_en: string;
-  tiles: string[]; // template XYZ raster {z}/{x}/{y}
+  label: string;
+  tiles: string[]; // XYZ raster template {z}/{x}/{y}
   tile_size: number;
   maxzoom: number;
   attribution: string;
@@ -241,7 +239,7 @@ export interface Api {
   night(night: string): Promise<NightCompact>;
   nights(month: string): Promise<NightSummary[]>; // month = YYYY-MM
   basemaps(): Promise<Basemap[]>;
-  clusters(night?: string): Promise<ClusterSummary[]>; // tanpa night = kelompok aktif
+  clusters(night?: string): Promise<ClusterSummary[]>; // no night = active clusters
   cluster(id: string): Promise<ClusterDetail>;
   decide(id: string, body: DecisionRequest): Promise<void>;
   peatBoundary(): Promise<PeatBoundary>;

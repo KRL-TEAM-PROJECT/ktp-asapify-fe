@@ -4,7 +4,7 @@ import { fmtC, fmtNum, fmtNumM, fmtSigned, fmtSlot } from '../lib/format';
 import { SAT_NAME, thermalColor, type SatReading } from '../lib/thermal';
 import { IconCloud, IconCrosshair } from './icons';
 
-const COLD = '#8f9aa5'; // swatch sel berawan
+const COLD = '#8f9aa5'; // swatch for cloudy cells
 
 export const satLabel = (src: string) =>
   src.includes('NOAA20') ? 'NOAA-20' : src.includes('NOAA21') ? 'NOAA-21' : src.includes('SNPP') ? 'S-NPP' : src;
@@ -14,23 +14,23 @@ interface ThermalProps {
   pixelId: string;
   lon: number;
   lat: number;
-  km: number; // jarak dari penanda
+  km: number; // distance from the marker
   member: boolean;
   rep: boolean;
-  /** Anomali (K) mulai dihitung panas; dari skala atribut u_H. Tanpa ini dipakai z ≥ 3. */
+  /** Anomaly (K) from which a cell counts as hot; from the u_H attribute scale. Without it, z ≥ 3 is used. */
   hotFrom?: number;
 }
 
-/** Isi tooltip citra termal: suhu tiap kanal kedua satelit di sel yang ditunjuk. */
+/** Thermal image tooltip content: each channel's temperature from both satellites in the pointed cell. */
 export function ThermalTip({ readings, pixelId, lon, lat, km, member, rep, hotFrom }: ThermalProps) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const observed = readings.filter((r) => r.hot.k != null || r.ref.k != null);
   const first = readings.find((r) => r.hot.k != null);
-  const k1 = (v: number) => fmtNum(v, 1, lang);
+  const k1 = (v: number) => fmtNum(v, 1);
   const isHot = (r: SatReading) => r.anomaly != null && (hotFrom != null ? r.anomaly >= hotFrom : r.z != null && r.z >= 3);
   const temp = (k: number | null, band: string) => (k == null
     ? <span className="muted">—</span>
-    : <><b>{fmtC(k, lang)}</b><small>{band} · {k1(k)} K</small></>);
+    : <><b>{fmtC(k)}</b><small>{band} · {k1(k)} K</small></>);
 
   return (
     <>
@@ -39,7 +39,7 @@ export function ThermalTip({ readings, pixelId, lon, lat, km, member, rep, hotFr
         <b className="mono">{pixelId}</b>
         {(rep || member) && <span className="tip-tag">{t(rep ? 'probe.rep' : 'probe.member')}</span>}
       </div>
-      <div className="tip-sub">{fmtNumM(lat, 3, lang)}°, {fmtNumM(lon, 3, lang)}° · {t('probe.from_marker', { km: fmtNum(km, 1, lang) })}</div>
+      <div className="tip-sub">{fmtNumM(lat, 3)}°, {fmtNumM(lon, 3)}° · {t('probe.from_marker', { km: fmtNum(km, 1) })}</div>
       {!readings.length ? (
         <p className="tip-cloud">{t('probe.no_data')}</p>
       ) : !observed.length ? (
@@ -58,7 +58,7 @@ export function ThermalTip({ readings, pixelId, lon, lat, km, member, rep, hotFr
 
             <span className="tip-row">{t('probe.row_dt')}</span>
             {readings.map((r) => (
-              <span key={r.sat} className="tip-cell">{r.dt == null ? <span className="muted">—</span> : <b>{fmtSigned(r.dt, 1, lang)} K</b>}</span>
+              <span key={r.sat} className="tip-cell">{r.dt == null ? <span className="muted">—</span> : <b>{fmtSigned(r.dt, 1)} K</b>}</span>
             ))}
 
             <span className="tip-row">{t('probe.row_anom')}</span>
@@ -66,13 +66,13 @@ export function ThermalTip({ readings, pixelId, lon, lat, km, member, rep, hotFr
               <span key={r.sat} className={`tip-cell${isHot(r) ? ' hot' : ''}`}>
                 {r.anomaly == null || r.z == null
                   ? <span className="muted">—</span>
-                  : <><b>{fmtSigned(r.anomaly, 1, lang)} K</b><small>{t('probe.z', { z: fmtNum(r.z, 1, lang) })}</small></>}
+                  : <><b>{fmtSigned(r.anomaly, 1)} K</b><small>{t('probe.z', { z: fmtNum(r.z, 1) })}</small></>}
               </span>
             ))}
 
             <span className="tip-row">{t('probe.row_bg')}</span>
             {readings.map((r) => (
-              <span key={r.sat} className="tip-cell"><b>{fmtSigned(r.bgDt, 1, lang)} K</b><small>σ {fmtNum(r.sigma, 2, lang)} K</small></span>
+              <span key={r.sat} className="tip-cell"><b>{fmtSigned(r.bgDt, 1)} K</b><small>σ {fmtNum(r.sigma, 2)} K</small></span>
             ))}
           </div>
           <div className="tip-foot">{t('probe.note')}</div>
@@ -82,28 +82,28 @@ export function ThermalTip({ readings, pixelId, lon, lat, km, member, rep, hotFr
   );
 }
 
-/** Tooltip koordinat di citra VIIRS. */
+/** Coordinate tooltip on VIIRS images. */
 export function CoordTip({ lon, lat, km }: { lon: number; lat: number; km: number }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   return (
     <>
-      <div className="tip-head"><IconCrosshair size={13} /><b className="mono">{fmtNumM(lat, 3, lang)}°, {fmtNumM(lon, 3, lang)}°</b></div>
-      <div className="tip-sub">{t('probe.from_marker', { km: fmtNum(km, 1, lang) })}</div>
+      <div className="tip-head"><IconCrosshair size={13} /><b className="mono">{fmtNumM(lat, 3)}°, {fmtNumM(lon, 3)}°</b></div>
+      <div className="tip-sub">{t('probe.from_marker', { km: fmtNum(km, 1) })}</div>
     </>
   );
 }
 
-/** Tooltip satu titik deteksi VIIRS. */
+/** Tooltip for one VIIRS detection point. */
 export function ViirsTip({ d }: { d: ViirsDetection }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   return (
     <>
       <div className="tip-head"><i className={`tip-dot${d.distance_km <= 2 ? ' near' : ''}`} aria-hidden="true" /><b>{t('probe.viirs_pt', { sat: satLabel(d.src) })}</b></div>
-      <div className="tip-sub">{fmtSlot(d.time_utc, lang)}</div>
+      <div className="tip-sub">{fmtSlot(d.time_utc)}</div>
       <div className="tip-facts">
-        <span>{t('probe.from_marker', { km: fmtNum(d.distance_km, 1, lang) })}</span>
+        <span>{t('probe.from_marker', { km: fmtNum(d.distance_km, 1) })}</span>
         <span>{t('probe.conf', { c: t(`probe.conf_${d.confidence}`) })}</span>
-        <span>{t('probe.frp', { v: fmtNum(d.frp, 1, lang) })}</span>
+        <span>{t('probe.frp', { v: fmtNum(d.frp, 1) })}</span>
       </div>
     </>
   );

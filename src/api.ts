@@ -13,7 +13,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   let token: string | null = null;
   if (path.startsWith('/operator/')) {
     try { token = await getOperatorToken(); }
-    catch { throw new ApiError(401, 'UNAUTHENTICATED', 'Silakan masuk kembali.'); }
+    catch { throw new ApiError(401, 'UNAUTHENTICATED', 'Please sign in again.'); }
   }
   const r = await fetch(BASE + path, {
     ...init,
@@ -26,7 +26,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
       const b = await r.json();
       code = b.error?.code ?? code;
       message = b.error?.message ?? message;
-    } catch { /* badan bukan JSON */ }
+    } catch { /* body is not JSON */ }
     throw new ApiError(r.status, code, message);
   }
   return r.json() as Promise<T>;
@@ -35,7 +35,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 async function file<T>(url: string | undefined, empty: T): Promise<T> {
   if (!url) return empty;
   const r = await fetch(url);
-  if (!r.ok) throw new ApiError(r.status, 'LAYER_UNAVAILABLE', 'Layer peta belum tersedia.');
+  if (!r.ok) throw new ApiError(r.status, 'LAYER_UNAVAILABLE', 'The map layer is not available yet.');
   return (await r.json()) as T;
 }
 
@@ -58,7 +58,7 @@ const liveApi: Api = {
   provinces: () => file<ProvinceBoundary>(import.meta.env.VITE_PROVINCES_LAYER_URL, EMPTY_FC),
 };
 
-// Mode mock dimuat malas: kode + data fiktif tidak ikut chunk utama.
+// Mock mode loads lazily: its code + fictional data stay out of the main chunk.
 const mock = () => import('./mock/fixtures').then((m) => m.mockApi);
 const mockApi: Api = {
   meta: () => mock().then((m) => m.meta()),

@@ -5,12 +5,12 @@ import { useI18n } from '../i18n';
 
 type Row = { channel: string; status: string; error: string | null; acknowledged_at: string | null };
 const OPEN = new Set(['pending', 'sending']);
-const WINDOW_MS = 3_600_000; // masa kirim v1: satu jam sejak terbit (expires_at di backend)
-// Tiap polling membaca semua job alert + inbox-nya di Firestore; melambat begitu tidak ada job berjalan.
+const WINDOW_MS = 3_600_000; // v1 delivery window: one hour after publishing (expires_at in the backend)
+// Each poll reads every job of the alert + its inbox entry in Firestore; slow down once no job is running.
 const POLL_OPEN_MS = 15_000;
 const POLL_IDLE_MS = 60_000;
 
-/** Status kirim per kanal. Tiap 15 detik selama ada job berjalan, lalu tiap 60 detik (menunggu konfirmasi) sampai masa kirim habis. */
+/** Delivery status per channel. Every 15 s while a job is running, then every 60 s (waiting for confirmations) until the window ends. */
 export function DeliveryStatus({ alertId, since }: { alertId: string; since: string }) {
   const { t } = useI18n();
   const [rows, setRows] = useState<Row[] | null>(null);

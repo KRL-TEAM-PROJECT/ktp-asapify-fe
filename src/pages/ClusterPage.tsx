@@ -6,7 +6,7 @@ import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
 import { fmtCoord, fmtNum, fmtSlot } from '../lib/format';
-import { T_AWAS, T_WATCH, WEIGHTS } from '../lib/maut';
+import { T_WARNING, T_WATCH, WEIGHTS } from '../lib/maut';
 import { buildCaption } from '../lib/caption';
 import { StatusBadge } from '../components/StatusBadge';
 import { EvidenceBadge } from '../components/EvidenceBadge';
@@ -21,9 +21,9 @@ import { DecisionPanel, DecisionState } from '../components/DecisionPanel';
 import { IconAlert, IconArrowLeft } from '../components/icons';
 import { m, reveal } from '../motion';
 
-export function Kelompok() {
+export function ClusterPage() {
   const { id = '' } = useParams();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const { data: c, error, loading, reload } = useLoad(() => api.cluster(id), [id]);
   const caption = useMemo(() => (c ? buildCaption(c) : ''), [c]);
 
@@ -61,28 +61,28 @@ export function Kelompok() {
         <Link className="back" to="/"><IconArrowLeft />{t('cluster.back')}</Link>
         <div className="title-row">
           <h1 className="mono">{c.id}</h1>
-          {c.state === 'closed' ? <span className="pill grey">{t('cluster.closed')}</span> : <StatusBadge status="AWAS" />}
+          {c.state === 'closed' ? <span className="pill grey">{t('cluster.closed')}</span> : <StatusBadge status="WARNING" />}
           <SatelliteAgree nSat={c.n_sat} agree={c.n_sat >= 2} />
         </div>
         <p className="muted">
           {t(`prov.${c.province}`)} · {fmtCoord(lon, lat)} · {t('cluster.pixels', { n: c.pixels.length })} ·{' '}
-          {t('cluster.trigger', { slot: fmtSlot(c.trigger_slot, lang) })}
+          {t('cluster.trigger', { slot: fmtSlot(c.trigger_slot) })}
         </p>
         <dl className="facts">
-          <div className="hot"><dt>{t('cluster.f_utility')}</dt><dd>{fmtNum(c.utility_score, 2, lang)}</dd></div>
+          <div className="hot"><dt>{t('cluster.f_utility')}</dt><dd>{fmtNum(c.utility_score, 2)}</dd></div>
           <div><dt>{t('cluster.f_nbr')}</dt><dd>{Math.round(c.neighbour_support * 8)}/8</dd></div>
           <div><dt>{t('cluster.f_sat')}</dt><dd>{c.n_sat}/2</dd></div>
           <div><dt>{t('cluster.f_ver')}</dt><dd><EvidenceBadge result={v?.result ?? null} /></dd></div>
           <div><dt>{t('cluster.f_dec')}</dt><dd><DecisionState decision={c.decision} /></dd></div>
         </dl>
-        <p className="callout"><IconAlert size={14} /> {t('awas.note')}</p>
+        <p className="callout"><IconAlert size={14} /> {t('warning.note')}</p>
       </m.header>
 
       <div className="detail-grid">
         <div className="col">
           <m.section className="card" aria-labelledby="chart-h" {...reveal(1)}>
             <h2 id="chart-h">{t('chart.title')}</h2>
-            <UtilityChart series={c.series} thresholds={{ watch: T_WATCH, awas: T_AWAS }} triggerSlot={c.trigger_slot} />
+            <UtilityChart series={c.series} thresholds={{ watch: T_WATCH, warning: T_WARNING }} triggerSlot={c.trigger_slot} />
           </m.section>
           <m.section className="card" aria-labelledby="attr-h" {...reveal(2)}>
             <h2 id="attr-h">{t('attr.title')}</h2>
@@ -104,8 +104,8 @@ export function Kelompok() {
               <p className="muted">{t('ver.pending')}</p>
             ) : (
               <>
-                <p>{lang === 'id' ? v.summary_id : v.summary_en}</p>
-                <p className="muted small">{t('ver.at', { when: fmtSlot(v.at, lang) })}</p>
+                <p>{v.summary}</p>
+                <p className="muted small">{t('ver.at', { when: fmtSlot(v.at) })}</p>
                 <div className="evimgs">
                   {v.images.map((img) => (
                     <EvidenceImage key={img.source} img={img} centre={c.centroid} clusterPixels={c.pixels} repPixel={c.rep_pixel} viirs={v.viirs} hotFrom={c.attribute_details?.u_H?.scale[0]} />
@@ -120,10 +120,10 @@ export function Kelompok() {
                   {v.evidence.map((e, i) => (
                     <li key={i}>
                       <span className="lbl">{t(`ver.src.${e.source}`)}</span>
-                      <span>{lang === 'id' ? e.finding : e.finding_en}</span>
+                      <span>{e.finding}</span>
                       {e.observed_at && (
                         <span className="muted small">
-                          {fmtSlot(e.observed_at, lang)}{e.age_h != null && ` · ${t('ver.age', { h: fmtNum(e.age_h, 1, lang) })}`}
+                          {fmtSlot(e.observed_at)}{e.age_h != null && ` · ${t('ver.age', { h: fmtNum(e.age_h, 1) })}`}
                         </span>
                       )}
                     </li>

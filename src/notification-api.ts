@@ -26,7 +26,7 @@ export async function notificationRequest<T>(path: string, method = 'GET', data?
     body: data === undefined ? undefined : JSON.stringify(data),
   });
   if (!response.ok) {
-    // Kode galat dipakai UI untuk teks dalam bahasa layar (lib/errors.ts); pesan server hanya cadangan.
+    // The UI words errors from their code (lib/errors.ts); the server message is only a fallback.
     const body = await response.json().catch(() => ({}));
     throw new ApiError(response.status, body.error?.code ?? `HTTP_${response.status}`, body.error?.message ?? response.statusText);
   }
@@ -50,7 +50,7 @@ export const notifications = {
   async inbox(): Promise<Notice[]> {
     if (API_MODE === 'live') return notificationRequest('/inbox');
     return [{ id: DEMO_ID, alert_id: 'DEMO-01', province: '62', purpose: 'exercise', status: 'active',
-      text: 'SIMULASI: contoh informasi anomali termal untuk menguji tombol konfirmasi. Data ini bukan kejadian nyata.',
+      text: 'EXERCISE: sample thermal anomaly information to test the confirm button. This is not a real event.',
       published_at: new Date().toISOString(), expires_at: new Date(Date.now() + 3600000).toISOString(), acknowledged_at: mockAck }];
   },
   async ack(id: string): Promise<{ acknowledged_at: string }> {
@@ -58,7 +58,7 @@ export const notifications = {
     mockAck ??= new Date().toISOString(); return { acknowledged_at: mockAck };
   },
   async telegram(): Promise<{ url: string }> {
-    if (API_MODE !== 'live') throw new ApiError(503, 'TELEGRAM_NOT_CONFIGURED', 'Bot Telegram belum dikonfigurasi.');
+    if (API_MODE !== 'live') throw new ApiError(503, 'TELEGRAM_NOT_CONFIGURED', 'The Telegram bot is not configured.');
     return notificationRequest('/telegram-link', 'POST');
   },
 };

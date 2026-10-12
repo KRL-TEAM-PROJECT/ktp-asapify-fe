@@ -22,13 +22,14 @@ export interface Schema {
 export type ExampleKey =
   | 'health' | 'meta' | 'grid' | 'clusters' | 'cluster' | 'verifyReq' | 'verifyRes' | 'decisionReq'
   | 'decisionRes' | 'decisionErr' | 'alerts' | 'closeReq' | 'closeRes' | 'peat'
-  | 'pixels' | 'gridCompact' | 'night' | 'nights' | 'basemaps';
+  | 'pixels' | 'gridCompact' | 'night' | 'nights' | 'basemaps'
+  | 'notifSettings' | 'preferences' | 'deviceReq' | 'telegramLink' | 'inbox' | 'ack' | 'deliveries';
 
 export interface Endpoint {
   id: string;
-  method: 'GET' | 'POST';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   path: string;
-  auth: 'public' | 'operator';
+  auth: 'public' | 'user' | 'operator';
   title: Txt;
   purpose: Txt;
   usedBy: Txt | null; // null = belum dipakai UI
@@ -105,7 +106,7 @@ export const CONVENTIONS: { title: Txt; body: Txt }[] = [
 
 export const ERRORS: { code: string; http: number; when: Txt }[] = [
   { code: 'UNAUTHENTICATED', http: 401, when: t('Token tidak ada, kedaluwarsa, atau tidak sah', 'Token missing, expired or invalid') },
-  { code: 'FORBIDDEN', http: 403, when: t('Pengguna bukan operator', 'User is not an operator') },
+  { code: 'FORBIDDEN', http: 403, when: t('Pengguna bukan operator, atau email Google belum terverifikasi', 'User is not an operator, or the Google email is not verified') },
   { code: 'NOT_FOUND', http: 404, when: t('Kelompok atau peringatan tidak ada', 'Cluster or alert does not exist') },
   { code: 'VALIDATION', http: 400, when: t('Parameter/body salah bentuk (mis. `as_of` bukan ISO UTC)', 'Malformed parameter/body (e.g. `as_of` is not ISO UTC)') },
   { code: 'ALREADY_DECIDED', http: 409, when: t('Kelompok sudah diterbitkan/ditolak operator lain', 'Cluster already published/rejected by another operator') },
@@ -113,6 +114,8 @@ export const ERRORS: { code: string; http: number; when: Txt }[] = [
   { code: 'ALREADY_CLOSED', http: 409, when: t('Peringatan sudah ditutup', 'Alert already closed') },
   { code: 'REASON_REQUIRED', http: 422, when: t('Tolak tanpa `reason`', 'Reject without `reason`') },
   { code: 'CAPTION_INVALID', http: 422, when: t('Terbitkan dengan caption kosong atau > 1.024 karakter', 'Publish with an empty caption or > 1,024 characters') },
+  { code: 'DEVICE_ALREADY_LINKED', http: 409, when: t('Token push sudah terdaftar di akun lain', 'The push token is already registered to another account') },
+  { code: 'TELEGRAM_NOT_CONFIGURED', http: 503, when: t('Bot Telegram belum dipasang di backend', 'The Telegram bot is not set up in the backend') },
 ];
 
 const AS_OF_PARAM: Field = {
@@ -470,6 +473,83 @@ export const SCHEMAS: Schema[] = [
     ],
   },
   {
+    name: 'Preferences', origin: 'backend',
+    desc: t('Langganan satu akun: wilayah, kanal, dan persetujuan. Disimpan per akun Google terverifikasi.', 'One account\'s subscription: regions, channels and consent. Stored per verified Google account.'),
+    fields: [
+      { name: 'provinces', type: `(${PROV_T})[]`, req: true, desc: t('Maks. 15, tanpa duplikat. Wajib minimal satu bila consent = true.', 'Max 15, no duplicates. At least one is required when consent = true.') },
+      { name: 'channels', type: "('telegram' | 'fcm' | 'web_push' | 'whatsapp' | 'sms' | 'gmail' | 'lora' | 'bluetooth_mesh')[]", req: true, desc: t('Kanal pilihan, tanpa duplikat. Kanal yang belum diimplementasikan disimpan tetapi tidak dikirimi.', 'Chosen channels, no duplicates. Channels not implemented yet are stored but never sent to.') },
+      { name: 'consent', type: 'boolean', req: true, desc: t('Persetujuan menerima peringatan. false = tidak ada inbox maupun job untuk akun ini.', 'Consent to receive alerts. false = no inbox entries or jobs for this account.') },
+      { name: 'exercises', type: 'boolean', req: false, desc: t('Ikut menerima pesan latihan (alert dari data replay). Bawaan false.', 'Also receive exercise messages (alerts from replay data). Default false.') },
+    ],
+  },
+  {
+    name: 'NotificationSettings', origin: 'backend',
+    desc: t('Isi halaman /notifikasi: preferensi akun dan kemampuan tiap kanal di server.', 'Content of the /notifikasi page: the account\'s preferences and what each channel can do on the server.'),
+    fields: [
+      { name: 'preferences', type: 'Preferences & {telegram_linked: boolean, device_registered: boolean}', req: true, desc: t('Tanpa chat_id atau token perangkat; hanya penanda sudah tersambung.', 'No chat_id or device token; only whether one is linked.') },
+      { name: 'channels[]', type: "{channel, implemented: boolean, enabled: boolean, restriction: 'NON_EMERGENCY_ONLY' | 'HARDWARE_REQUIRED' | 'ADAPTER_PENDING' | null}", req: true, desc: t('enabled = benar-benar mengirim (mode live dan kanal dinyalakan). FCM/Web Push hanya untuk latihan, tidak untuk darurat.', 'enabled = actually sends (live mode and channel switched on). FCM/Web Push are for exercises only, never emergencies.') },
+      { name: 'mode', type: "'dry_run' | 'live'", req: true, desc: t('dry_run = tidak ada provider yang dihubungi; status kirim menjadi simulated.', 'dry_run = no provider is contacted; delivery status becomes simulated.') },
+    ],
+  },
+  {
+    name: 'Notice', origin: 'backend',
+    desc: t('Satu pesan di inbox web pelanggan. Inbox tetap terisi walau semua kanal mati.', 'One message in a subscriber\'s web inbox. The inbox is filled even when every channel is off.'),
+    fields: [
+      { name: 'id', type: 'string (64 hex)', req: true, desc: t('ID inbox, deterministik per alert × akun (anti-duplikat).', 'Inbox id, deterministic per alert × account (deduplication).') },
+      { name: 'alert_id', type: 'string', req: true, desc: t('Peringatan asal.', 'Source alert.') },
+      { name: 'province', type: PROV_T, req: true, desc: t('Provinsi peringatan.', 'Alert province.') },
+      { name: 'text', type: 'string', req: true, desc: t('Caption yang diterbitkan operator.', 'Caption published by the operator.') },
+      { name: 'purpose', type: "'emergency' | 'exercise'", req: true, desc: t('exercise = alert dari data replay; hanya untuk akun dengan exercises = true.', 'exercise = alert from replay data; only for accounts with exercises = true.') },
+      { name: 'published_at', type: ISO, req: true, desc: t('Waktu terbit.', 'Publish time.') },
+      { name: 'expires_at', type: ISO, req: true, desc: t('Terbit + 1 jam; job yang belum terkirim setelahnya dibatalkan.', 'Publish + 1 h; jobs still unsent after that are cancelled.') },
+      { name: 'acknowledged_at', type: `${ISO} | null`, req: true, desc: t('Waktu pelanggan menekan konfirmasi.', 'When the subscriber pressed confirm.') },
+      { name: 'status', type: 'string', req: true, desc: t('Status alert saat pesan dibuat.', 'Alert status when the message was created.') },
+    ],
+  },
+  {
+    name: 'Delivery', origin: 'backend',
+    desc: t('Satu job kirim untuk satu kanal satu penerima. Tanpa alamat atau chat_id penerima.', 'One send job for one channel and one recipient. No recipient address or chat_id.'),
+    fields: [
+      { name: 'id', type: 'string (64 hex)', req: true, desc: t('ID job, deterministik (anti-duplikat).', 'Job id, deterministic (deduplication).') },
+      { name: 'channel', type: 'string', req: true, desc: t('Kanal job ini.', 'Channel of this job.') },
+      { name: 'stage', type: "'initial' | 'escalation'", req: true, desc: t('escalation = WhatsApp/SMS pesan latihan, ditunda 2 menit dan dilewati bila sudah dikonfirmasi.', 'escalation = WhatsApp/SMS for exercise messages, delayed 2 min and skipped once confirmed.') },
+      { name: 'status', type: "'pending' | 'sending' | 'accepted' | 'failed' | 'unknown' | 'blocked' | 'cancelled' | 'simulated'", req: true, desc: t('accepted = provider menerima, belum berarti terbaca. unknown = hasil tidak pasti, tidak dikirim ulang otomatis.', 'accepted = the provider took it, not proof it was read. unknown = outcome uncertain, never resent automatically.') },
+      { name: 'error', type: 'string | null', req: true, desc: t('Kode galat provider bila ada.', 'Provider error code, if any.') },
+      { name: 'attempts', type: 'number', req: true, desc: t('Jumlah percobaan kirim.', 'Number of send attempts.') },
+      { name: 'created_at · started_at · finished_at', type: `${ISO} | null`, req: true, desc: t('Jejak waktu job.', 'Job timestamps.') },
+      { name: 'acknowledged_at', type: `${ISO} | null`, req: true, desc: t('Dari inbox penerima.', 'From the recipient\'s inbox.') },
+    ],
+  },
+  {
+    name: 'TelegramLink', origin: 'backend',
+    desc: t('Deep link sekali pakai ke bot.', 'One-time deep link to the bot.'),
+    fields: [
+      { name: 'url', type: 'string', req: true, desc: t('`https://t.me/{bot}?start={kode}`.', '`https://t.me/{bot}?start={code}`.') },
+      { name: 'expires_in_seconds', type: '600', req: true, desc: t('Kode kedaluwarsa setelah 10 menit.', 'The code expires after 10 min.') },
+    ],
+  },
+  {
+    name: 'DeviceRequest', origin: 'backend',
+    desc: t('Token push dari Firebase Messaging di browser.', 'Push token from Firebase Messaging in the browser.'),
+    fields: [
+      { name: 'token', type: 'string (20–4096, [A-Za-z0-9_:-.])', req: true, desc: t('Satu token per akun.', 'One token per account.') },
+    ],
+  },
+  {
+    name: 'DeviceState', origin: 'backend',
+    desc: t('Hasil daftar/lepas perangkat.', 'Result of registering/removing a device.'),
+    fields: [
+      { name: 'registered', type: 'boolean', req: true, desc: t('true setelah POST, false setelah DELETE.', 'true after POST, false after DELETE.') },
+    ],
+  },
+  {
+    name: 'Ack', origin: 'backend',
+    desc: t('Hasil konfirmasi pesan.', 'Result of confirming a message.'),
+    fields: [
+      { name: 'acknowledged_at', type: ISO, req: true, desc: t('Waktu konfirmasi pertama.', 'Time of the first confirmation.') },
+    ],
+  },
+  {
     name: 'Error', origin: 'backend',
     desc: t('Amplop semua respons galat.', 'Envelope for every error response.'),
     fields: [
@@ -623,12 +703,83 @@ export const ENDPOINTS: Endpoint[] = [
     responses: [{ code: 200, schema: 'Alert', example: 'closeRes' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ALREADY_CLOSED'],
   },
+  {
+    id: 'deliveries', method: 'GET', path: '/operator/alerts/{id}/deliveries', auth: 'operator',
+    title: t('Status kirim per kanal', 'Delivery status per channel'),
+    purpose: t('Semua job kirim satu alert beserta waktu konfirmasi penerima. Tanpa alamat atau chat_id penerima.', 'Every send job of one alert with the recipient\'s confirmation time. No recipient address or chat_id.'),
+    usedBy: t('Detail kelompok → DeliveryStatus di bawah keputusan. Polling 15 detik selama ada job berjalan, lalu 60 detik sampai 1 jam setelah terbit.', 'Cluster detail → DeliveryStatus under the decision. Polls every 15 s while a job is running, then every 60 s until 1 h after publishing.'),
+    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: t('ID peringatan, mis. A-0924-001.', 'Alert id, e.g. A-0924-001.') }],
+    responses: [{ code: 200, schema: 'Delivery', example: 'deliveries', note: t('Delivery[].', 'Delivery[].') }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'notif-settings', method: 'GET', path: '/notifications/settings', auth: 'user',
+    title: t('Pengaturan notifikasi', 'Notification settings'),
+    purpose: t('Preferensi akun yang login dan kemampuan tiap kanal di server.', 'The signed-in account\'s preferences and what each channel can do on the server.'),
+    usedBy: t('/notifikasi saat dibuka.', '/notifikasi on open.'),
+    responses: [{ code: 200, schema: 'NotificationSettings', example: 'notifSettings' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'notif-preferences', method: 'PUT', path: '/notifications/preferences', auth: 'user',
+    title: t('Simpan preferensi', 'Save preferences'),
+    purpose: t('Ganti seluruh preferensi akun. consent = false menghentikan semua pesan baru untuk akun ini.', 'Replace the account\'s whole preference set. consent = false stops every new message for this account.'),
+    usedBy: t('/notifikasi → tombol Simpan dan Berhenti berlangganan.', '/notifikasi → Save and Unsubscribe buttons.'),
+    body: { schema: 'Preferences', example: 'preferences' },
+    responses: [{ code: 200, schema: 'Preferences', note: t('Ditambah telegram_linked dan device_registered.', 'Plus telegram_linked and device_registered.') }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
+  },
+  {
+    id: 'notif-telegram', method: 'POST', path: '/notifications/telegram-link', auth: 'user',
+    title: t('Tautan bot Telegram', 'Telegram bot link'),
+    purpose: t('Deep link /start sekali pakai, berlaku 10 menit. Akun tersambung setelah pengguna menekan Start di chat pribadi dengan bot.', 'One-time /start deep link, valid for 10 min. The account is linked once the user presses Start in a private chat with the bot.'),
+    usedBy: t('/notifikasi → tombol Hubungkan Telegram.', '/notifikasi → Connect Telegram button.'),
+    responses: [{ code: 200, schema: 'TelegramLink', example: 'telegramLink' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'TELEGRAM_NOT_CONFIGURED'],
+  },
+  {
+    id: 'notif-device', method: 'POST', path: '/notifications/device', auth: 'user',
+    title: t('Daftarkan perangkat push', 'Register push device'),
+    purpose: t('Simpan satu token FCM/Web Push untuk akun. Push hanya untuk pesan latihan, tidak untuk darurat.', 'Store one FCM/Web Push token for the account. Push is for exercise messages only, never emergencies.'),
+    usedBy: t('/notifikasi → Daftarkan push browser.', '/notifikasi → Register browser push.'),
+    body: { schema: 'DeviceRequest', example: 'deviceReq' },
+    responses: [{ code: 200, schema: 'DeviceState' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION', 'DEVICE_ALREADY_LINKED'],
+  },
+  {
+    id: 'notif-device-delete', method: 'DELETE', path: '/notifications/device', auth: 'user',
+    title: t('Lepas perangkat push', 'Remove push device'),
+    purpose: t('Hapus token push akun ini.', 'Delete this account\'s push token.'),
+    usedBy: null,
+    responses: [{ code: 200, schema: 'DeviceState' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'notif-inbox', method: 'GET', path: '/notifications/inbox', auth: 'user',
+    title: t('Inbox', 'Inbox'),
+    purpose: t('50 pesan terbaru milik akun yang login.', 'The 50 latest messages of the signed-in account.'),
+    usedBy: t('/notifikasi → daftar inbox; tersimpan untuk offline bila pengguna mengaktifkannya.', '/notifikasi → inbox list; kept for offline use when the user turns it on.'),
+    responses: [{ code: 200, schema: 'Notice', example: 'inbox', note: t('Notice[], terbaru dulu.', 'Notice[], newest first.') }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'notif-ack', method: 'POST', path: '/notifications/inbox/{id}/ack', auth: 'user',
+    title: t('Konfirmasi diterima', 'Confirm receipt'),
+    purpose: t('Catat waktu konfirmasi. Idempoten: konfirmasi kedua mengembalikan waktu pertama. Job lanjutan yang belum jalan dilewati.', 'Record the confirmation time. Idempotent: a second confirmation returns the first time. Follow-up jobs not yet run are skipped.'),
+    usedBy: t('/notifikasi → tombol Konfirmasi di tiap pesan.', '/notifikasi → Confirm button on each message.'),
+    params: [{ name: 'id', type: 'path · string (64 hex)', req: true, origin: 'backend', desc: t('ID inbox. Milik akun lain → 404.', 'Inbox id. Another account\'s id → 404.') }],
+    responses: [{ code: 200, schema: 'Ack', example: 'ack' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION'],
+  },
 ];
 
-/** Endpoint internal asapify-agent — bukan untuk UI, dicatat agar tim BE tahu batasnya. */
+/** Endpoint internal (asapify-agent dan asapify-notify) — bukan untuk UI, dicatat agar tim BE tahu batasnya. */
 export const INTERNAL: { method: string; path: string; desc: Txt }[] = [
   { method: 'POST', path: '/verify', desc: t('OIDC sa-jobs / sa-api. Body {cluster_id, trigger_slot, force}. 202 + verification_id.', 'OIDC sa-jobs / sa-api. Body {cluster_id, trigger_slot, force}. 202 + verification_id.') },
   { method: 'POST', path: '/cluster-closed', desc: t('OIDC sa-jobs. Body {cluster_id}. Bila ada alert terbit: tutup alert, beri label SELESAI di inbox, batalkan job yang belum terkirim.', 'OIDC sa-jobs. Body {cluster_id}. If an alert was published: close it, label the inbox entries SELESAI, cancel unsent jobs.') },
+  { method: 'POST', path: '/api/v1/notifications/telegram-webhook', desc: t('Dipanggil Telegram, wajib header X-Telegram-Bot-Api-Secret-Token. Hanya menautkan chat pribadi lewat /start; tidak membalas pesan.', 'Called by Telegram; requires the X-Telegram-Bot-Api-Secret-Token header. Only links private chats through /start; never replies.') },
+  { method: 'POST', path: '/_internal/notifications/dispatch', desc: t('asapify-notify. OIDC asapify-task dari Cloud Tasks. Body {job_id}. Klaim satu job lalu kirim.', 'asapify-notify. OIDC asapify-task from Cloud Tasks. Body {job_id}. Claims one job, then sends it.') },
+  { method: 'POST', path: '/_internal/notifications/sweep', desc: t('asapify-notify. OIDC asapify-task dari Cloud Scheduler tiap menit. Lanjutkan fan-out tertunda, antrekan job pending, tandai job macet sebagai unknown.', 'asapify-notify. OIDC asapify-task from Cloud Scheduler every minute. Resumes pending fan-outs, queues pending jobs, marks stuck jobs unknown.') },
 ];
 
 /** Contoh statis untuk endpoint yang tidak punya fixture mock. */
@@ -661,4 +812,27 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
     status: 'closed', closed_at: '2023-09-26T02:00:00Z', closed_by: 'operator@contoh.id',
     notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
   },
+  notifSettings: {
+    preferences: { provinces: ['62'], channels: ['telegram'], consent: true, exercises: true, telegram_linked: true, device_registered: false },
+    channels: [
+      { channel: 'telegram', implemented: true, enabled: false, restriction: null },
+      { channel: 'web_push', implemented: true, enabled: false, restriction: 'NON_EMERGENCY_ONLY' },
+      { channel: 'sms', implemented: false, enabled: false, restriction: 'ADAPTER_PENDING' },
+    ],
+    mode: 'dry_run',
+  },
+  preferences: { provinces: ['62', '63'], channels: ['telegram', 'web_push'], consent: true, exercises: true },
+  deviceReq: { token: 'fcm-token-dari-browser:APA91b…' },
+  telegramLink: { url: 'https://t.me/asapify_bot?start=Zq3…', expires_in_seconds: 600 },
+  inbox: [{
+    id: '3f9c…e21a', alert_id: 'A-0924-001', province: '62', purpose: 'exercise', status: 'active',
+    text: '<b>AWAS · Dugaan gambut membara</b>\n📍 Kalimantan Tengah · -2.21, 113.92 · 4 piksel\n…',
+    published_at: '2023-09-24T15:30:00Z', expires_at: '2023-09-24T16:30:00Z', acknowledged_at: '2023-09-24T15:33:12Z',
+  }],
+  ack: { acknowledged_at: '2023-09-24T15:33:12Z' },
+  deliveries: [{
+    id: '7b1d…09cf', channel: 'telegram', stage: 'initial', status: 'accepted', error: null, attempts: 1,
+    created_at: '2023-09-24T15:30:00Z', started_at: '2023-09-24T15:30:02Z', finished_at: '2023-09-24T15:30:03Z',
+    acknowledged_at: '2023-09-24T15:33:12Z',
+  }],
 };

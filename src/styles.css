@@ -653,8 +653,11 @@ a.tag:hover { color: var(--ink); }
 .m { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px; min-width: 44px; text-align: center; }
 .m-get { background: var(--moss-soft); color: var(--moss); }
 .m-post { background: var(--sat-soft); color: var(--sat); }
+.m-put { background: var(--amber-soft); color: var(--amber); }
+.m-delete { background: var(--ember-soft); color: var(--ember); }
 .auth { font-family: var(--font-mono); font-size: 11px; margin-left: auto; padding: 2px 8px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line); }
 .auth.public { color: var(--moss); }
+.auth.user { color: var(--sat); }
 .auth.operator { color: var(--amber); }
 .used { font-size: 13.5px; background: var(--sat-soft); border-radius: 8px; padding: 7px 10px; }
 .used.none { background: var(--surface-2); color: var(--ink-dim); }

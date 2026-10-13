@@ -6,7 +6,7 @@ import { m, spring } from '../motion';
 
 interface Props {
   series: SeriesPoint[];
-  thresholds: { watch: number; warning: number };
+  thresholds: { warning: number; alert: number };
   triggerSlot: string;
 }
 
@@ -71,10 +71,10 @@ export function UtilityChart({ series, thresholds, triggerSlot }: Props) {
         {[0, 0.5, 1].map((v) => (
           <text key={v} x={PL - 6} y={y(v) + 3} textAnchor="end" className="ax">{fmtNum(v, 1)}</text>
         ))}
-        <line x1={PL} x2={W - PR} y1={y(thresholds.warning)} y2={y(thresholds.warning)} stroke="var(--ember)" strokeDasharray="4 3" />
-        <text x={PL + 4} y={y(thresholds.warning) - 4} className="ax" fill="var(--ember)">{fmtNum(thresholds.warning, 2)} WARNING</text>
-        <line x1={PL} x2={W - PR} y1={y(thresholds.watch)} y2={y(thresholds.watch)} stroke="var(--amber)" strokeDasharray="4 3" />
-        <text x={PL + 4} y={y(thresholds.watch) - 4} className="ax" fill="var(--amber)">{fmtNum(thresholds.watch, 2)}</text>
+        <line x1={PL} x2={W - PR} y1={y(thresholds.alert)} y2={y(thresholds.alert)} stroke="var(--ember)" strokeDasharray="4 3" />
+        <text x={PL + 4} y={y(thresholds.alert) - 4} className="ax" fill="var(--ember)">{fmtNum(thresholds.alert, 2)} ALERT</text>
+        <line x1={PL} x2={W - PR} y1={y(thresholds.warning)} y2={y(thresholds.warning)} stroke="var(--amber)" strokeDasharray="4 3" />
+        <text x={PL + 4} y={y(thresholds.warning) - 4} className="ax" fill="var(--amber)">{fmtNum(thresholds.warning, 2)}</text>
         {segments.map((s, i) =>
           s.length === 1
             ? <circle key={i} cx={s[0].split(',')[0]} cy={s[0].split(',')[1]} r="1.6" fill="var(--ink)" />

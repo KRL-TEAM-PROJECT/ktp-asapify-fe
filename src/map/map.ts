@@ -22,7 +22,7 @@ export interface MapOptions {
   onCell(cell: number, at: LngLatLike): void; // -1 = click outside every peat pixel
 }
 
-const ALL: Status[] = ['SAFE', 'NO_OBSERVATION', 'WATCH', 'WARNING'];
+const ALL: Status[] = ['SAFE', 'NO_OBSERVABLE', 'WARNING', 'ALERT'];
 
 /** MapLibre wrapper that keeps all state so it can be reinstalled after setStyle. */
 export class MapController {

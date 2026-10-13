@@ -8,7 +8,7 @@ import { m, reveal, springSoft } from '../motion';
 // Steps 1–3 run as rules, 4 by the AI agent, 5 by a person; the top border colour follows who acts.
 const STEPS: [number, 'rule' | 'ai' | 'human'][] = [[1, 'rule'], [2, 'rule'], [3, 'rule'], [4, 'ai'], [5, 'human']];
 const STATUS_ROWS: [Status, string][] = [
-  ['WARNING', 'about.st_warning'], ['WATCH', 'about.st_watch'], ['NO_OBSERVATION', 'about.st_noobs'], ['SAFE', 'about.st_safe'],
+  ['ALERT', 'about.st_warning'], ['WARNING', 'about.st_watch'], ['NO_OBSERVABLE', 'about.st_noobs'], ['SAFE', 'about.st_safe'],
 ];
 const SOURCES: [string, string][] = [
   ['Himawari-9 AHI', 'about.src_h'],
@@ -72,7 +72,7 @@ export function AboutPage() {
               <div key={s}><dt><StatusBadge status={s} /></dt><dd>{t(k)}</dd></div>
             ))}
           </dl>
-          <p className="muted small">{t('warning.note')}</p>
+          <p className="muted small">{t('alert.note')}</p>
         </m.section>
       </div>
 

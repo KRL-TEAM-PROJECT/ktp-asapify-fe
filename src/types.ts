@@ -3,7 +3,7 @@ import type { FeatureCollection, MultiPolygon, Point, Polygon } from 'geojson';
 // Data shapes follow backend.html sections 03–05. Fields marked "FE" are the FE's
 // proposal for the GET /operator/clusters/{id} content that is not detailed there.
 
-export type Status = 'SAFE' | 'NO_OBSERVATION' | 'WATCH' | 'WARNING';
+export type Status = 'SAFE' | 'NO_OBSERVABLE' | 'WARNING' | 'ALERT';
 export type EvidenceResult = 'strong_evidence' | 'inconclusive';
 // BPS codes: 10 Sumatra provinces + 5 Kalimantan provinces.
 export type ProvinceCode =
@@ -76,7 +76,7 @@ export interface ClusterSummary {
 
 export interface SeriesPoint {
   slot: string;
-  U: number | null; // FE: null = NO_OBSERVATION
+  U: number | null; // FE: null = NO_OBSERVABLE
   status: Status;
 }
 
@@ -191,7 +191,7 @@ export interface PixelIndex {
   province: number[]; // BPS province code per cell, e.g. 16 = South Sumatra
 }
 
-/** Compact status codes: S = SAFE, N = NO_OBSERVATION, W = WATCH, A = WARNING. */
+/** Compact status codes: S = SAFE, N = NO_OBSERVABLE, W = WARNING, A = ALERT. */
 export type StatusCode = 'S' | 'N' | 'W' | 'A';
 
 /** Status of every pixel in one slot. */
@@ -211,14 +211,14 @@ export interface NightCompact {
   slots: string[]; // 54 UTC slots, 13:00–21:50
   status: (string | null)[]; // per slot; null = not evaluated yet / no data
   n_sat: (0 | 1 | 2 | null)[];
-  clusters: Record<string, number[]>; // clusters at WARNING that night → cell indices
+  clusters: Record<string, number[]>; // clusters at ALERT that night → cell indices
 }
 
-/** One night for the calendar: whether there is data, and how many clusters reached WARNING. */
+/** One night for the calendar: whether there is data, and how many clusters reached ALERT. */
 export interface NightSummary {
   night: string; // YYYY-MM-DD
   has_data: boolean;
-  warning_clusters: number;
+  alert_clusters: number;
 }
 
 export interface Basemap {

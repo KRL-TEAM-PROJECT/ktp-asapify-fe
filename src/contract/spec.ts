@@ -38,7 +38,7 @@ export interface Endpoint {
   errors: string[];
 }
 
-export const STATUS_T = "'SAFE' | 'NO_OBSERVATION' | 'WATCH' | 'WARNING'";
+export const STATUS_T = "'SAFE' | 'NO_OBSERVABLE' | 'WARNING' | 'ALERT'";
 const ISO = 'string · ISO 8601 UTC';
 export const PROV_T = "'11' … '19' | '21' | '61' … '65'";
 
@@ -73,7 +73,7 @@ export const CONVENTIONS: { title: string; body: string }[] = [
   },
   {
     title: 'Content rules',
-    body: 'Status comes only from the rule engine; agent verification has no status or level field. No text may call WARNING a "confirmed fire". The agent writes findings and summaries in English (`finding`, `summary`); captions are English too.',
+    body: 'Status comes only from the rule engine; agent verification has no status or level field. No text may call ALERT a "confirmed fire". The agent writes findings and summaries in English (`finding`, `summary`); captions are English too.',
   },
 ];
 
@@ -117,7 +117,7 @@ export const SCHEMAS: Schema[] = [
       { name: 'n_sat', type: '0 | 1 | 2', req: true, desc: 'Number of satellites available at last_slot.' },
       { name: 'sats.himawari', type: 'SatState', req: true, desc: 'Himawari-9 state.' },
       { name: 'sats.gk2a', type: 'SatState', req: true, desc: 'GK2A state.' },
-      { name: 'nights', type: '{ first: YYYY-MM-DD, last: YYYY-MM-DD }', req: true, desc: 'Range of archive nights that can be opened; bounds the calendar in the slot player. `first` is 2023-02-16 at the earliest (start of the GK2A archive on NOAA; WARNING needs both satellites); `last` = the night of last_slot.' },
+      { name: 'nights', type: '{ first: YYYY-MM-DD, last: YYYY-MM-DD }', req: true, desc: 'Range of archive nights that can be opened; bounds the calendar in the slot player. `first` is 2023-02-16 at the earliest (start of the GK2A archive on NOAA; ALERT needs both satellites); `last` = the night of last_slot.' },
     ],
   },
   {
@@ -135,9 +135,9 @@ export const SCHEMAS: Schema[] = [
       { name: 'geometry.coordinates', type: '[lon, lat]', req: true, desc: 'Pixel centre.' },
       { name: 'properties.pixel_id', type: 'string', req: true, desc: '`p{row}_{col}`.' },
       { name: 'properties.status', type: STATUS_T, req: true, desc: 'Rule-engine status at last_slot.' },
-      { name: 'properties.utility', type: 'number 0–1 | null', req: true, desc: 'U; null when NO_OBSERVATION.' },
+      { name: 'properties.utility', type: 'number 0–1 | null', req: true, desc: 'U; null when NO_OBSERVABLE.' },
       { name: 'properties.n_sat', type: '0 | 1 | 2', req: true, desc: 'Clear-sky satellites for this pixel.' },
-      { name: 'properties.cluster_id', type: 'string | null', req: true, desc: 'Active WARNING cluster id if the pixel is a member; the UI draws cluster outlines from it.' },
+      { name: 'properties.cluster_id', type: 'string | null', req: true, desc: 'Active ALERT cluster id if the pixel is a member; the UI draws cluster outlines from it.' },
       { name: 'properties.province', type: PROV_T, req: true, desc: 'BPS province code; used by the province filter.' },
     ],
   },
@@ -160,9 +160,9 @@ export const SCHEMAS: Schema[] = [
       { name: 'pixels_version', type: 'string', req: true, desc: 'Must equal PixelIndex.version; if not, the UI re-downloads the index.' },
       { name: 'slot', type: ISO, req: true, desc: 'Slot shown (≤ as_of).' },
       { name: 'n_sat', type: '0 | 1 | 2', req: true, desc: 'Satellites available at this slot.' },
-      { name: 'status', type: 'string', req: true, desc: 'One letter per cell: `S` SAFE, `N` NO_OBSERVATION, `W` WATCH, `A` WARNING.' },
+      { name: 'status', type: 'string', req: true, desc: 'One letter per cell: `S` SAFE, `N` NO_OBSERVABLE, `W` WARNING, `A` ALERT.' },
       { name: 'utility', type: 'string (base64)', req: true, desc: 'Uint8 per cell: round(U × 250); 255 = null.' },
-      { name: 'clusters', type: 'Record<cluster_id, integer[]>', req: true, desc: 'Member cell indices of each active WARNING cluster; the UI draws cluster outlines from it.' },
+      { name: 'clusters', type: 'Record<cluster_id, integer[]>', req: true, desc: 'Member cell indices of each active ALERT cluster; the UI draws cluster outlines from it.' },
     ],
   },
   {
@@ -174,7 +174,7 @@ export const SCHEMAS: Schema[] = [
       { name: 'slots', type: `${ISO}[54]`, req: true, desc: '13:00–21:50 UTC, every 10 minutes.' },
       { name: 'status', type: '(string | null)[54]', req: true, desc: 'Same format as GridCompact.status; null = slot not evaluated yet or no data.' },
       { name: 'n_sat', type: '(0 | 1 | 2 | null)[54]', req: true, desc: 'Satellites per slot.' },
-      { name: 'clusters', type: 'Record<cluster_id, integer[]>', req: true, desc: 'Clusters that were at WARNING in any slot that night (active or closed) → cell indices. Cluster outlines on archive nights come from here.' },
+      { name: 'clusters', type: 'Record<cluster_id, integer[]>', req: true, desc: 'Clusters that were at ALERT in any slot that night (active or closed) → cell indices. Cluster outlines on archive nights come from here.' },
     ],
   },
   {
@@ -183,7 +183,7 @@ export const SCHEMAS: Schema[] = [
     fields: [
       { name: 'night', type: 'string · YYYY-MM-DD', req: true, desc: 'night_id.' },
       { name: 'has_data', type: 'boolean', req: true, desc: 'false when no slot was evaluated (e.g. satellite data never arrived). The UI disables this date.' },
-      { name: 'warning_clusters', type: 'integer ≥ 0', req: true, desc: 'Number of clusters that were at WARNING in any slot that night; the UI marks the date with a dot.' },
+      { name: 'alert_clusters', type: 'integer ≥ 0', req: true, desc: 'Number of clusters that were at ALERT in any slot that night; the UI marks the date with a dot.' },
     ],
   },
   {
@@ -209,10 +209,10 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'ClusterSummary', origin: 'backend',
-    desc: 'One row in the WARNING cluster list.',
+    desc: 'One row in the ALERT cluster list.',
     fields: [
       { name: 'id', type: 'string', req: true, desc: '`C-{MMDD}-{nnn}`; kept while it overlaps an active cluster.' },
-      { name: 'state', type: "'active' | 'closed'", req: true, desc: 'Closed after 3 valid nights without WARNING pixels.' },
+      { name: 'state', type: "'active' | 'closed'", req: true, desc: 'Closed after 3 valid nights without ALERT pixels.' },
       { name: 'province', type: PROV_T, req: true, desc: 'Province of the representative pixel; decides which subscribers receive the alert.' },
       { name: 'rep_pixel', type: 'string', req: true, desc: 'pixel_id with the highest U.' },
       { name: 'centroid', type: '[lon, lat]', req: true, desc: 'Cluster centre; map zoom target and caption.' },
@@ -220,7 +220,7 @@ export const SCHEMAS: Schema[] = [
       { name: 'trigger_slot', type: ISO, req: true, desc: 'Slot that triggered the latest verification.' },
       { name: 'utility_score', type: 'number 0–1', req: true, desc: 'U of the representative pixel at trigger_slot.' },
       { name: 'neighbour_support', type: 'number 0–1', req: true, desc: 'u_N = k/8 neighbours with U0 ≥ 0.5.' },
-      { name: 'n_sat', type: '0 | 1 | 2', req: true, desc: 'Satellites at trigger_slot (always 2 for WARNING).' },
+      { name: 'n_sat', type: '0 | 1 | 2', req: true, desc: 'Satellites at trigger_slot (always 2 for ALERT).' },
       { name: 'verification', type: 'VerificationSummary | null', req: true, desc: 'Latest agent verification; null if none yet.' },
       { name: 'decision', type: 'Decision | null', req: true, desc: 'Operator decision; null = undecided (still monitored).' },
     ],
@@ -263,7 +263,7 @@ export const SCHEMAS: Schema[] = [
     desc: 'One slot on the utility chart.',
     fields: [
       { name: 'slot', type: ISO, req: true, desc: '10-minute slot, 13:00–20:50 UTC.' },
-      { name: 'U', type: 'number 0–1 | null', req: true, desc: 'null = NO_OBSERVATION (hatched on the chart).' },
+      { name: 'U', type: 'number 0–1 | null', req: true, desc: 'null = NO_OBSERVABLE (hatched on the chart).' },
       { name: 'status', type: STATUS_T, req: true, desc: 'Status at that slot.' },
     ],
   },
@@ -575,7 +575,7 @@ export const ENDPOINTS: Endpoint[] = [
     id: 'night', method: 'GET', path: '/operator/grid/night', auth: 'operator',
     title: 'Per-slot status for one night',
     purpose: '54 status strings (compact format) for one night; one request replaces 54 × /operator/grid. Slots after as_of = null.',
-    usedBy: 'Map → slot player (night ribbon: ▲ row = WARNING count per slot), archive night picker (status + that night\'s cluster outlines), 54-slot history in the pixel inspector.',
+    usedBy: 'Map → slot player (night ribbon: ▲ row = ALERT count per slot), archive night picker (status + that night\'s cluster outlines), 54-slot history in the pixel inspector.',
     params: [
       { name: 'night', type: 'query · YYYY-MM-DD', req: true, desc: 'night_id (UTC+7 date the night starts), within Meta.nights. Outside the range → VALIDATION.' },
       AS_OF_PARAM,
@@ -586,8 +586,8 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'nights', method: 'GET', path: '/operator/nights', auth: 'operator',
     title: 'Night availability per month',
-    purpose: 'One row per archive night in that month: whether it has data and how many WARNING clusters it had. Nights outside Meta.nights are not sent.',
-    usedBy: 'Map → calendar in the slot player (faded date = no data, dot = WARNING clusters).',
+    purpose: 'One row per archive night in that month: whether it has data and how many ALERT clusters it had. Nights outside Meta.nights are not sent.',
+    usedBy: 'Map → calendar in the slot player (faded date = no data, dot = ALERT clusters).',
     params: [
       { name: 'month', type: 'query · YYYY-MM', req: true, desc: 'Month shown by the calendar.' },
     ],
@@ -605,12 +605,12 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     id: 'clusters', method: 'GET', path: '/operator/clusters', auth: 'operator',
-    title: 'WARNING cluster list',
-    purpose: 'WARNING clusters + latest verification + decision. The response is a bare array.',
+    title: 'ALERT cluster list',
+    purpose: 'ALERT clusters + latest verification + decision. The response is a bare array.',
     usedBy: 'Map → cluster list panel (the UI sorts by utility or trigger_slot), "empty" state.',
     params: [
       { name: 'state', type: "query · 'active' | 'closed'", req: false, origin: 'backend', desc: 'Default active. The UI uses active for the latest night.' },
-      { name: 'night', type: 'query · YYYY-MM-DD', req: false, origin: 'backend', desc: 'Archive night: clusters that were at WARNING in any slot that night, whatever their state (first_warning_at ≤ night end and last_warning_at ≥ night start). When set, `state` is ignored.' },
+      { name: 'night', type: 'query · YYYY-MM-DD', req: false, origin: 'backend', desc: 'Archive night: clusters that were at ALERT in any slot that night, whatever their state (first_warning_at ≤ night end and last_warning_at ≥ night start). When set, `state` is ignored.' },
       AS_OF_PARAM,
     ],
     responses: [{ code: 200, schema: 'ClusterSummary', example: 'clusters', note: 'ClusterSummary[].' }],
@@ -759,7 +759,7 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
   verifyRes: { verification_id: 'V-0924-002-1510', cluster_id: 'C-0924-002', status: 'queued' },
   decisionReq: {
     action: 'publish',
-    caption: '<b>WARNING · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.21, 113.92 · 4 pixels\n…',
+    caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.21, 113.92 · 4 pixels\n…',
     reason: null,
   },
   decisionRes: {
@@ -769,7 +769,7 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
   decisionErr: { error: { code: 'ALREADY_DECIDED', message: 'An operator has already decided on this cluster.' } },
   alerts: [{
     id: 'A-0923-001', cluster_id: 'C-0923-001', province: '62',
-    caption: '<b>WARNING · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
+    caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
     published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
     status: 'active', closed_at: null, closed_by: null,
     notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
@@ -777,7 +777,7 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
   closeReq: { reason: 'Fire out according to the Central Kalimantan disaster agency (BPBD)' },
   closeRes: {
     id: 'A-0923-001', cluster_id: 'C-0923-001', province: '62',
-    caption: '<b>WARNING · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
+    caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
     published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
     status: 'closed', closed_at: '2023-09-26T02:00:00Z', closed_by: 'operator@example.org',
     notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
@@ -796,7 +796,7 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
   telegramLink: { url: 'https://t.me/asapify_bot?start=Zq3…', expires_in_seconds: 600 },
   inbox: [{
     id: '3f9c…e21a', alert_id: 'A-0924-001', province: '62', purpose: 'exercise', status: 'active',
-    text: '<b>WARNING · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.21, 113.92 · 4 pixels\n…',
+    text: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.21, 113.92 · 4 pixels\n…',
     published_at: '2023-09-24T15:30:00Z', expires_at: '2023-09-24T16:30:00Z', acknowledged_at: '2023-09-24T15:33:12Z',
   }],
   ack: { acknowledged_at: '2023-09-24T15:33:12Z' },

@@ -4,9 +4,9 @@ import { StatusIcon } from './icons';
 
 export const STATUS_KEY: Record<Status, string> = {
   SAFE: 'status.safe',
-  NO_OBSERVATION: 'status.no_obs',
-  WATCH: 'status.watch',
+  NO_OBSERVABLE: 'status.no_obs',
   WARNING: 'status.warning',
+  ALERT: 'status.alert',
 };
 
 export function StatusBadge({ status }: { status: Status }) {

@@ -6,7 +6,7 @@ import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
 import { fmtCoord, fmtNum, fmtSlot } from '../lib/format';
-import { T_WARNING, T_WATCH, WEIGHTS } from '../lib/maut';
+import { T_ALERT, T_WARNING, WEIGHTS } from '../lib/maut';
 import { buildCaption } from '../lib/caption';
 import { StatusBadge } from '../components/StatusBadge';
 import { EvidenceBadge } from '../components/EvidenceBadge';
@@ -61,7 +61,7 @@ export function ClusterPage() {
         <Link className="back" to="/"><IconArrowLeft />{t('cluster.back')}</Link>
         <div className="title-row">
           <h1 className="mono">{c.id}</h1>
-          {c.state === 'closed' ? <span className="pill grey">{t('cluster.closed')}</span> : <StatusBadge status="WARNING" />}
+          {c.state === 'closed' ? <span className="pill grey">{t('cluster.closed')}</span> : <StatusBadge status="ALERT" />}
           <SatelliteAgree nSat={c.n_sat} agree={c.n_sat >= 2} />
         </div>
         <p className="muted">
@@ -75,14 +75,14 @@ export function ClusterPage() {
           <div><dt>{t('cluster.f_ver')}</dt><dd><EvidenceBadge result={v?.result ?? null} /></dd></div>
           <div><dt>{t('cluster.f_dec')}</dt><dd><DecisionState decision={c.decision} /></dd></div>
         </dl>
-        <p className="callout"><IconAlert size={14} /> {t('warning.note')}</p>
+        <p className="callout"><IconAlert size={14} /> {t('alert.note')}</p>
       </m.header>
 
       <div className="detail-grid">
         <div className="col">
           <m.section className="card" aria-labelledby="chart-h" {...reveal(1)}>
             <h2 id="chart-h">{t('chart.title')}</h2>
-            <UtilityChart series={c.series} thresholds={{ watch: T_WATCH, warning: T_WARNING }} triggerSlot={c.trigger_slot} />
+            <UtilityChart series={c.series} thresholds={{ warning: T_WARNING, alert: T_ALERT }} triggerSlot={c.trigger_slot} />
           </m.section>
           <m.section className="card" aria-labelledby="attr-h" {...reveal(2)}>
             <h2 id="attr-h">{t('attr.title')}</h2>

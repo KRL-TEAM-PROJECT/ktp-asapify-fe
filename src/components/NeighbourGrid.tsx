@@ -4,7 +4,7 @@ import { fmtNum } from '../lib/format';
 import { m, spring } from '../motion';
 import { IconCloud } from './icons';
 
-// Sembilan sel muncul berurutan (urutan baca) saat grid masuk layar.
+// The nine cells appear in reading order when the grid enters the screen.
 const pop = (i: number) => ({
   initial: { opacity: 0, scale: 0.6 }, whileInView: { opacity: 1, scale: 1 }, viewport: { once: true },
   transition: { ...spring, delay: 0.05 + i * 0.045 },
@@ -12,9 +12,9 @@ const pop = (i: number) => ({
 
 const LAYOUT: (NeighbourDir | 'c')[] = ['nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', 'se'];
 
-/** Mini-grid 3 × 3 di sekitar piksel perwakilan. */
+/** 3 × 3 mini grid around the representative pixel. */
 export function NeighbourGrid({ neighbours }: { neighbours: Neighbour[] }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const byDir = new Map(neighbours.map((n) => [n.dir, n]));
   const k = neighbours.filter((n) => n.state === 'anomaly').length;
   const label = (n: Neighbour) => t(`nbr.${n.state}`);
@@ -28,7 +28,7 @@ export function NeighbourGrid({ neighbours }: { neighbours: Neighbour[] }) {
           if (!n) return <span key={d} className="x" />;
           return (
             <m.span key={d} className={n.state} aria-label={`${d.toUpperCase()}: ${label(n)}`} title={label(n)} {...pop(i)}>
-              {n.state === 'cloud' ? <IconCloud size={13} /> : n.state === 'non_peat' ? '—' : n.u0 != null ? fmtNum(n.u0, 1, lang) : ''}
+              {n.state === 'cloud' ? <IconCloud size={13} /> : n.state === 'non_peat' ? '—' : n.u0 != null ? fmtNum(n.u0, 1) : ''}
             </m.span>
           );
         })}
@@ -39,7 +39,7 @@ export function NeighbourGrid({ neighbours }: { neighbours: Neighbour[] }) {
         <span><i className="cloud" />{t('nbr.cloud')}</span>
         <span><i className="non_peat" />{t('nbr.non_peat')}</span>
       </div>
-      <code className="nb-formula">{t('nbr.formula', { k, v: fmtNum(k / 8, 3, lang) })}</code>
+      <code className="nb-formula">{t('nbr.formula', { k, v: fmtNum(k / 8, 3) })}</code>
     </div>
   );
 }

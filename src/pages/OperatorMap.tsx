@@ -27,48 +27,48 @@ import { Sheet } from '../components/Sheet';
 import { LiteMotion, m, spring } from '../motion';
 import { StatusIcon } from '../components/icons';
 
-const ALL: Status[] = ['AWAS', 'WATCH', 'NO_OBSERVATION', 'SAFE'];
+const ALL: Status[] = ['WARNING', 'WATCH', 'NO_OBSERVATION', 'SAFE'];
 const COORD = /^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/;
 
 type Sort = 'utility' | 'newest' | 'oldest';
 const SORTS: Record<Sort, (a: ClusterSummary, b: ClusterSummary) => number> = {
   utility: (a, b) => b.utility_score - a.utility_score,
-  newest: (a, b) => b.trigger_slot.localeCompare(a.trigger_slot), // ISO UTC: urut leksikal = urut waktu
+  newest: (a, b) => b.trigger_slot.localeCompare(a.trigger_slot), // ISO UTC: lexical order = time order
   oldest: (a, b) => a.trigger_slot.localeCompare(b.trigger_slot),
 };
 
-/** Indeks slot terakhir yang sudah berisi status. */
+/** Index of the last slot that already has a status. */
 function lastFilled(status: (string | null)[]): number {
   let i = status.length - 1;
   while (i >= 0 && status[i] == null) i--;
   return i;
 }
 
-export function PetaOperator({ dark }: { dark: boolean }) {
-  const { t, lang } = useI18n();
+export function OperatorMapPage({ dark }: { dark: boolean }) {
+  const { t } = useI18n();
   const mapEl = useRef<HTMLDivElement>(null);
   const ctl = useRef<MapController | null>(null);
 
-  // ---------- mode ringan + preferensi tampilan ----------
+  // ---------- lite mode + display preferences ----------
   const liteReason = useMemo(detectLite, []);
   const [litePref, setLitePref] = useState<boolean | null>(loadLitePref);
   const lite = litePref ?? liteReason != null;
-  const [basemap, setBasemap] = useState<string>(() => load('asapify.basemap') ?? (lite ? 'polos' : 'peta'));
+  const [basemap, setBasemap] = useState<string>(() => load('asapify.basemap.v2') ?? (lite ? 'plain' : 'streets'));
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
     status: true, clusters: true, peat: true, provinces: !lite, viirs: true,
   });
 
-  // ---------- filter + seleksi ----------
+  // ---------- filters + selection ----------
   const [statuses, setStatuses] = useState<Status[]>(ALL);
   const [province, setProvince] = useState<ProvinceCode | ''>('');
   const [sort, setSort] = useState<Sort>('utility');
-  const [nightSel, setNightSel] = useState<string | null>(null); // null = malam replay terbaru
+  const [nightSel, setNightSel] = useState<string | null>(null); // null = latest replay night
   const [selected, setSelected] = useState<string | null>(null);
   const [cell, setCell] = useState(-1);
-  const [slot, setSlot] = useState<number | null>(null); // null = slot terakhir malam yang dibuka
+  const [slot, setSlot] = useState<number | null>(null); // null = last slot of the open night
   const [playing, setPlaying] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(true);
-  const isSheet = useMediaQuery('(max-width: 1023px)'); // panel jadi bottom sheet
+  const isSheet = useMediaQuery('(max-width: 1023px)'); // the panel becomes a bottom sheet
   const [query, setQuery] = useState('');
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
 
@@ -79,12 +79,12 @@ export function PetaOperator({ dark }: { dark: boolean }) {
   const isCurrent = nightSel == null;
   const viewNight = nightSel ?? currentNight;
   const night = useLoad(() => (viewNight ? api.night(viewNight) : Promise.resolve(null)), [viewNight]);
-  const nightData = night.data?.night === viewNight ? night.data : null; // abaikan data malam sebelumnya saat memuat
-  // Malam terbaru: kelompok aktif. Malam arsip: kelompok yang AWAS malam itu, apa pun state-nya.
+  const nightData = night.data?.night === viewNight ? night.data : null; // ignore the previous night's data while loading
+  // Latest night: active clusters. Archive night: clusters at WARNING that night, whatever their state.
   const clustersQ = useLoad(() => (meta ? api.clusters(nightSel ?? undefined) : Promise.resolve(null)), [meta, nightSel]);
   const clusters = clustersQ.loading ? null : (clustersQ.data ?? null);
   const peat = useLoad(() => api.peatBoundary(), []);
-  // Batas provinsi dimuat bila layernya menyala ATAU ada provinsi terpilih (untuk garis sorotan).
+  // Province outlines load when their layer is on OR a province is selected (for the highlight outline).
   const provRef = useRef<Promise<ProvinceBoundary> | null>(null);
   const needProv = layers.provinces || province !== '';
   const provinces = useLoad(
@@ -94,7 +94,7 @@ export function PetaOperator({ dark }: { dark: boolean }) {
 
   const latest = meta ? slotIndex(meta.last_slot, nightStart(meta.last_slot)) : 0;
   const last = isCurrent ? latest : nightData ? lastFilled(nightData.status) : NIGHT_SLOTS - 1;
-  // Malam arsip tanpa satu slot pun berisi data: semua piksel ditampilkan "tidak teramati".
+  // An archive night without a single slot of data: every pixel is shown as "not observed".
   const noData = !isCurrent && nightData != null && last < 0;
   const allUnobserved = useMemo(() => (index ? 'N'.repeat(index.rows.length) : null), [index]);
   const cur = slot ?? Math.max(0, last);
@@ -110,12 +110,12 @@ export function PetaOperator({ dark }: { dark: boolean }) {
     return m;
   }, [clusterCells]);
 
-  // ---------- peta ----------
+  // ---------- map ----------
   const onCell = useRef<(i: number) => void>(() => {});
   onCell.current = (i) => {
     if (i < 0 || !statusStr) { setCell(-1); return; }
     const code = statusStr[i] as StatusCode;
-    if (!statuses.some((s) => STATUS_CODE[s] === code)) return; // status sedang disembunyikan
+    if (!statuses.some((s) => STATUS_CODE[s] === code)) return; // that status is hidden
     setCell(i);
     const id = clusterOfCell.get(i);
     if (id) setSelected(id);
@@ -124,17 +124,16 @@ export function PetaOperator({ dark }: { dark: boolean }) {
 
   useEffect(() => {
     const c = new MapController(mapEl.current!, {
-      dark, lite, lang, basemap, basemaps: [], onCell: (i) => onCell.current(i),
+      dark, lite, basemap, basemaps: [], onCell: (i) => onCell.current(i),
     });
     ctl.current = c;
     return () => { c.destroy(); ctl.current = null; };
-    // peta dibuat sekali; perubahan lain lewat metode controller
+    // the map is created once; other changes go through controller methods
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { ctl.current?.setBasemap(basemap, dark, basemaps ?? []); save('asapify.basemap', basemap); }, [basemap, dark, basemaps]);
+  useEffect(() => { ctl.current?.setBasemap(basemap, dark, basemaps ?? []); save('asapify.basemap.v2', basemap); }, [basemap, dark, basemaps]);
   useEffect(() => { ctl.current?.setLite(lite); }, [lite]);
-  useEffect(() => { ctl.current?.setLang(lang); }, [lang]);
   useEffect(() => { if (index) ctl.current?.setData({ index }); }, [index]);
   useEffect(() => { ctl.current?.setData({ clusters: clusterCells ?? {} }); }, [clusterCells]);
   useEffect(() => { if (peat.data) ctl.current?.setData({ peat: peat.data }); }, [peat.data]);
@@ -150,7 +149,7 @@ export function PetaOperator({ dark }: { dark: boolean }) {
     ctl.current?.fitBounds(province ? PROVINCES[province].bounds : REGION);
   }, [province]);
 
-  // Titik VIIRS hanya untuk kelompok terpilih (bukti verifikasi, bukan ingest berkala).
+  // VIIRS points only for the selected cluster (verification evidence, not periodic ingest).
   useEffect(() => {
     ctl.current?.setSelectedCluster(selected);
     if (!selected) { ctl.current?.setData({ viirs: [] }); return; }
@@ -162,7 +161,7 @@ export function PetaOperator({ dark }: { dark: boolean }) {
     return () => { alive = false; };
   }, [selected]);
 
-  // Pemutar: maju satu slot per tik sampai slot terakhir malam itu, lalu berhenti.
+  // Player: advance one slot per tick until the night's last slot, then stop.
   const curRef = useRef(cur);
   curRef.current = cur;
   useEffect(() => {
@@ -174,10 +173,10 @@ export function PetaOperator({ dark }: { dark: boolean }) {
     return () => clearInterval(id);
   }, [playing, last, lite]);
 
-  // Panel lebar/sempit berubah → ukur ulang kanvas.
+  // Panel switched between wide/narrow → resize the canvas.
   useEffect(() => { const id = setTimeout(() => ctl.current?.resize(), 220); return () => clearTimeout(id); }, [sheetOpen]);
 
-  // ---------- turunan untuk UI ----------
+  // ---------- derived values for the UI ----------
   const visible = useMemo(
     () => (clusters ?? []).filter((c) => !province || c.province === province).sort(SORTS[sort]),
     [clusters, province, sort],
@@ -222,7 +221,7 @@ export function PetaOperator({ dark }: { dark: boolean }) {
       const m = COORD.exec(q);
       if (m) {
         let a = Number(m[1]), b = Number(m[2]);
-        if (Math.abs(a) > Math.abs(b)) [a, b] = [b, a]; // terima "lat, lon" maupun "lon, lat"
+        if (Math.abs(a) > Math.abs(b)) [a, b] = [b, a]; // accept both "lat, lon" and "lon, lat"
         const [lat, lon] = [a, b];
         const [[w, s], [e2, n]] = REGION;
         if (lon < w || lon > e2 || lat < s || lat > n) { setCell(-1); setSearchMsg(t('search.outside')); return; }
@@ -250,7 +249,7 @@ export function PetaOperator({ dark }: { dark: boolean }) {
   };
 
   const setLite = (on: boolean) => {
-    const pref = on === (liteReason != null) ? null : on; // kembali ke otomatis bila sama dengan deteksi
+    const pref = on === (liteReason != null) ? null : on; // back to automatic when it equals the detection
     setLitePref(pref);
     saveLitePref(pref);
   };
@@ -320,10 +319,10 @@ export function PetaOperator({ dark }: { dark: boolean }) {
           {!clusters && !loadError ? (
             <div className="queue">{[0, 1, 2].map((i) => <div key={i} className="skel" style={{ height: 92 }} />)}</div>
           ) : visible.length === 0 && !loadError ? (
-            <p className="empty">{isCurrent ? t('map.empty') : t('map.empty_night', { date: fmtNight(viewNight!, lang) })}</p>
+            <p className="empty">{isCurrent ? t('map.empty') : t('map.empty_night', { date: fmtNight(viewNight!) })}</p>
           ) : (
             <ul className="queue">
-              {/* Urutan/filter berubah → kartu meluncur ke tempat barunya; kartu baru muncul bertahap, yang hilang menyusut. */}
+              {/* Order/filter changed → cards slide to their new place; new cards stagger in, removed ones shrink away. */}
               <AnimatePresence mode="popLayout">
                 {visible.map((c, i) => (
                   <m.li
@@ -334,18 +333,18 @@ export function PetaOperator({ dark }: { dark: boolean }) {
                     <button className="qi-main" onClick={() => select(c.id, c.centroid)} aria-pressed={selected === c.id}>
                       <span className="qi-top">
                         <b className="qi-id">{c.id}</b>
-                        <span className="qi-u" aria-label={`${t('map.utility')} ${fmtNum(c.utility_score, 2, lang)}`}>
-                          <small>U</small>{fmtNum(c.utility_score, 2, lang)}
+                        <span className="qi-u" aria-label={`${t('map.utility')} ${fmtNum(c.utility_score, 2)}`}>
+                          <small>U</small>{fmtNum(c.utility_score, 2)}
                           <i style={{ ['--u' as string]: c.utility_score }} />
                         </span>
                       </span>
                       <span className="qi-row muted">
                         {t(`prov.${c.province}`)} · {t('map.pixels', { n: c.pixels.length })} · {t('map.nbr', { k: Math.round(c.neighbour_support * 8) })}
                       </span>
-                      <span className="qi-row muted">{t('map.triggered', { when: fmtSlot(c.trigger_slot, lang) })}</span>
+                      <span className="qi-row muted">{t('map.triggered', { when: fmtSlot(c.trigger_slot) })}</span>
                       <span className="qi-row"><EvidenceBadge result={c.verification?.result ?? null} /><DecisionState decision={c.decision} /></span>
                     </button>
-                    <Link className="qi-link" to={`/kelompok/${c.id}`}>{t('map.open_detail')}</Link>
+                    <Link className="qi-link" to={`/clusters/${c.id}`}>{t('map.open_detail')}</Link>
                   </m.li>
                 ))}
               </AnimatePresence>
@@ -362,7 +361,7 @@ export function PetaOperator({ dark }: { dark: boolean }) {
               <li><i className="lg-line thick" />{t('map.cluster')}</li>
               <li><i className="lg-dot" />{t('map.viirs')}</li>
             </ul>
-            <p className="muted small">{t('awas.note')}</p>
+            <p className="muted small">{t('warning.note')}</p>
           </details>
         </Sheet>
 

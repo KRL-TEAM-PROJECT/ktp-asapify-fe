@@ -53,7 +53,7 @@ const ready: Promise<void> = LIVE ? (async () => {
 export async function signIn(): Promise<User> {
   await ready;
   if (!LIVE) {
-    const user: User = { uid: 'mock-operator', email: 'operator@contoh.id', name: 'Operator Demo', role: 'operator' };
+    const user: User = { uid: 'mock-operator', email: 'operator@example.org', name: 'Demo Operator', role: 'operator' };
     set({ user, loading: false, error: null });
     return user;
   }

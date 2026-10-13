@@ -1,8 +1,8 @@
 import { ApiError } from '../types';
 
 /**
- * Teks galat dalam bahasa UI: dari `code` bila dikenal, selain itu `message` server.
- * Galat jaringan (fetch gagal) memakai teks umum agar pesan bawaan browser tidak tampil.
+ * Error text for the UI: from `code` when known, otherwise the server `message`.
+ * Network errors (failed fetch) use a generic text so the browser's built-in message never shows.
  */
 export function errorText(e: unknown, t: (key: string) => string): string {
   if (e instanceof ApiError) {

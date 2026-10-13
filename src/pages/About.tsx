@@ -5,10 +5,10 @@ import { StatusBadge } from '../components/StatusBadge';
 import type { Status } from '../types';
 import { m, reveal, springSoft } from '../motion';
 
-// Langkah 1–3 dijalankan aturan, 4 oleh agen AI, 5 oleh manusia; warna garis atas mengikuti pelakunya.
+// Steps 1–3 run as rules, 4 by the AI agent, 5 by a person; the top border colour follows who acts.
 const STEPS: [number, 'rule' | 'ai' | 'human'][] = [[1, 'rule'], [2, 'rule'], [3, 'rule'], [4, 'ai'], [5, 'human']];
 const STATUS_ROWS: [Status, string][] = [
-  ['AWAS', 'about.st_awas'], ['WATCH', 'about.st_watch'], ['NO_OBSERVATION', 'about.st_noobs'], ['SAFE', 'about.st_safe'],
+  ['WARNING', 'about.st_warning'], ['WATCH', 'about.st_watch'], ['NO_OBSERVATION', 'about.st_noobs'], ['SAFE', 'about.st_safe'],
 ];
 const SOURCES: [string, string][] = [
   ['Himawari-9 AHI', 'about.src_h'],
@@ -16,13 +16,13 @@ const SOURCES: [string, string][] = [
   ['NASA POWER', 'about.src_power'],
   ['NASA FIRMS VIIRS', 'about.src_firms'],
   ['NASA GIBS', 'about.src_gibs'],
-  ['Peta Indikatif KHG', 'about.src_khg'],
+  ['KHG Indicative Peat Map', 'about.src_khg'],
   ['ESA WorldCover v200', 'about.src_wc'],
   ['geoBoundaries IDN ADM1', 'about.src_gb'],
 ];
 
-export function Tentang() {
-  const { t, lang } = useI18n();
+export function AboutPage() {
+  const { t } = useI18n();
   return (
     <div className="wrap about">
       <m.header className="about-head" {...reveal(0)}>
@@ -60,7 +60,7 @@ export function Tentang() {
                     transition={{ ...springSoft, delay: 0.15 + i * 0.07 }}
                   />
                 </span>
-                <b>{fmtNum(WEIGHTS[k], 2, lang)}</b>
+                <b>{fmtNum(WEIGHTS[k], 2)}</b>
               </div>
             ))}
           </div>
@@ -72,8 +72,7 @@ export function Tentang() {
               <div key={s}><dt><StatusBadge status={s} /></dt><dd>{t(k)}</dd></div>
             ))}
           </dl>
-          {lang === 'en' && <p className="muted small">{t('about.awas_word')}</p>}
-          <p className="muted small">{t('awas.note')}</p>
+          <p className="muted small">{t('warning.note')}</p>
         </m.section>
       </div>
 

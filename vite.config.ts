@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// MapLibre 6 memuat worker modul (maplibre-gl-worker.mjs → maplibre-gl-shared.mjs) dari file terpisah.
-// Vite mentransformasi file JS yang diminta sehingga worker diam; plugin ini menyajikannya mentah
-// di /maplibre/ saat dev dan menyalinnya ke dist/maplibre/ saat build (lihat setWorkerUrl di src/map/map.ts).
+// MapLibre 6 loads a module worker (maplibre-gl-worker.mjs → maplibre-gl-shared.mjs) from separate files.
+// Vite transforms requested JS files, which silences the worker; this plugin serves them raw
+// under /maplibre/ in dev and copies them to dist/maplibre/ on build (see setWorkerUrl in src/map/map.ts).
 function maplibreWorker(): Plugin {
   const files = ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs'];
   const read = (f: string) => readFileSync(`node_modules/maplibre-gl/dist/${f}`);
@@ -24,7 +24,7 @@ function maplibreWorker(): Plugin {
   };
 }
 
-// Mode live tanpa VITE_API_BASE: /api/** diteruskan ke asapify-api lokal saat dev.
+// Live mode without VITE_API_BASE: /api/** is proxied to a local asapify-api in dev.
 export default defineConfig({
   plugins: [react(), maplibreWorker()],
   build: {
@@ -35,6 +35,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:8080' },
+    proxy: { '/api/': 'http://localhost:8080' }, // trailing slash: /api-contract is an app route
   },
 });

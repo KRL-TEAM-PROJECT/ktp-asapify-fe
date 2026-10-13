@@ -6,7 +6,7 @@ export const STATUS_KEY: Record<Status, string> = {
   SAFE: 'status.safe',
   NO_OBSERVATION: 'status.no_obs',
   WATCH: 'status.watch',
-  AWAS: 'status.awas',
+  WARNING: 'status.warning',
 };
 
 export function StatusBadge({ status }: { status: Status }) {

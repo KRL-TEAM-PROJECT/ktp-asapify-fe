@@ -9,15 +9,15 @@ import { IconCalendar } from './icons';
 
 interface Props {
   meta: Meta;
-  nightKey: string; // malam yang dibuka, YYYY-MM-DD
+  nightKey: string; // open night, YYYY-MM-DD
   night: NightCompact | null;
-  isCurrent: boolean; // malam replay terbaru
+  isCurrent: boolean; // latest replay night
   slot: number;
-  last: number; // slot terakhir yang sudah ada malam itu
+  last: number; // last slot that exists that night
   playing: boolean;
   onSlot(i: number): void;
   onPlay(playing: boolean): void;
-  onNight(night: string | null): void; // null = kembali ke malam terbaru
+  onNight(night: string | null): void; // null = back to the latest night
 }
 
 const LATE_MIN = 40;
@@ -25,17 +25,17 @@ const DAY_MS = 86_400_000;
 const shiftDay = (d: string, n: number) => new Date(Date.parse(d) + n * DAY_MS).toISOString().slice(0, 10);
 
 /**
- * Pita malam yang bisa diputar: baris ▲ = jumlah piksel AWAS per slot, baris H/G = data satelit
- * yang tersedia. Kalender membuka malam arsip. Penggeser (input range) menumpuk di atas pita agar bisa dipakai dengan keyboard.
+ * Playable night ribbon: the ▲ row = WARNING pixels per slot, the H/G rows = satellite data
+ * available. The calendar opens archive nights. A slider (input range) sits on top of the ribbon for keyboard use.
  */
 export function SlotPlayer({ meta, nightKey, night, isCurrent, slot, last, playing, onSlot, onPlay, onNight }: Props) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const start = Date.parse(`${nightKey}T13:00:00Z`);
   const slotIso = (i: number) => new Date(start + i * SLOT_MS).toISOString();
 
-  // Jumlah AWAS per slot dihitung sekali per data malam.
-  const awas = useMemo(() => night?.status.map((s) => (s == null ? null : s.split('A').length - 1)) ?? [], [night]);
-  const maxAwas = Math.max(1, ...awas.map((n) => n ?? 0));
+  // WARNING count per slot, computed once per night of data.
+  const warning = useMemo(() => night?.status.map((s) => (s == null ? null : s.split('A').length - 1)) ?? [], [night]);
+  const maxWarning = Math.max(1, ...warning.map((n) => n ?? 0));
 
   const [calOpen, setCalOpen] = useState(false);
   const closeCal = useCallback(() => setCalOpen(false), []);
@@ -45,7 +45,7 @@ export function SlotPlayer({ meta, nightKey, night, isCurrent, slot, last, playi
   const atLatest = isCurrent && slot === last;
   const prev = shiftDay(nightKey, -1), next = shiftDay(nightKey, 1);
   const goto = (d: string) => onNight(d === meta.nights.last ? null : d);
-  const title = fmtNight(nightKey, lang);
+  const title = fmtNight(nightKey);
   const nightLabel = nightKey === meta.nights.last ? t('player.night_latest', { date: title }) : title;
 
   return (
@@ -58,7 +58,7 @@ export function SlotPlayer({ meta, nightKey, night, isCurrent, slot, last, playi
           {playing ? '❚❚' : '▶'}
         </button>
         <span className="player-slot">
-          <b>{fmtTime(slotIso(slot), lang)} WIB</b>
+          <b>{fmtTime(slotIso(slot))} UTC+7</b>
           <small>{atLatest ? t('player.latest') : isCurrent ? t('player.replaying') : t('player.archive')}</small>
         </span>
         <span className="night-pick">
@@ -83,20 +83,20 @@ export function SlotPlayer({ meta, nightKey, night, isCurrent, slot, last, playi
       </div>
 
       <div className={`ribbon${playing ? ' playing' : ''}`} style={{ ['--now' as string]: slot }}>
-        <div className="ribbon-row awas-row">
+        <div className="ribbon-row warning-row">
           <b aria-hidden="true">▲</b>
           <span className="ribbon-cells" aria-hidden="true">
             {Array.from({ length: NIGHT_SLOTS }, (_, i) => {
-              const n = awas[i];
+              const n = warning[i];
               return (
                 <i key={i} className={n == null ? '' : n > 0 ? 'hot' : 'zero'}
-                  style={n ? { ['--a' as string]: 0.35 + (0.65 * n) / maxAwas } : undefined} />
+                  style={n ? { ['--a' as string]: 0.35 + (0.65 * n) / maxWarning } : undefined} />
               );
             })}
           </span>
         </div>
         {sats.map(([k, s]) => {
-          // Malam terbaru: dari keterlambatan satelit di /meta. Malam arsip: slot yang punya data.
+          // Latest night: from the satellite delay in /meta. Archive night: the slots that have data.
           const lastHave = isCurrent ? slotIndex(s.last_slot, start) : last;
           const late = isCurrent && (s.last_slot == null || (s.delay_min ?? 0) > LATE_MIN);
           return (
@@ -114,12 +114,12 @@ export function SlotPlayer({ meta, nightKey, night, isCurrent, slot, last, playi
         <input
           className="ribbon-range" type="range" min={0} max={Math.max(0, last)} step={1} value={slot}
           onChange={(e) => onSlot(Number(e.target.value))}
-          aria-label={t('player.slider')} aria-valuetext={`${fmtTime(slotIso(slot), lang)} WIB`}
+          aria-label={t('player.slider')} aria-valuetext={`${fmtTime(slotIso(slot))} UTC+7`}
           style={{ ['--latest' as string]: last }}
         />
       </div>
       <div className="ribbon-axis" aria-hidden="true">
-        {ticks.map((i) => <span key={i} style={{ ['--i' as string]: i }}>{fmtTime(slotIso(i), lang)}</span>)}
+        {ticks.map((i) => <span key={i} style={{ ['--i' as string]: i }}>{fmtTime(slotIso(i))}</span>)}
       </div>
     </div>
   );

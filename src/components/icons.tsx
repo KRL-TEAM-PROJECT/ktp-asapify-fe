@@ -1,6 +1,6 @@
 import type { Status } from '../types';
 
-// Ikon garis 16px, mengikuti currentColor. Status tidak pernah dibedakan warna saja.
+// 16px line icons using currentColor. Status is never told apart by colour alone.
 type P = { size?: number };
 const base = (size = 14) => ({
   width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor',
@@ -45,6 +45,6 @@ export function StatusIcon({ status, size }: { status: Status; size?: number }) 
     case 'SAFE': return <IconCheck size={size} />;
     case 'NO_OBSERVATION': return <IconCloud size={size} />;
     case 'WATCH': return <IconEye size={size} />;
-    case 'AWAS': return <IconAlert size={size} />;
+    case 'WARNING': return <IconAlert size={size} />;
   }
 }

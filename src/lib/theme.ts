@@ -11,7 +11,7 @@ function apply(pref: ThemePref) {
 
 const mq = () => window.matchMedia('(prefers-color-scheme: dark)');
 
-/** Preferensi tema + apakah tampilan efektif gelap (untuk gaya basemap). */
+/** Theme preference + whether the effective look is dark (for the basemap style). */
 export function useTheme() {
   const [pref, setPref] = useState<ThemePref>(() => {
     const v = load('asapify.theme');

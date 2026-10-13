@@ -3,9 +3,9 @@ import { useI18n } from '../i18n';
 import { fmtNum } from '../lib/format';
 import { IconCheck, IconX } from './icons';
 
-/** Urutan tool yang dipanggil agen; ditampilkan di video demo. */
+/** The order of tools the agent called; shown in the demo video. */
 export function ToolTrace({ calls }: { calls: ToolCall[] }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   return (
     <details className="trace">
       <summary>{t('trace.title', { n: calls.length })}</summary>
@@ -15,7 +15,7 @@ export function ToolTrace({ calls }: { calls: ToolCall[] }) {
           <li key={i}>
             <span className={c.ok ? 'ok' : 'bad'}>{c.ok ? <IconCheck size={12} /> : <IconX size={12} />}</span>
             <code className="tool-name">{c.tool}</code>
-            <span className="dur">{c.duration_ms >= 1000 ? `${fmtNum(c.duration_ms / 1000, 2, lang)} s` : `${c.duration_ms} ms`}</span>
+            <span className="dur">{c.duration_ms >= 1000 ? `${fmtNum(c.duration_ms / 1000, 2)} s` : `${c.duration_ms} ms`}</span>
             <code className="args">{JSON.stringify(c.args)}</code>
           </li>
         ))}

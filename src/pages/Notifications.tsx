@@ -17,9 +17,9 @@ function plain(value: string) {
   return value.replace(/<[^>]*>/g, '');
 }
 
-export function Notifikasi() {
+export function NotificationsPage() {
   const user = useUser();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const cacheKey = 'asapify.inbox.' + (user?.uid ?? 'mock-operator');
   const [settings, setSettings] = useState<Settings | null>(null);
   const [form, setForm] = useState<Preferences>(EMPTY);
@@ -28,7 +28,7 @@ export function Notifikasi() {
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [saveOffline, setSaveOffline] = useState(() => !!localStorage.getItem(cacheKey));
   const [busy, setBusy] = useState(false);
-  // Galat dan pesan disimpan sebagai objek/kunci, diterjemahkan saat render: ganti bahasa ikut mengganti teksnya.
+  // Errors and messages are stored as objects/keys and worded at render time through errorText/t.
   const [error, setError] = useState<unknown>(null);
   const [message, setMessage] = useState('');
   const [telegramUrl, setTelegramUrl] = useState('');
@@ -77,7 +77,7 @@ export function Notifikasi() {
   }
 
   const mode = API_MODE === 'mock' ? 'mock' : settings?.mode === 'live' ? 'live' : 'dry';
-  // "Berhenti berlangganan" hanya bermakna bila persetujuan yang tersimpan sedang aktif.
+  // "Unsubscribe" only makes sense while the saved consent is active.
   const stopping = !form.consent && !!settings?.preferences.consent;
   return <div className="wrap notifications">
     <header className="notify-head">
@@ -89,7 +89,7 @@ export function Notifikasi() {
     </header>
     {error != null && <p className="error" role="alert">{errorText(error, t)}</p>}
     {message && <p className="notify-ok" role="status"><IconCheck size={14} />{t(message)}</p>}
-    {offline && <p className="callout" role="status">{cachedAt ? t('notif.offline_cached', { when: fmtSlot(cachedAt, lang) }) : t('notif.offline')}</p>}
+    {offline && <p className="callout" role="status">{cachedAt ? t('notif.offline_cached', { when: fmtSlot(cachedAt) }) : t('notif.offline')}</p>}
     <div className="notify-layout">
       <section className="card" aria-labelledby="inbox-h">
         <div className="card-head">
@@ -109,14 +109,14 @@ export function Notifikasi() {
         {loaded && items.length === 0 && <p className="empty">{t('notif.empty')}</p>}
         {items.map(item => <article className="notify-item" key={item.id} id={item.id}>
           <div className="card-head">
-            <strong>{item.purpose === 'exercise' ? t('notif.exercise') : 'AWAS'}</strong>
+            <strong>{item.purpose === 'exercise' ? t('notif.exercise') : 'WARNING'}</strong>
             <span className="mono muted small">{item.alert_id}</span>
           </div>
           <p className="notify-text">{plain(item.text)}</p>
-          <p className="muted small">{fmtSlot(item.published_at, lang)} · {t(`prov.${item.province}`)}</p>
+          <p className="muted small">{fmtSlot(item.published_at)} · {t(`prov.${item.province}`)}</p>
           {Date.parse(item.expires_at) < Date.now() && <p className="muted small">{t('notif.expired')}</p>}
           {item.acknowledged_at
-            ? <p className="notify-ok"><IconCheck size={14} />{t('notif.acked', { when: fmtSlot(item.acknowledged_at, lang) })}</p>
+            ? <p className="notify-ok"><IconCheck size={14} />{t('notif.acked', { when: fmtSlot(item.acknowledged_at) })}</p>
             : <button className="btn primary" disabled={busy || offline} onClick={() => void act(async () => {
               const ack = await notifications.ack(item.id);
               setItems(values => values.map(n => n.id === item.id ? { ...n, ...ack } : n));
@@ -130,7 +130,7 @@ export function Notifikasi() {
           <legend className="lbl">{t('notif.provinces')}</legend>
           <div className="notify-regions">{PROVINCE_CODES.map(code => <label className="opt check" key={code}>
             <input type="checkbox" checked={form.provinces.includes(code)} onChange={() => toggleProvince(code)} />
-            <span>{PROVINCES[code][lang]}</span>
+            <span>{PROVINCES[code].name}</span>
           </label>)}</div>
         </fieldset>
         <fieldset disabled={busy || !settings}>

@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react';
 import type { AttrDetail, AttrKey, AttrPart, Attributes } from '../types';
 import { useI18n } from '../i18n';
 import { fmtC, fmtDate, fmtNum, fmtNumM, fmtSigned } from '../lib/format';
-import { ATTR_ORDER, T_AWAS, T_WATCH, utility } from '../lib/maut';
+import { ATTR_ORDER, T_WARNING, T_WATCH, utility } from '../lib/maut';
 import { m, springSoft } from '../motion';
 import { FloatingTip } from './FloatingTip';
 
@@ -10,56 +10,56 @@ interface Props {
   attributes: Attributes;
   neighbourSupport: number | null;
   weights: Record<AttrKey, number>;
-  details?: Record<AttrKey, AttrDetail>; // angka terukur di balik tiap u (usulan FE); tanpa ini hanya u dan bobot
+  details?: Record<AttrKey, AttrDetail>; // measured number behind each u (FE proposal); without it only u and the weight
 }
 
-// Batang tumbuh dari kosong saat masuk layar, berurutan dari atas.
+// Bars grow from empty when they enter the screen, top to bottom.
 const grow = (pct: number, i: number) => ({
   initial: { width: 0 }, whileInView: { width: `${pct}%` }, viewport: { once: true }, transition: { ...springSoft, delay: i * 0.06 },
 });
 
 const hasScale = (d: AttrDetail) => Array.isArray(d.scale) && d.scale.length === 2;
 
-/** Angka terukur di baris atribut, mis. "+18,6 K" atau "2 dari 3 malam"; satuan yang tak dikenal ditulis apa adanya. */
+/** Measured number in an attribute row, e.g. "+18.6 K" or "2 of 3 nights"; unknown units are written as is. */
 function useMeasured() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   return (d: AttrDetail): string => {
     if (d.value == null) return t('attr.na');
-    if (d.unit === 'K') return `${fmtSigned(d.value, 1, lang)} K`;
-    if ((d.unit === 'malam' || d.unit === 'piksel') && hasScale(d)) return t(`attrd.val.${d.unit}`, { v: fmtNum(d.value, 0, lang), n: fmtNum(d.scale[1], 0, lang) });
-    return `${fmtNumM(d.value, 1, lang)} ${d.unit}`;
+    if (d.unit === 'K') return `${fmtSigned(d.value, 1)} K`;
+    if ((d.unit === 'nights' || d.unit === 'pixels') && hasScale(d)) return t(`attrd.val.${d.unit}`, { v: fmtNum(d.value, 0), n: fmtNum(d.scale[1], 0) });
+    return `${fmtNumM(d.value, 1)} ${d.unit}`;
   };
 }
 
-/** Batas skala: bulat bila bulat, selain itu 1 desimal (skala dimiliki backend, bisa pecahan). */
-const fmtScale = (v: number, lang: 'id' | 'en') => (Number.isInteger(v) ? fmtNum(v, 0, lang) : fmtNum(v, 1, lang));
+/** Scale bounds: whole when whole, otherwise 1 decimal (the backend owns the scale; it may be fractional). */
+const fmtScale = (v: number) => (Number.isInteger(v) ? fmtNum(v, 0) : fmtNum(v, 1));
 
-/** Satu angka pendukung: suhu mutlak dalam °C (K di title), selisih bertanda, σ polos, U puncak dengan tanggalnya. */
+/** One supporting number: absolute temperature in °C (K in the title), signed difference, plain σ, peak U with its date. */
 function Part({ p }: { p: AttrPart }) {
-  const { t, lang } = useI18n();
-  const label = p.key === 'night_peak' ? t('attrd.part.night_peak', { date: p.at ? fmtDate(`${p.at}T13:00:00Z`, lang) : '' }).trim() : t(`attrd.part.${p.key}`);
-  if (label === `attrd.part.${p.key}`) return null; // kunci tak dikenal diabaikan
+  const { t } = useI18n();
+  const label = p.key === 'night_peak' ? t('attrd.part.night_peak', { date: p.at ? fmtDate(`${p.at}T13:00:00Z`) : '' }).trim() : t(`attrd.part.${p.key}`);
+  if (label === `attrd.part.${p.key}`) return null; // unknown keys are ignored
   let text = '—', title: string | undefined;
   if (p.value != null) {
-    if (p.abs) { text = fmtC(p.value, lang); title = `${fmtNum(p.value, 1, lang)} K`; }
-    else if (p.unit === 'U') text = fmtNum(p.value, 2, lang);
-    else text = p.key === 'sigma' ? `${fmtNum(p.value, 2, lang)} K` : `${fmtSigned(p.value, 1, lang)} K`;
+    if (p.abs) { text = fmtC(p.value); title = `${fmtNum(p.value, 1)} K`; }
+    else if (p.unit === 'U') text = fmtNum(p.value, 2);
+    else text = p.key === 'sigma' ? `${fmtNum(p.value, 2)} K` : `${fmtSigned(p.value, 1)} K`;
   }
   return <span className="attr-part" title={title}><span>{label}</span> <b>{text}</b></span>;
 }
 
-/** Batang u; sorot atau fokus menampilkan rumus normalisasinya. */
+/** The u bar; hover or focus shows its normalisation formula. */
 function Bar({ k, u, d, index }: { k: AttrKey; u: number | null; d?: AttrDetail; index: number }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const id = useId();
   const el = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
   const calc = d && d.value != null && u != null && hasScale(d) ? (() => {
     const [lo, hi] = d.scale;
     const raw = (d.value - lo) / (hi - lo);
-    const f = (v: number) => (d.unit === 'K' ? fmtNumM(v, 1, lang) : fmtScale(v, lang)).replace('-', '−');
+    const f = (v: number) => (d.unit === 'K' ? fmtNumM(v, 1) : fmtScale(v)).replace('-', '−');
     return {
-      text: t('attrd.calc', { v: f(d.value), lo: f(lo), hi: f(hi), u: fmtNum(u, 2, lang) }),
+      text: t('attrd.calc', { v: f(d.value), lo: f(lo), hi: f(hi), u: fmtNum(u, 2) }),
       clip: raw > 1.005 ? t('attrd.clip_hi') : raw < -0.005 ? t('attrd.clip_lo') : null,
     };
   })() : null;
@@ -86,19 +86,19 @@ function Bar({ k, u, d, index }: { k: AttrKey; u: number | null; d?: AttrDetail;
 }
 
 /**
- * Parameter MAUT: angka yang terukur, nilai u (0–1), bobot, dan sumbangannya ke U. Atribut hilang ditulis
- * "tidak tersedia" dan tidak ikut dijumlah.
+ * MAUT parameters: the measured number, the u value (0–1), the weight, and its contribution to U. Missing
+ * attributes read "not available" and are left out of the sum.
  */
 export function AttributeBars({ attributes, neighbourSupport, weights, details }: Props) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const measured = useMeasured();
   const values: Record<AttrKey, number | null> = { ...attributes, u_N: neighbourSupport };
   const U = utility(attributes, neighbourSupport);
-  const f2 = (v: number) => fmtNum(v, 2, lang);
+  const f2 = (v: number) => fmtNum(v, 2);
 
-  // u_N tidak punya angka lain, jadi bisa dihitung sendiri bila backend belum mengirim attribute_details.
+  // u_N has no other number, so it is computed here when the backend has not sent attribute_details.
   const detailOf = (k: AttrKey): AttrDetail | undefined =>
-    details?.[k] ?? (k === 'u_N' && neighbourSupport != null ? { value: Math.round(neighbourSupport * 8), unit: 'piksel', scale: [0, 8], parts: [] } : undefined);
+    details?.[k] ?? (k === 'u_N' && neighbourSupport != null ? { value: Math.round(neighbourSupport * 8), unit: 'pixels', scale: [0, 8], parts: [] } : undefined);
   const anyDetail = details != null;
 
   let num = 0, den = 0;
@@ -136,7 +136,7 @@ export function AttributeBars({ attributes, neighbourSupport, weights, details }
               <p className="attr-parts">
                 {parts.map((p, j) => <Part key={`${p.key}${p.at ?? j}`} p={p} />)}
                 {d.value != null && hasScale(d) && (
-                  <span className="attr-scale">{t('attrd.scale', { lo: `${fmtScale(d.scale[0], lang)} ${d.unit}`, hi: `${fmtScale(d.scale[1], lang)} ${d.unit}` })}</span>
+                  <span className="attr-scale">{t('attrd.scale', { lo: `${fmtScale(d.scale[0])} ${d.unit}`, hi: `${fmtScale(d.scale[1])} ${d.unit}` })}</span>
                 )}
               </p>
             )}
@@ -146,14 +146,14 @@ export function AttributeBars({ attributes, neighbourSupport, weights, details }
 
       <div className="attr total">
         <span className="attr-name"><span>{t('attr.total')}</span></span>
-        {anyDetail && <b className="attr-meas thr">{t('attr.threshold', { t: f2(T_AWAS) })}</b>}
+        {anyDetail && <b className="attr-meas thr">{t('attr.threshold', { t: f2(T_WARNING) })}</b>}
         <span className="attr-bar" aria-hidden="true">
-          <m.i {...grow(U * 100, ATTR_ORDER.length)} className={U >= T_AWAS ? 'hot' : ''} />
-          <em style={{ left: `${T_AWAS * 100}%` }} />
+          <m.i {...grow(U * 100, ATTR_ORDER.length)} className={U >= T_WARNING ? 'hot' : ''} />
+          <em style={{ left: `${T_WARNING * 100}%` }} />
         </span>
         <span className="attr-nums">
           <b className="attr-u">{f2(U)}</b>
-          <small className="attr-w">{anyDetail ? '' : `≥ ${f2(T_AWAS)}`}</small>
+          <small className="attr-w">{anyDetail ? '' : `≥ ${f2(T_WARNING)}`}</small>
           <small className="attr-c" />
         </span>
         <p className="attr-parts">

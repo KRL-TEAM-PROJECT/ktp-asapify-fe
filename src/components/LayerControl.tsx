@@ -27,16 +27,16 @@ const IconLayers = () => (
 );
 
 export function LayerControl({ basemap, basemaps, layers, lite, liteReason, liteAuto, onBasemap, onLayer, onLite }: Props) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const options = [
-    { id: 'peta', label: t('lc.base_map') },
-    ...basemaps.map((b) => ({ id: b.id, label: lang === 'id' ? b.label_id : b.label_en })),
-    { id: 'polos', label: t('lc.base_plain') },
+    { id: 'streets', label: t('lc.base_map') },
+    ...basemaps.map((b) => ({ id: b.id, label: b.label })),
+    { id: 'plain', label: t('lc.base_plain') },
   ];
 
   return (
-    // layout="position": saat panel membuka/menutup, saudaranya dalam LayoutGroup (inspektur piksel) ikut meluncur
+    // layout="position": when the panel opens/closes, its siblings in the LayoutGroup (pixel inspector) slide along
     <m.div className="layer-ctl" layout="position" transition={spring}>
       <button className="map-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="layer-panel">
         <IconLayers /><span>{t('lc.title')}</span>

@@ -1,16 +1,16 @@
-# asapify-web
+# ktp-asapify-fe
 
-**Integrasi GCP:** lihat [docs/GCP.md](docs/GCP.md) untuk Firebase Hosting, login Google,
-custom claim operator dan API Cloud Run. Mode live kini mengirim token Firebase; mode mock tetap tersedia.
+**GCP integration:** see [docs/GCP.md](docs/GCP.md) for Firebase Hosting, Google sign-in,
+the operator custom claim and the Cloud Run API. Live mode sends the Firebase token; mock mode stays available.
 
-Web operator ASAPify (Google Cloud AI Builder Cup 2026): peta status piksel gambut Sumatra dan Kalimantan (15 provinsi),
-detail kelompok `AWAS` (atribut MAUT, tetangga, verifikasi agen), dan keputusan terbitkan/tolak.
+ASAPify operator web app (Google Cloud AI Builder Cup 2026): a status map of Sumatra and Kalimantan peat pixels
+(15 provinces), `WARNING` cluster detail (MAUT attributes, neighbours, agent verification), and the publish/reject decision.
 
-- Spesifikasi UI: `../asapify/ui.html` · kontrak API: `../asapify/backend.html` bagian 03–05
-- Konsep dan aturan sistem: `../ASAPify_Pitch_Google_AI_Builder_2026/WORKLOG.md` bagian 7–10
-- Bahasa default Inggris; Indonesia lewat tombol ID/EN di bilah atas (pilihan disimpan per perangkat)
+- UI specification: `../asapify/ui.html` · API contract: `../asapify/backend.html` sections 03–05
+- System concept and rules: `../ASAPify_Pitch_Google_AI_Builder_2026/WORKLOG.md` sections 7–10
+- The interface, code and API are English only.
 
-## Menjalankan
+## Running
 
 ```bash
 npm install
@@ -18,123 +18,117 @@ npm run dev        # http://localhost:5173
 npm run build      # tsc --noEmit + vite build → dist/
 ```
 
-Salin `.env.example` ke `.env` bila perlu mengganti mode:
+Copy `.env.example` to `.env` when you need to change the mode:
 
-| Variabel | Nilai | Arti |
+| Variable | Value | Meaning |
 |---|---|---|
-| `VITE_API_MODE` | `mock` (default) / `live` | `mock` = data fiktif tanpa backend; `live` = `asapify-api` |
-| `VITE_API_BASE` | URL | Basis API untuk mode live; kosong = same-origin (`/api` di-proxy ke `:8080` saat dev) |
-| `VITE_PEAT_LAYER_URL` | URL GeoJSON | Layer `peat-boundary` di bucket publik (mode live) |
-| `VITE_PROVINCES_LAYER_URL` | URL GeoJSON | Layer batas provinsi di bucket publik (mode live) |
+| `VITE_API_MODE` | `mock` (default) / `live` | `mock` = fictional data without a backend; `live` = `asapify-api` |
+| `VITE_API_BASE` | URL | API base for live mode; empty = same origin (`/api` is proxied to `:8080` in dev) |
+| `VITE_PEAT_LAYER_URL` | GeoJSON URL | `peat-boundary` layer in the public bucket (live mode) |
+| `VITE_PROVINCES_LAYER_URL` | GeoJSON URL | Province boundary layer in the public bucket (live mode) |
 
-## Deploy (GitHub → Vercel)
+## Deploy
 
-Vercel hanya untuk pratinjau mode mock. URL prototipe yang dinilai ada di Firebase Hosting dalam mode live
-(`../asapify/cloud.html` bagian 11).
+The judged prototype runs on Firebase Hosting in live mode at https://hack2skill-510921.web.app,
+deployed by the GitHub Actions workflow described in [docs/GCP.md](docs/GCP.md).
 
-1. Buat repo kosong di GitHub, lalu dari folder ini:
-   `git remote add origin <url-repo>` → `git push -u origin main`.
-2. Di Vercel: **Add New → Project → Import** repo tersebut. Pengaturan dibaca dari `vercel.json`
-   (Vite, `npm ci`, `npm run build`, output `dist/`), jadi tidak perlu diubah.
-3. Tanpa environment variable apa pun, situs berjalan dalam **mode mock** (data fiktif + login demo).
-   Setelah `asapify-api` siap, isi `VITE_API_MODE=live` dan `VITE_API_BASE=<url asapify-api>`
-   di Project Settings → Environment Variables, lalu redeploy (variabel `VITE_*` dibaca saat build).
+Vercel is only for mock-mode previews: import the repository in Vercel; settings come from `vercel.json`
+(Vite, `npm ci`, `npm run build`, output `dist/`). Without any environment variable the site runs in **mock mode**
+(fictional data + demo login). `vercel.json` also routes every path to `index.html` (a deep link such as
+`/clusters/C-0924-002` never 404s) and serves `/maplibre/*.mjs` as JavaScript for the map worker. Needs Node ≥ 22.12 (`engines`).
 
-`vercel.json` juga mengarahkan semua rute ke `index.html` (deep link `/kelompok/C-0924-002` tidak 404)
-dan menyajikan `/maplibre/*.mjs` sebagai JavaScript untuk worker peta. Butuh Node ≥ 22.12 (`engines`).
+> The mock-mode demo login protects nothing: anyone with the URL can enter. That is fine while the data is
+> fictional; live mode uses Firebase Auth.
 
-> Login demo tidak melindungi apa pun: siapa saja yang membuka URL bisa masuk. Aman selama datanya fiktif;
-> ganti ke Firebase Auth sebelum memakai data asli.
+## Mock mode
 
-## Mode mock
+A fictional replay of 24 Sep 2023 22:10 UTC+7. Every province (10 Sumatra + 5 Kalimantan) has a fictional peat area
+over its real peat region, so any province filter shows pixels. Five WARNING clusters: Central Kalimantan (backtest,
+bbox `113.5,-2.6,114.3,-1.9`) `C-0924-002` strong evidence, `C-0924-001` inconclusive, `C-0923-001` already published;
+South Sumatra (OKI) `C-0924-003` strong evidence; Riau (Kampar) `C-0924-004` inconclusive.
+Archive nights 16 Feb–24 Sep 2023 (start of the GK2A archive on NOAA) open from the calendar in the slot player:
+faded date = no data, dot = WARNING clusters. The nights of 11 Apr, 2 Jul and 19 Aug 2023 have no data on purpose.
+The night of 15 Sep holds an old cluster `C-0915-001` (West Kalimantan, Kubu Raya) that was rejected and closed.
+VIIRS imagery comes straight from NASA GIBS (the real imagery of that date); Himawari crops are SVG illustrations.
+Decisions live in memory and disappear on reload. The login is a stand-in (no Firebase).
 
-Replay fiktif 24 Sep 2023 22.10 WIB. Setiap provinsi (10 Sumatra + 5 Kalimantan) punya area gambut fiktif di kawasan
-gambut nyatanya, jadi filter provinsi mana pun menampilkan piksel. Lima kelompok AWAS: Kalteng (backtest, bbox
-`113.5,-2.6,114.3,-1.9`) `C-0924-002` bukti kuat, `C-0924-001` inkonklusif, `C-0923-001` sudah diterbitkan;
-Sumsel (OKI) `C-0924-003` bukti kuat; Riau (Kampar) `C-0924-004` inkonklusif.
-Arsip malam 16 Feb–24 Sep 2023 (awal arsip GK2A di NOAA) bisa dibuka lewat kalender di pemutar slot: tanggal pudar =
-tanpa data, titik = ada kelompok AWAS. Malam 11 Apr, 2 Jul, dan 19 Agu 2023 sengaja dibuat tanpa data. Malam 15 Sep
-memuat kelompok lama `C-0915-001` (Kalbar, Kubu Raya) yang sudah ditolak dan ditutup.
-Citra VIIRS diambil langsung dari NASA GIBS (citra asli tanggal itu); crop Himawari berupa ilustrasi SVG.
-Keputusan disimpan di memori dan hilang saat halaman dimuat ulang. Login hanya tiruan (tanpa Firebase).
+Screen states can be demoed with `?scenario=` (remembered while the tab is open):
+`normal` · `empty` · `cloud` · `one_satellite` · `daytime`.
 
-Keadaan layar bisa didemokan dengan `?skenario=` (diingat selama tab terbuka):
-`normal` · `kosong` · `awan` · `satu_satelit` · `siang`.
+## API contract for the BE team
 
-## Kontrak API untuk tim BE
+Open the **API contract** tab in the app (`/api-contract`, public). It lists conventions (auth, UTC time,
+`as_of`, coordinates, errors), the error code table, every `asapify-api` endpoint (parameters, body, responses,
+errors, the UI screens that use it), schemas, static files in the bucket, and the internal endpoints.
+JSON examples come from the same mock fixtures as the UI, so they cannot drift from what is shown.
 
-Buka tab **Kontrak API** di aplikasi (`/kontrak-api`, publik, ID/EN). Isinya: konvensi (auth, waktu UTC,
-`as_of`, koordinat, galat), tabel kode galat, semua endpoint `asapify-api` (parameter, body, respons,
-galat, layar UI yang memakainya), skema, file statis di bucket, dan endpoint internal `asapify-agent`.
-Contoh JSON diambil dari fixture mock yang sama dengan UI, jadi tidak bisa berbeda dari tampilan.
+The map uses a **compact format**: `GET /operator/pixels` once (grid geometry, cached),
+then `GET /operator/grid?format=compact` and `GET /operator/grid/night` (54 slots in one request
+for the player). Measured for 10,000 pixels per slot: compact ≈ 23 KB raw / 11 KB gzip, GeoJSON ≈ 1.9 MB
+raw / 83 KB gzip. GeoJSON stays available (`format=geojson`, the default) for other tools.
 
-Peta memakai **format ringkas**: `GET /operator/pixels` sekali (geometri grid, di-cache),
-lalu `GET /operator/grid?format=compact` dan `GET /operator/grid/night` (54 slot dalam satu permintaan
-untuk pemutar). Diukur untuk 10 ribu piksel per slot: ringkas ≈ 23 KB mentah / 11 KB gzip, GeoJSON ≈ 1,9 MB
-mentah / 83 KB gzip. GeoJSON tetap tersedia (`format=geojson`, default) untuk alat lain.
+## Light map
 
-## Peta ringan
+- MapLibre (±290 KB gzip) loads only on the map route; other pages are ±113 KB gzip (±17 KB of it is the motion core, see *Motion*). The cluster detail page (±10 KB gzip) also loads per route.
+- Pixel geometry is built once; per-slot status, the status filter and the player use `feature-state`
+  (only cells that changed are rewritten, no re-tiling).
+- Lite mode switches on automatically with data saver, RAM ≤ 2 GB, ≤ 2 cores (or ≤ 4 cores with RAM ≤ 4 GB),
+  or reduced motion: plain basemap, no glow/grid lines/camera animation, pixel ratio 1, and interface transform
+  motion off (fades only). It can be changed in the Layers control; the choice is saved per device.
+- Mock province boundaries: geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors), 15 provinces simplified to
+  ±90 KB in `public/mock/`. Live mode uses `VITE_PROVINCES_LAYER_URL`. The province picked in the filter is drawn
+  with a thick outline, its label, and a shade outside it.
+- Map labels (province names, OpenFreeMap basemap labels, MapLibre buttons) are English.
 
-- MapLibre (±290 KB gzip) hanya dimuat di rute peta; halaman lain ±113 KB gzip (±17 KB di antaranya inti gerak, lihat *Gerak*). Halaman detail kelompok (±10 KB gzip) juga dimuat per rute.
-- Geometri piksel dibangun sekali; status per slot, filter status, dan pemutar memakai `feature-state`
-  (hanya sel yang berubah yang ditulis ulang, tanpa re-tiling).
-- Mode ringan otomatis bila penghemat data menyala, RAM ≤ 2 GB, ≤ 2 inti (atau ≤ 4 inti dengan RAM ≤ 4 GB),
-  atau reduced-motion: basemap polos, tanpa pendar/garis grid/animasi kamera, pixel ratio 1, dan gerak
-  transform antarmuka dimatikan (hanya memudar). Bisa diubah di kontrol Layer; pilihan disimpan per perangkat.
-- Batas provinsi mock: geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors), 15 provinsi disederhanakan ±90 KB
-  di `public/mock/`. Mode live memakai `VITE_PROVINCES_LAYER_URL`. Provinsi yang dipilih di filter digambar
-  dengan garis batas tebal, labelnya, dan bayangan di luar provinsi.
-- Label peta (nama provinsi, label peta dasar OpenFreeMap, tombol MapLibre) mengikuti bahasa UI.
+The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). Every endpoint
+and field in the contract is listed in `backend.html` (aligned on 6 Oct 2026).
 
-Sumber datanya `src/contract/spec.ts` (tipe TypeScript tetap di `src/types.ts`). Semua endpoint
-dan field di kontrak sudah tercantum di `backend.html` (disamakan 6 Okt 2026).
+## Cluster detail: measured temperatures
 
-## Detail kelompok: suhu terukur
+The `/clusters/:id` page shows numbers, not just weights:
 
-Halaman `/kelompok/:id` menampilkan angka, bukan hanya bobot:
+- **Tooltips on evidence images.** Himawari thermal image: hover, tap or use the arrow keys to see the brightness
+  temperature of every 0.02° pixel (pixel id, coordinates, distance from the marker) for **Himawari-9 B07/B14** and **GK2A
+  SW038/IR105** in °C and K, the channel difference, the anomaly against the crop background (median, MAD spread, z), and
+  whether the pixel is a cluster member or cloudy. VIIRS image: coordinates + distance under the cursor, and FIRMS
+  detection points (satellite, time, distance, confidence, FRP) that can be focused with Tab. Tooltips render in
+  `<body>` (`FloatingTip`), so they are never clipped, stay clamped to the screen, and slide on a spring.
+- **MAUT parameter table.** Each attribute shows its measured number (e.g. `+18.6 K`, `2 of 3 nights`), its u value, weight,
+  contribution w × u, supporting numbers (per-channel temperatures, background, σ, LST/TS/T2M, peak U per night), the
+  normalisation scale, and the formula `U = Σ w·u ÷ Σ w` with its numbers. Hover a u bar to see its normalisation formula.
+- **Data.** `EvidenceImg.thermal` (a `ThermalCrop` grid, 4 channels × 20 × 20 cells) and `ClusterDetail.attribute_details` are
+  part of the official contract (`backend.html`); both are optional (without them images have no tooltip and the table
+  shows only u and weight; `u_N` is still computed from the neighbours, and a missing `EvidenceImg.bbox` is assumed ±0.2°
+  around the cluster). The schemas are in the API contract tab. Mock mode builds the image, tooltip and table from one
+  fictional temperature grid, so the numbers always agree and tie to `u` in the fixtures (`src/mock/thermal.ts`).
 
-- **Tooltip pada citra bukti.** Citra termal Himawari: arahkan kursor, ketuk, atau pakai tombol panah untuk melihat suhu
-  kecerahan tiap piksel 0,02° (id piksel, koordinat, jarak dari penanda) untuk **Himawari-9 B07/B14** dan **GK2A
-  SW038/IR105** dalam °C dan K, selisih kanal, anomali terhadap latar crop (median, simpangan MAD, z), dan apakah piksel
-  itu anggota kelompok atau berawan. Citra VIIRS: koordinat + jarak di bawah kursor, dan titik deteksi FIRMS (satelit,
-  waktu, jarak, keyakinan, FRP) yang bisa difokuskan dengan Tab. Tooltip dirender di `<body>` (`FloatingTip`) jadi tidak
-  terpotong, dijepit ke layar, dan meluncur dengan pegas.
-- **Tabel parameter MAUT.** Tiap atribut menampilkan angka terukur (mis. `+18,6 K`, `2 dari 3 malam`), nilai u, bobot,
-  sumbangan w × u, angka pendukung (suhu tiap kanal, latar, σ, LST/TS/T2M, U puncak per malam), skala normalisasi, dan
-  rumus `U = Σ w·u ÷ Σ w` dengan angkanya. Sorot batang u untuk melihat rumus normalisasinya.
-- **Data.** `EvidenceImg.thermal` (grid `ThermalCrop`, 4 kanal × 20 × 20 sel) dan `ClusterDetail.attribute_details` adalah
-  bagian kontrak resmi (`backend.html`); keduanya opsional (tanpa itu citra tampil tanpa tooltip dan tabel hanya
-  berisi u dan bobot; `u_N` tetap dihitung dari tetangga, dan `EvidenceImg.bbox` yang hilang dianggap ±0,2° dari
-  koordinat kelompok). Skema ada di tab Kontrak API. Mode mock membangun citra, tooltip, dan tabel dari satu grid suhu
-  fiktif, jadi angkanya selalu sepakat dan terhubung ke `u` di fixture (`src/mock/thermal.ts`).
+## Motion
 
-## Gerak
+Animation uses [`motion`](https://motion.dev) (the successor of framer-motion). Every component uses `m` from `src/motion`
+(not `motion`), wrapped in `LazyMotion` inside `MotionProvider`: the ±17 KB gzip core ships in the initial bundle, the full
+motion features (animation, gestures, layout, drag; ±20 KB gzip) load later as the `features` chunk. If that chunk fails
+to load, `<html>` gets the `no-motion` class and the page shows without motion.
 
-Animasi memakai [`motion`](https://motion.dev) (pengganti framer-motion). Semua komponen memakai `m` dari `src/motion`
-(bukan `motion`), dibungkus `LazyMotion` di `MotionProvider`: inti ±17 KB gzip ikut bundel awal, fitur gerak penuh
-(animasi, gestur, layout, drag; ±20 KB gzip) dimuat belakangan sebagai chunk `features`. Bila chunk itu gagal
-dimuat, `<html>` diberi kelas `no-motion` dan halaman tampil tanpa gerak.
-
-| Di mana | Geraknya |
+| Where | Motion |
 |---|---|
-| Pindah halaman, kartu, bar, grafik, grid tetangga | masuk dengan pegas saat terlihat (`reveal`, `whileInView`); garis grafik tergambar, bar tumbuh |
-| Tautan navigasi, tombol ID/EN | latar aktif meluncur antar item (`layoutId`) |
-| Dropdown (`Select`) | daftar membuka dari sisi tombol, sorotan opsi meluncur mengikuti panah/pointer |
-| Kalender malam | muncul dari pojok pemicu; pindah bulan menggeser kisi sesuai arah, tinggi tetap 6 baris |
-| Panel Lapisan, inspektur piksel | muncul/hilang; inspektur meluncur ke posisi baru saat panel Lapisan dibuka (`LayoutGroup`) |
-| Daftar kelompok | ganti urutan/filter → kartu meluncur ke tempatnya; kartu baru muncul bertahap, yang hilang menyusut |
-| Bottom sheet (layar < 1024 px) | diseret lewat gagang (`Sheet`): lepas pelan → ke posisi terdekat, lemparan → menurut arah; isi tetap bisa digulir |
-| Panel keputusan | blok alasan/konfirmasi/galat memudar masuk-keluar, elemen di bawahnya meluncur |
-| Tombol, chip, sakelar, `<details>` | CSS murni: tekan memantul (`--ease-spring`), kenop sakelar, `<details>` membuka dengan tinggi mengalir |
+| Page changes, cards, bars, charts, neighbour grid | spring in when visible (`reveal`, `whileInView`); chart lines draw, bars grow |
+| Navigation links | the active background slides between items (`layoutId`) |
+| Dropdowns (`Select`) | the list opens from the button side, the option highlight slides with arrows/pointer |
+| Night calendar | opens from the trigger corner; changing month slides the grid in that direction, height fixed at 6 rows |
+| Layers panel, pixel inspector | appear/disappear; the inspector slides to its new place when the Layers panel opens (`LayoutGroup`) |
+| Cluster list | changing order/filter → cards slide into place; new cards stagger in, removed ones shrink away |
+| Bottom sheet (screens < 1024 px) | dragged by its handle (`Sheet`): slow release → nearest position, flick → its direction; content still scrolls |
+| Decision panel | reason/confirmation/error blocks fade in and out, elements below slide |
+| Buttons, chips, switches, `<details>` | pure CSS: presses bounce (`--ease-spring`), switch knobs, `<details>` opens with a flowing height |
 
-Preferensi sistem *reduced motion* dan mode ringan memakai `MotionConfig reducedMotion`: gerak transform/layout
-langsung ke nilai akhir, hanya opacity yang tetap memudar. Preset pegas ada di `src/motion/presets.ts`.
+The system *reduced motion* preference and lite mode use `MotionConfig reducedMotion`: transform/layout motion jumps
+to its end value; only opacity still fades. Spring presets live in `src/motion/presets.ts`.
 
-## Catatan teknis
+## Technical notes
 
-- MapLibre 6 memuat worker modul dari file terpisah. Plugin `maplibreWorker` di `vite.config.ts`
-  menyajikan `maplibre-gl-worker.mjs` + `maplibre-gl-shared.mjs` apa adanya di `/maplibre/`
-  (dev) dan menyalinnya ke `dist/maplibre/` (build), lalu `setWorkerUrl` menunjuk ke sana.
-- Basemap: OpenFreeMap `positron` (terang) / `dark` (gelap), tanpa API key; ganti tema = `setStyle`
-  lalu semua layer data dipasang ulang di `style.load`.
-- Huruf IBM Plex dibundel lewat `@fontsource` (tanpa Google Fonts).
+- MapLibre 6 loads its module worker from a separate file. The `maplibreWorker` plugin in `vite.config.ts`
+  serves `maplibre-gl-worker.mjs` + `maplibre-gl-shared.mjs` as-is under `/maplibre/`
+  (dev) and copies them to `dist/maplibre/` (build); `setWorkerUrl` points there.
+- Basemap: OpenFreeMap `positron` (light) / `dark` (dark), no API key; a theme change calls `setStyle`
+  and every data layer is reinstalled on `style.load`.
+- IBM Plex fonts are bundled through `@fontsource` (no Google Fonts).

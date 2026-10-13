@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type DependencyList } from 'react';
 
 interface LoadState<T> { data?: T; error?: Error; loading: boolean }
 
-/** Muat data async; data lama tetap tampil saat memuat ulang. */
+/** Load data asynchronously; old data stays visible while reloading. */
 export function useLoad<T>(fn: () => Promise<T>, deps: DependencyList) {
   const [state, setState] = useState<LoadState<T>>({ loading: true });
   const [n, setN] = useState(0);

@@ -6,21 +6,21 @@ import { exitFast, m } from '../motion';
 interface Props {
   open: boolean;
   id: string;
-  /** Kotak (koordinat jendela) yang ditunjuk tooltip; dipanggil ulang saat posisi perlu dihitung. */
+  /** Box (window coordinates) the tooltip points at; called again whenever the position must be recomputed. */
   anchor: () => DOMRect | null;
-  /** Ganti nilainya setiap anchor pindah, supaya posisi dihitung ulang. */
+  /** Change this value whenever the anchor moves, so the position is recomputed. */
   anchorKey: string | number;
   children: ReactNode;
 }
 
-const GAP = 10; // jarak ke anchor
-const PAD = 8; // jarak minimum ke tepi layar
+const GAP = 10; // distance to the anchor
+const PAD = 8; // minimum distance to the screen edge
 const SPRING = { stiffness: 520, damping: 38, mass: 0.75 };
 
 /**
- * Tooltip mengambang: dirender di <body> (tidak terpotong overflow induk), muncul di atas anchor atau di
- * bawahnya bila tidak muat, dijepit ke dalam layar, dan meluncur dengan pegas saat anchor berpindah.
- * Tidak menerima pointer, jadi tidak pernah menghalangi benda yang ditunjuknya.
+ * Floating tooltip: rendered in <body> (never clipped by a parent's overflow), shown above the anchor or
+ * below it when it does not fit, clamped inside the screen, and sliding on a spring when the anchor moves.
+ * It ignores the pointer, so it never blocks what it points at.
  */
 export function FloatingTip({ open, id, anchor, anchorKey, children }: Props) {
   const el = useRef<HTMLDivElement>(null);
@@ -30,7 +30,7 @@ export function FloatingTip({ open, id, anchor, anchorKey, children }: Props) {
   const y = useSpring(0, SPRING);
   const instant = useReducedMotionConfig();
   const anchorRef = useRef(anchor);
-  anchorRef.current = anchor; // place tetap stabil walau anchor dibuat ulang tiap render
+  anchorRef.current = anchor; // place stays stable even if the anchor is recreated on every render
 
   const place = useCallback(() => {
     const node = el.current, a = anchorRef.current();
@@ -39,17 +39,17 @@ export function FloatingTip({ open, id, anchor, anchorKey, children }: Props) {
     const vw = document.documentElement.clientWidth, vh = window.innerHeight;
     const cx = a.left + a.width / 2;
     const left = Math.min(Math.max(cx - w / 2, PAD), Math.max(PAD, vw - w - PAD));
-    // jangan menutupi bilah atas yang menempel di layar
+    // never cover the sticky top bar
     const bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar')) || 0;
     const minTop = bar + PAD;
     const roomAbove = a.top - minTop, roomBelow = vh - a.bottom - PAD;
     const below = roomAbove < h + GAP && roomBelow > roomAbove;
     const top = Math.min(Math.max(below ? a.bottom + GAP : a.top - h - GAP, minTop), Math.max(minTop, vh - h - PAD));
     if (document.documentElement.classList.contains('no-motion')) {
-      // fitur gerak gagal dimuat: nilai pegas tidak dirender, jadi pasang posisi langsung
+      // motion features failed to load: spring values are not rendered, so set the position directly
       node.style.left = `${left}px`; node.style.top = `${top}px`; node.style.transform = 'none';
     } else if (!placed.current || instant) {
-      // pertama kali: langsung di tempat (tanpa terbang dari pojok); selanjutnya meluncur
+      // first time: in place immediately (no flight from the corner); afterwards it slides
       x.jump(left); y.jump(top);
     } else { x.set(left); y.set(top); }
     placed.current = true;
@@ -60,7 +60,7 @@ export function FloatingTip({ open, id, anchor, anchorKey, children }: Props) {
     if (!open) { placed.current = false; return; }
     place();
     const node = el.current;
-    const ro = node ? new ResizeObserver(place) : null; // isi berganti ukuran
+    const ro = node ? new ResizeObserver(place) : null; // the content changes size
     if (node) ro?.observe(node);
     window.addEventListener('scroll', place, true);
     window.addEventListener('resize', place);

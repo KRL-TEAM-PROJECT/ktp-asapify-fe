@@ -6,16 +6,16 @@ import { m, spring } from '../motion';
 
 interface Props {
   series: SeriesPoint[];
-  thresholds: { watch: number; awas: number };
+  thresholds: { watch: number; warning: number };
   triggerSlot: string;
 }
 
 const W = 640, H = 210, PL = 30, PR = 8, PT = 12, PB = 30, GAP = 14, SLOTS = 48;
 const SLOT_MS = 600_000;
 
-/** Utility per slot, satu panel per malam (13.00–20.50 UTC). Slot tak teramati diarsir. */
+/** Utility per slot, one panel per night (13:00–20:50 UTC). Unobserved slots are hatched. */
 export function UtilityChart({ series, thresholds, triggerSlot }: Props) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const hatch = `hatch-${useId().replace(/:/g, '')}`;
 
   const nights = [...new Set(series.map((p) => p.slot.slice(0, 10)))];
@@ -30,7 +30,7 @@ export function UtilityChart({ series, thresholds, triggerSlot }: Props) {
   };
   const slotW = nw / (SLOTS - 1);
 
-  // garis putus di slot tanpa observasi
+  // break the line at slots without an observation
   const segments: string[][] = [];
   let cur: string[] = [];
   let curNight = -1;
@@ -52,7 +52,7 @@ export function UtilityChart({ series, thresholds, triggerSlot }: Props) {
 
   return (
     <figure className="chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('chart.aria', { u: trig?.U != null ? fmtNum(trig.U, 2, lang) : '-' })}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('chart.aria', { u: trig?.U != null ? fmtNum(trig.U, 2) : '-' })}>
         <defs>
           <pattern id={hatch} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="6" stroke="var(--line)" strokeWidth="3" />
@@ -61,7 +61,7 @@ export function UtilityChart({ series, thresholds, triggerSlot }: Props) {
         {nights.map((d, i) => (
           <g key={d}>
             <rect x={PL + i * (nw + GAP)} y={PT} width={nw} height={ih} fill="var(--surface-2)" opacity="0.5" />
-            <text x={PL + i * (nw + GAP) + nw / 2} y={H - 10} textAnchor="middle" className="ax">{fmtDate(`${d}T13:00:00Z`, lang)}</text>
+            <text x={PL + i * (nw + GAP) + nw / 2} y={H - 10} textAnchor="middle" className="ax">{fmtDate(`${d}T13:00:00Z`)}</text>
           </g>
         ))}
         {series.filter((p) => p.U == null).map((p) => {
@@ -69,17 +69,17 @@ export function UtilityChart({ series, thresholds, triggerSlot }: Props) {
           return <rect key={p.slot} x={x - slotW / 2} y={PT} width={slotW} height={ih} fill={`url(#${hatch})`} />;
         })}
         {[0, 0.5, 1].map((v) => (
-          <text key={v} x={PL - 6} y={y(v) + 3} textAnchor="end" className="ax">{fmtNum(v, 1, lang)}</text>
+          <text key={v} x={PL - 6} y={y(v) + 3} textAnchor="end" className="ax">{fmtNum(v, 1)}</text>
         ))}
-        <line x1={PL} x2={W - PR} y1={y(thresholds.awas)} y2={y(thresholds.awas)} stroke="var(--ember)" strokeDasharray="4 3" />
-        <text x={PL + 4} y={y(thresholds.awas) - 4} className="ax" fill="var(--ember)">{fmtNum(thresholds.awas, 2, lang)} AWAS</text>
+        <line x1={PL} x2={W - PR} y1={y(thresholds.warning)} y2={y(thresholds.warning)} stroke="var(--ember)" strokeDasharray="4 3" />
+        <text x={PL + 4} y={y(thresholds.warning) - 4} className="ax" fill="var(--ember)">{fmtNum(thresholds.warning, 2)} WARNING</text>
         <line x1={PL} x2={W - PR} y1={y(thresholds.watch)} y2={y(thresholds.watch)} stroke="var(--amber)" strokeDasharray="4 3" />
-        <text x={PL + 4} y={y(thresholds.watch) - 4} className="ax" fill="var(--amber)">{fmtNum(thresholds.watch, 2, lang)}</text>
+        <text x={PL + 4} y={y(thresholds.watch) - 4} className="ax" fill="var(--amber)">{fmtNum(thresholds.watch, 2)}</text>
         {segments.map((s, i) =>
           s.length === 1
             ? <circle key={i} cx={s[0].split(',')[0]} cy={s[0].split(',')[1]} r="1.6" fill="var(--ink)" />
             : (
-              // garis utilitas tergambar dari kiri ke kanan saat grafik masuk layar
+              // the utility line draws left to right when the chart enters the screen
               <m.polyline
                 key={i} points={s.join(' ')} fill="none" stroke="var(--ink)" strokeWidth="1.8" strokeLinejoin="round"
                 initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }}
@@ -99,7 +99,7 @@ export function UtilityChart({ series, thresholds, triggerSlot }: Props) {
         )}
       </svg>
       {first && last && (
-        <figcaption>{t('chart.caption', { range: `${fmtDate(first, lang)} – ${fmtDate(last, lang)}` })}</figcaption>
+        <figcaption>{t('chart.caption', { range: `${fmtDate(first)} – ${fmtDate(last)}` })}</figcaption>
       )}
     </figure>
   );

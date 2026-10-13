@@ -5,11 +5,11 @@ import { fmtNight, fmtSlot } from '../lib/format';
 const LATE_MIN = 40;
 
 /**
- * Slot terakhir + satelit; kuning bila satu satelit > 40 menit terlambat, biru untuk replay dan arsip.
- * Pita malam ada di SlotPlayer.
+ * Latest slot + satellites; amber when one satellite is > 40 minutes late, blue for replay and archive.
+ * The night ribbon lives in SlotPlayer.
  */
 export function DataBanner({ meta, cloudy, archive, noData }: { meta: Meta; cloudy: boolean; archive: string | null; noData: boolean }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const sats = [
     ['Himawari', meta.sats.himawari],
     ['GK2A', meta.sats.gk2a],
@@ -19,7 +19,7 @@ export function DataBanner({ meta, cloudy, archive, noData }: { meta: Meta; clou
   return (
     <div className="banners" role="status">
       <div className="banner slot">
-        <span className="slot-time">{t('banner.slot', { slot: fmtSlot(meta.last_slot, lang) })}</span>
+        <span className="slot-time">{t('banner.slot', { slot: fmtSlot(meta.last_slot) })}</span>
         <span className="slot-sats">
           {sats.map(([name, s]) => {
             const isLate = late.some(([n]) => n === name);
@@ -31,9 +31,9 @@ export function DataBanner({ meta, cloudy, archive, noData }: { meta: Meta; clou
           })}
         </span>
       </div>
-      {archive && <div className="banner info">{t('banner.archive', { date: fmtNight(archive, lang) })}</div>}
+      {archive && <div className="banner info">{t('banner.archive', { date: fmtNight(archive) })}</div>}
       {archive && noData && <div className="banner warn">{t('banner.no_data')}</div>}
-      {!archive && meta.replay && <div className="banner info">{t('banner.replay', { when: fmtSlot(meta.as_of, lang) })}</div>}
+      {!archive && meta.replay && <div className="banner info">{t('banner.replay', { when: fmtSlot(meta.as_of) })}</div>}
       {late.length > 0 && <div className="banner warn">{t('banner.one_sat', { sat: late.map(([n]) => n).join(' + ') })}</div>}
       {!meta.is_night && <div className="banner">{t('banner.day')}</div>}
       {cloudy && <div className="banner">{t('banner.cloudy')}</div>}

@@ -2,14 +2,14 @@ import { load, save } from './storage';
 
 export type LiteReason = 'save_data' | 'memory' | 'cpu' | 'motion';
 
-/** Tanda device lemah / hemat data. null = tidak terdeteksi. */
+/** Signs of a weak device / data saver. null = none detected. */
 export function detectLite(): LiteReason | null {
   const n = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
-  const mem = n.deviceMemory ?? 8; // Safari/Firefox tidak melaporkan RAM
+  const mem = n.deviceMemory ?? 8; // Safari/Firefox do not report RAM
   const cores = n.hardwareConcurrency ?? 8;
   if (n.connection?.saveData) return 'save_data';
   if (mem <= 2) return 'memory';
-  // 4 inti saja bukan tanda lemah (banyak laptop menengah); 4 inti + RAM ≤ 4 GB biasanya HP kelas bawah.
+  // 4 cores alone is not weak (many mid-range laptops); 4 cores + RAM ≤ 4 GB is usually a low-end phone.
   if (cores <= 2 || (cores <= 4 && mem <= 4)) return 'cpu';
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'motion';
   return null;
@@ -17,7 +17,7 @@ export function detectLite(): LiteReason | null {
 
 const KEY = 'asapify.lite';
 
-/** Pilihan operator menimpa deteksi otomatis. */
+/** The operator's choice overrides automatic detection. */
 export function loadLitePref(): boolean | null {
   const v = load(KEY);
   return v === '1' ? true : v === '0' ? false : null;

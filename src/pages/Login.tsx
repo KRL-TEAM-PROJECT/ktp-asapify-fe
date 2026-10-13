@@ -7,14 +7,14 @@ import type { Neighbour } from '../types';
 import { NeighbourGrid } from '../components/NeighbourGrid';
 import { m, springSoft } from '../motion';
 
-// Ilustrasi aturan: piksel pusat + 3/8 tetangga panas, satu berawan, satu bukan gambut.
+// Rule illustration: the centre pixel + 3/8 hot neighbours, one cloudy, one not peat.
 const RULE_DEMO: Neighbour[] = [
   { dir: 'nw', state: 'normal', u0: 0.1 }, { dir: 'n', state: 'anomaly', u0: 0.6 }, { dir: 'ne', state: 'non_peat', u0: null },
   { dir: 'w', state: 'normal', u0: 0.2 }, { dir: 'e', state: 'anomaly', u0: 0.7 },
   { dir: 'sw', state: 'cloud', u0: null }, { dir: 's', state: 'normal', u0: 0.1 }, { dir: 'se', state: 'anomaly', u0: 0.8 },
 ];
 
-export function Masuk() {
+export function LoginPage() {
   const { t } = useI18n();
   const { user, loading, error: authError } = useAuthState();
   const [busy, setBusy] = useState(false);
@@ -22,11 +22,11 @@ export function Masuk() {
   const nav = useNavigate();
   const candidate = (useLocation().state as { from?: string } | null)?.from ?? '/';
   const from = candidate.startsWith('/') && !candidate.startsWith('//') ? candidate : '/';
-  if (user) return <Navigate to={user.role === 'operator' ? from : '/notifikasi'} replace />;
+  if (user) return <Navigate to={user.role === 'operator' ? from : '/notifications'} replace />;
 
   async function login() {
     setBusy(true); setError(null);
-    try { const u = await signIn(); nav(u.role === 'operator' ? from : '/notifikasi', { replace: true }); }
+    try { const u = await signIn(); nav(u.role === 'operator' ? from : '/notifications', { replace: true }); }
     catch (e) {
       const code = e instanceof Error ? e.message : '';
       setError(t(code === 'FORBIDDEN' ? 'err.FORBIDDEN' : code === 'AUTH_NOT_CONFIGURED' ? 'login.config_error' : 'login.failed'));
@@ -55,7 +55,7 @@ export function Masuk() {
         </button>
         <p className="muted small">{t(API_MODE === 'live' ? 'login.live_note' : 'login.note')}</p>
         {(error || authError) && <p className="error" role="alert">{error ?? t(authError === 'FORBIDDEN' ? 'err.FORBIDDEN' : 'login.config_error')}</p>}
-        <Link to="/tentang">{t('login.about')}</Link>
+        <Link to="/about">{t('login.about')}</Link>
       </m.div>
     </div>
   );

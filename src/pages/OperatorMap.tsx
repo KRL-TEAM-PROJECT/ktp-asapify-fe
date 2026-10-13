@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { AnimatePresence, LayoutGroup } from 'motion/react';
-import type { ClusterSummary, ProvinceBoundary, ProvinceCode, Status, StatusCode } from '../types';
+import { ApiError, type ClusterSummary, type ProvinceBoundary, type ProvinceCode, type Status, type StatusCode } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
@@ -255,12 +255,16 @@ export function OperatorMapPage({ dark }: { dark: boolean }) {
   };
 
   const loadError = base.error ?? clustersQ.error;
+  // The earlier pixel pipeline never published live data: say so instead of showing an error.
+  const noPixelData = loadError instanceof ApiError && loadError.code === 'DATA_NOT_READY';
 
   return (
     <LiteMotion lite={lite}>
       <div className={`map-page ${sheetOpen ? 'sheet-open' : ''} ${lite ? 'is-lite' : ''}`}>
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen} enabled={isSheet} label={t('map.panel')}>
-          {meta ? <DataBanner meta={meta} cloudy={cloudy && !noData} archive={isCurrent ? null : viewNight} noData={noData} /> : <div className="skel" style={{ height: 30 }} />}
+          {meta ? <DataBanner meta={meta} cloudy={cloudy && !noData} archive={isCurrent ? null : viewNight} noData={noData} />
+            : noPixelData ? <p className="callout info">{t('pixels.no_data')} <Link to="/">{t('pixels.to_regions')}</Link></p>
+              : <div className="skel" style={{ height: 30 }} />}
 
           <form className="search" onSubmit={onSearch} role="search">
             <label htmlFor="map-q" className="lbl">{t('search.label')}</label>
@@ -309,7 +313,7 @@ export function OperatorMapPage({ dark }: { dark: boolean }) {
             />
           </div>
 
-          {loadError && (
+          {loadError && !noPixelData && (
             <div className="error" role="alert">
               {t('load_error', { msg: errorText(loadError, t) })}{' '}
               <button className="link-btn" onClick={() => { base.reload(); clustersQ.reload(); }}>{t('retry')}</button>

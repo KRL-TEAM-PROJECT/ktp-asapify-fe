@@ -552,5 +552,7 @@
   "agent.err.AGENT_TIMEOUT": "The agent did not finish within 50 seconds. Run it again.",
   "agent.err.INVALID_OUTPUT": "The agent's answer did not match the required YAML schema, so it was not used.",
   "agent.err.LLM_CALL_LIMIT": "The agent reached its limit of model calls before answering.",
-  "agent.err.AGENT_ERROR": "The agent failed ({what}). Run it again later."
+  "agent.err.AGENT_ERROR": "The agent failed ({what}). Run it again later.",
+  "pixels.no_data": "This map belongs to the earlier pixel design (Himawari-9 and GK2A), which has no live data. The live risk engine is on the Regions map.",
+  "pixels.to_regions": "Open the Regions map"
 }

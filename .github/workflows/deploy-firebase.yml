@@ -48,6 +48,8 @@ jobs:
           VITE_FIREBASE_PROJECT_ID: hack2skill-510921
           VITE_FIREBASE_APP_ID: 1:950889990251:web:4a2937a1d2377d9541492e
           VITE_FIREBASE_MESSAGING_SENDER_ID: '950889990251'
+          # Web Push public key (repository variable; public, not a secret). Empty until it is created in Firebase.
+          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
           VITE_PROVINCES_LAYER_URL: /mock/provinces.geojson
 
       - name: Authenticate to Google Cloud

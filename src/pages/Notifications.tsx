@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { useUser } from '../auth';
 import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
@@ -113,7 +114,10 @@ export function NotificationsPage() {
             <span className="mono muted small">{item.alert_id}</span>
           </div>
           <p className="notify-text">{plain(item.text)}</p>
-          <p className="muted small">{fmtSlot(item.published_at)} · {t(`prov.${item.province}`)}</p>
+          <p className="muted small">
+            {fmtSlot(item.published_at)} · {t(`prov.${item.province}`)}
+            {user?.role === 'operator' && item.region_id && <> · <Link to={`/regions/${item.region_id}`}>{t('notif.open_region')}</Link></>}
+          </p>
           {Date.parse(item.expires_at) < Date.now() && <p className="muted small">{t('notif.expired')}</p>}
           {item.acknowledged_at
             ? <p className="notify-ok"><IconCheck size={14} />{t('notif.acked', { when: fmtSlot(item.acknowledged_at) })}</p>

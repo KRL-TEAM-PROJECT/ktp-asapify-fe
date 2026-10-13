@@ -1,7 +1,8 @@
 import {
   ApiError,
-  type Api, type Basemap, type ClusterDetail, type ClusterSummary, type GridCompact, type Meta,
-  type NightCompact, type NightSummary, type PeatBoundary, type PixelIndex, type ProvinceBoundary,
+  type AgentInfo, type Api, type Basemap, type ClusterDetail, type ClusterSummary, type Decision, type GridCompact,
+  type Meta, type NightCompact, type NightSummary, type PeatBoundary, type PeatRegions, type PixelIndex,
+  type ProvinceBoundary, type RegionDetail, type RegionSummary, type Verification,
 } from './types';
 import { getOperatorToken } from './auth';
 
@@ -41,6 +42,8 @@ async function file<T>(url: string | undefined, empty: T): Promise<T> {
 
 const enc = encodeURIComponent;
 const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
+// Peat inside each region (KHG, clipped per NASA POWER cell): a static file built by the backend's tools/build_regions.py.
+const peatRegions = () => file<PeatRegions>(`${import.meta.env.BASE_URL}regions.geojson`, EMPTY_FC);
 
 const liveApi: Api = {
   meta: () => req<Meta>('/meta'),
@@ -56,10 +59,17 @@ const liveApi: Api = {
   },
   peatBoundary: () => file<PeatBoundary>(import.meta.env.VITE_PEAT_LAYER_URL, EMPTY_FC),
   provinces: () => file<ProvinceBoundary>(import.meta.env.VITE_PROVINCES_LAYER_URL, EMPTY_FC),
+  regions: () => req<RegionSummary[]>('/operator/regions'),
+  region: (id, hours = 72) => req<RegionDetail>(`/operator/regions/${enc(id)}?hours=${hours}`),
+  peatRegions,
+  agent: () => req<AgentInfo>('/operator/agent'),
+  verifyRegion: (id) => req<Verification>(`/operator/regions/${enc(id)}/verify`, { method: 'POST' }),
+  decideRegion: (id, body) => req<Decision>(`/operator/regions/${enc(id)}/decision`, { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // Mock mode loads lazily: its code + fictional data stay out of the main chunk.
 const mock = () => import('./mock/fixtures').then((m) => m.mockApi);
+const mockRegions = () => import('./mock/regions').then((m) => m.mockRegionApi);
 const mockApi: Api = {
   meta: () => mock().then((m) => m.meta()),
   pixels: () => mock().then((m) => m.pixels()),
@@ -72,6 +82,12 @@ const mockApi: Api = {
   decide: (id, body) => mock().then((m) => m.decide(id, body)),
   peatBoundary: () => mock().then((m) => m.peatBoundary()),
   provinces: () => mock().then((m) => m.provinces()),
+  regions: () => mockRegions().then((m) => m.regions()),
+  region: (id, hours) => mockRegions().then((m) => m.region(id, hours)),
+  peatRegions,
+  agent: () => mockRegions().then((m) => m.agent()),
+  verifyRegion: (id) => mockRegions().then((m) => m.verifyRegion(id)),
+  decideRegion: (id, body) => mockRegions().then((m) => m.decideRegion(id, body)),
 };
 
 export const api: Api = API_MODE === 'live' ? liveApi : mockApi;

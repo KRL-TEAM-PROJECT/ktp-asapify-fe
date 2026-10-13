@@ -94,4 +94,7 @@ inbox is deleted on sign-out. Confirmation needs the server; the UI never fakes 
 Test it with `npm run build && npm run preview`; the Vite dev server does not serve the built worker name.
 
 Project: `hack2skill-510921` (number `950889990251`). The Firebase Web App is registered; its configuration is in the deploy workflow.
-`VITE_FIREBASE_VAPID_KEY` is not set yet, so browser push cannot be registered on the live site.
+`VITE_FIREBASE_VAPID_KEY` is not set yet, so browser push cannot be registered on the live site. The deploy workflow
+reads it from a repository variable: create the key pair in the Firebase console (Project settings → Cloud Messaging →
+Web Push certificates), then `gh variable set VITE_FIREBASE_VAPID_KEY --repo KRL-TEAM-PROJECT/ktp-asapify-fe --body '<public key>'`
+and run the workflow again. It is a public key, not a secret.

@@ -3,16 +3,12 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { signIn, useAuthState } from '../auth';
 import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
-import type { Neighbour } from '../types';
-import { NeighbourGrid } from '../components/NeighbourGrid';
+import type { Status } from '../types';
+import { StatusBadge } from '../components/StatusBadge';
 import { m, springSoft } from '../motion';
 
-// Rule illustration: the centre pixel + 3/8 hot neighbours, one cloudy, one not peat.
-const RULE_DEMO: Neighbour[] = [
-  { dir: 'nw', state: 'normal', u0: 0.1 }, { dir: 'n', state: 'anomaly', u0: 0.6 }, { dir: 'ne', state: 'non_peat', u0: null },
-  { dir: 'w', state: 'normal', u0: 0.2 }, { dir: 'e', state: 'anomaly', u0: 0.7 },
-  { dir: 'sw', state: 'cloud', u0: null }, { dir: 's', state: 'normal', u0: 0.1 }, { dir: 'se', state: 'anomaly', u0: 0.8 },
-];
+// The four levels a peat region can have, most severe first.
+const LEVELS: Status[] = ['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE'];
 
 export function LoginPage() {
   const { t } = useI18n();
@@ -42,7 +38,9 @@ export function LoginPage() {
         <span className="brand big"><i aria-hidden="true" />ASAPify</span>
         <h2 id="rule-h">{t('login.rule_t')}</h2>
         <p>{t('login.rule')}</p>
-        <NeighbourGrid neighbours={RULE_DEMO} />
+        <ul className="login-levels">
+          {LEVELS.map((s) => <li key={s}><StatusBadge status={s} /> {t(`rg.legend.${s}`)}</li>)}
+        </ul>
       </m.section>
       <m.div
         className="card login-card"

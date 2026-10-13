@@ -1,0 +1,61 @@
+/* Risk-engine region screens (map home + region detail). Tokens come from styles.css. */
+
+/* ---------- region list ---------- */
+.rg-head { display: grid; gap: 4px; }
+.rg-title { font-size: 22px; }
+.chip .rg-count { font-size: 11.5px; opacity: 0.8; margin-left: 2px; }
+.chip.st-none { background: var(--surface-2); color: var(--ink-dim); }
+.queue-item.rg-item { border-left-color: var(--line); }
+.queue-item.rg-alert { border-left-color: var(--ember); }
+.queue-item.rg-warning { border-left-color: var(--amber); }
+.queue-item.rg-safe { border-left-color: var(--moss); }
+.queue-item.rg-no_observable { border-left-style: dashed; border-left-color: var(--ink-dim); }
+.queue-item.rg-item.on { border-color: var(--sat); border-left-color: var(--sat); }
+
+/* ---------- validation status (agent result, not a risk level) ---------- */
+.pill.vs-confirmed { background: var(--ember-soft); color: var(--ember); }
+.pill.vs-rejected { background: var(--moss-soft); color: var(--moss); }
+.pill.vs-review { background: var(--amber-soft); color: var(--amber); }
+
+/* ---------- region detail ---------- */
+.rg-timeline svg text.ax { font-size: 10px; }
+.rg-kv dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
+.rg-kv dd .small { color: var(--ink-dim); }
+.pill.q-ok { color: var(--moss); }
+.pill.q-mid { color: var(--amber); }
+.pill.q-bad { color: var(--ember); }
+
+.rg-util { display: grid; gap: 10px; }
+.rg-util-bars { display: grid; gap: 8px; }
+.rg-util-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 52px; align-items: center; gap: 10px; opacity: 0.75; }
+.rg-util-row.on { opacity: 1; }
+.rg-util-row.on b { font-weight: 700; }
+.rg-util-row .pill { justify-self: start; }
+.rg-bar { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.rg-bar i { display: block; height: 100%; border-radius: 5px; }
+.rg-bar i.fill-safe { background: var(--moss); }
+.rg-bar i.fill-warning { background: var(--amber); }
+.rg-bar i.fill-alert { background: var(--ember); }
+.rg-memb { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; }
+.rg-memb div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; border-bottom: 1px dashed var(--line); padding-bottom: 2px; }
+.rg-memb dt { color: var(--ink-dim); }
+.rg-memb dd { margin: 0; }
+
+.rg-ver-run { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rg-facts { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rg-facts div { background: var(--surface-2); border-radius: 8px; padding: 6px 10px; display: grid; gap: 2px; }
+.rg-facts dt { font-size: 12px; color: var(--ink-dim); }
+.rg-facts dd { margin: 0; font-size: 15px; }
+.rg-checks { margin: 0; color: var(--amber); }
+.rg-draft { margin: 0; padding: 8px 12px; border-left: 3px solid var(--sat); background: var(--sat-soft); border-radius: 0 8px 8px 0; font-size: 14px; }
+.rg-table-wrap { overflow-x: auto; }
+.rg-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.rg-table th { text-align: left; font-weight: 500; color: var(--ink-dim); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rg-table td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--surface-2); white-space: nowrap; }
+.rg-trace summary { cursor: pointer; font-size: 13.5px; color: var(--ink-dim); min-height: 32px; display: flex; align-items: center; }
+.rg-trace ol { margin: 4px 0 6px; padding-left: 20px; display: grid; gap: 4px; }
+
+@media (max-width: 1023px) {
+  .rg-facts { grid-template-columns: minmax(0, 1fr); }
+  .rg-util-row { grid-template-columns: 96px minmax(0, 1fr) 48px; }
+}

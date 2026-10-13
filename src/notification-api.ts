@@ -13,6 +13,7 @@ export interface Settings {
 export interface Notice {
   id: string; alert_id: string; province: string; text: string; purpose: 'exercise' | 'emergency';
   published_at: string; expires_at: string; acknowledged_at: string | null; status: string;
+  region_id?: string | null; // set for alerts published from a verified peat region
 }
 const INITIAL: Preferences = { provinces: [], channels: [], consent: false, exercises: false };
 const MOCK_KEY = 'asapify.notification-demo';

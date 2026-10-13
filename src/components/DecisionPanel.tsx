@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { ApiError, type ClusterDetail, type Decision } from '../types';
-import { api } from '../api';
+import { ApiError, type Decision, type DecisionRequest, type ProvinceCode } from '../types';
 import { useI18n } from '../i18n';
-import { fmtNum, fmtSlot } from '../lib/format';
+import { fmtSlot } from '../lib/format';
 import { CAPTION_MAX } from '../lib/caption';
 import { errorText } from '../lib/errors';
 import { exitFast, m, reveal, spring } from '../motion';
@@ -23,9 +22,13 @@ export function DecisionState({ decision }: { decision: Decision | null }) {
 }
 
 interface Props {
-  cluster: ClusterDetail;
-  caption: string;
+  decision: Decision | null;
+  province: ProvinceCode;
+  summary: ReactNode; // one line under "Summary": what the operator is deciding on
+  caption: string; // starting text of the notification
+  submit(body: DecisionRequest): Promise<unknown>;
   onDecided(): void;
+  publishBlocked?: string | null; // why publishing is not possible; rejecting still is
 }
 
 type Mode = 'idle' | 'confirm' | 'reject';
@@ -34,8 +37,8 @@ const slide = {
   initial: { opacity: 0, y: -8 }, animate: { opacity: 1, y: 0, transition: spring }, exit: { opacity: 0, transition: exitFast },
 };
 
-/** Two buttons only: Publish (caption editable) or Reject (reason required). */
-export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: Props) {
+/** Two buttons only: Publish (caption editable) or Reject (reason required). Used for clusters and regions. */
+export function DecisionPanel({ decision: d, province, summary, caption: initialCaption, submit: send, onDecided, publishBlocked }: Props) {
   const { t } = useI18n();
   const [caption, setCaption] = useState(initialCaption);
   const [reason, setReason] = useState('');
@@ -43,9 +46,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const v = cluster.verification;
-  const d = cluster.decision;
-  const prov = t(`prov.${cluster.province}`);
+  const prov = t(`prov.${province}`);
 
   if (d) {
     return (
@@ -77,7 +78,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
     if (action === 'publish' && (tooLong || !caption.trim())) { setError(t('dec.too_long')); return; }
     setBusy(true);
     try {
-      await api.decide(cluster.id, {
+      await send({
         action,
         caption: action === 'publish' ? caption : null,
         reason: action === 'reject' ? reason.trim() : null,
@@ -96,11 +97,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
       <h2 id="dec-h">{t('dec.title')}</h2>
       <div className="dec-summary">
         <span className="lbl">{t('dec.summary')}</span>
-        <p>
-          ALERT · U {fmtNum(cluster.utility_score, 2)} · {t('map.nbr', { k: Math.round(cluster.neighbour_support * 8) })} ·{' '}
-          {cluster.n_sat >= 2 ? t('sat.agree') : t('sat.single')} ·{' '}
-          {v ? t(v.result === 'strong_evidence' ? 'evidence.strong' : 'evidence.inconclusive') : t('evidence.none')}
-        </p>
+        <p>{summary}</p>
       </div>
 
       <label className="field-label" htmlFor="caption">
@@ -108,9 +105,10 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
         <span className={tooLong ? 'over' : ''}>{t('dec.count', { n: caption.length })}</span>
       </label>
       <textarea
-        id="caption" value={caption} rows={8} disabled={busy || mode === 'reject'}
+        id="caption" value={caption} rows={8} disabled={busy || mode === 'reject' || !!publishBlocked}
         onChange={(e) => setCaption(e.target.value)} aria-invalid={tooLong}
       />
+      {publishBlocked && <p className="callout info small">{publishBlocked}</p>}
 
       {/* Blocks that appear/disappear fade in and out; elements below them (layout="position") slide to their new place. */}
       <AnimatePresence initial={false}>
@@ -130,7 +128,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
       >
         {mode === 'idle' && (
           <>
-            <button className="btn primary" disabled={busy || tooLong} onClick={() => setMode('confirm')}>
+            <button className="btn primary" disabled={busy || tooLong || !!publishBlocked} onClick={() => setMode('confirm')}>
               <IconSend />{t('btn.publish')}
             </button>
             <button className="btn" disabled={busy} onClick={() => { setMode('reject'); setError(null); }}>

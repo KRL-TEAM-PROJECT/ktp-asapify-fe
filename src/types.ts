@@ -232,7 +232,151 @@ export interface Basemap {
 
 export type ProvinceBoundary = FeatureCollection<MultiPolygon, { code: ProvinceCode; name: string }>;
 
-export interface Api {
+// ---------- risk engine: peat regions (asapify_engine, docs/ENGINE.md in the backend) ----------
+
+export type RatedStatus = 'SAFE' | 'WARNING' | 'ALERT';
+export type Quality = 'ACCEPTED' | 'DEGRADED' | 'REJECTED' | 'MISSING';
+export type ValidationStatus = 'CONFIRMED' | 'REJECTED' | 'NEEDS_MANUAL_REVIEW';
+
+export interface RegionInputs {
+  skin_temperature_k: number | null;
+  baseline_k: number | null; // mean skin temperature, same UTC hour ±15 days, 2021–2025
+  baseline_std_k: number | null;
+  baseline_samples: number;
+  baseline: string; // how the baseline was built, e.g. "UTC hour 06, ±15 days of 10-10, years 2021-2025"
+  delta_t_k: number | null; // skin temperature − baseline
+  relative_humidity_pct: number | null;
+  cloud_cover_pct: number | null;
+}
+
+export interface HourQuality { skin_temperature: Quality; relative_humidity: Quality; cloud_cover: Quality }
+
+/** One assessed hour: the audit record the rules engine keeps. */
+export interface HourRecord {
+  observed_at: string;
+  inputs: RegionInputs;
+  quality: HourQuality;
+  flags: string[]; // e.g. reanalysis_estimate, model_estimate, missing_value
+  sources: { skin_temperature: string; relative_humidity: string; cloud_cover: string };
+  status: Status;
+  utilities: Partial<Record<RatedStatus, number>>; // empty when NO_OBSERVABLE
+  memberships: Record<string, number>;
+  reason: string;
+}
+
+export interface TransitionRecord {
+  observed_at: string;
+  previous: Status | null;
+  current: Status;
+  utilities: Partial<Record<RatedStatus, number>>;
+  reason: string;
+}
+
+/** A NASA FIRMS hotspot as the agent saw it. */
+export interface Hotspot {
+  lat: number;
+  lon: number;
+  acquired_at: string;
+  hours_from_observation: number;
+  distance_km: number; // from the region centre
+  confidence: string; // VIIRS: l / n / h
+  brightness_k: number | null;
+  frp_mw: number | null;
+  daynight: string | null;
+  satellite: string | null;
+}
+
+export interface AgentToolCall {
+  hours_window: number | null;
+  buffer_km: number | null;
+  from: string | null;
+  to: string | null;
+  hotspot_count: number | null;
+  confident_count: number | null;
+  highest_brightness_temp_k: number | null;
+  error: string | null;
+}
+
+export interface Verification {
+  id: string; // YYYYMMDDTHHMMSSZ
+  region_id: string;
+  trigger: 'auto' | 'manual';
+  requested_by: string | null;
+  at: string;
+  observed_at: string; // the hour under review
+  region_status: Status;
+  validation_status: ValidationStatus; // after the backend checks
+  agent_validation_status: ValidationStatus | null; // what the agent answered
+  confidence_score: number | null;
+  analysis: string;
+  supporting_data: { firms_hotspot_count: number; highest_brightness_temp: number | null } | null;
+  draft_operator_alert: { title: string; message: string } | null;
+  checks: string[]; // why the backend downgraded the agent's answer
+  error: string | null;
+  tool_calls: AgentToolCall[];
+  evidence: Hotspot[];
+  model: string;
+  usage: { model_calls?: number; prompt_tokens?: number; output_tokens?: number; thought_tokens?: number };
+  duration_s: number;
+  decision: Decision | null;
+}
+
+export interface VerificationBrief {
+  id: string;
+  validation_status: ValidationStatus;
+  confidence_score: number | null;
+  trigger: 'auto' | 'manual';
+  at: string;
+  observed_at: string;
+  error: string | null;
+  decision: 'publish' | 'reject' | null;
+}
+
+export interface RegionSummary {
+  id: string; // e.g. R2.50S113.750E: NASA POWER cell centre
+  province: ProvinceCode;
+  lat: number;
+  lon: number;
+  bounds: [number, number, number, number]; // west, south, east, north
+  peat_km2: number;
+  status: Status | null; // null until the first cycle reaches the region
+  since: string | null;
+  observed_at: string | null;
+  utilities: Partial<Record<RatedStatus, number>> | null;
+  updated_at: string | null;
+  agent_requested_at: string | null;
+  last_agent_at: string | null;
+  verification: VerificationBrief | null;
+  inputs: RegionInputs | null;
+  quality: HourQuality | null;
+  reason: string | null;
+}
+
+export interface RegionDetail extends Omit<RegionSummary, 'inputs' | 'quality' | 'reason'> {
+  last_error: string | null;
+  latest?: HourRecord;
+  hours: HourRecord[]; // oldest first
+  transitions: TransitionRecord[]; // newest first
+  verifications: Verification[]; // newest first
+}
+
+export interface AgentInfo {
+  configured: boolean;
+  model: string;
+  daily_quota: number;
+  used_today: number;
+  remaining: number;
+  max_tool_calls: number;
+}
+
+export interface RegionDecisionRequest extends DecisionRequest {
+  verification_id: string;
+}
+
+export type PeatRegions = FeatureCollection<Polygon | MultiPolygon, { id: string; province: ProvinceCode }>;
+
+/** The earlier pixel/cluster design (/pixels, /clusters/:id). */
+export interface PixelApi {
   meta(): Promise<Meta>;
   pixels(): Promise<PixelIndex>;
   gridCompact(asOf?: string): Promise<GridCompact>;
@@ -244,6 +388,15 @@ export interface Api {
   decide(id: string, body: DecisionRequest): Promise<void>;
   peatBoundary(): Promise<PeatBoundary>;
   provinces(): Promise<ProvinceBoundary>;
+}
+
+export interface Api extends PixelApi {
+  regions(): Promise<RegionSummary[]>;
+  region(id: string, hours?: number): Promise<RegionDetail>;
+  peatRegions(): Promise<PeatRegions>;
+  agent(): Promise<AgentInfo>;
+  verifyRegion(id: string): Promise<Verification>;
+  decideRegion(id: string, body: RegionDecisionRequest): Promise<Decision>;
 }
 
 export class ApiError extends Error {

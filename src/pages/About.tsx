@@ -1,23 +1,30 @@
 import { useI18n } from '../i18n';
-import { fmtNum } from '../lib/format';
-import { ATTR_ORDER, WEIGHTS } from '../lib/maut';
 import { StatusBadge } from '../components/StatusBadge';
 import type { Status } from '../types';
-import { m, reveal, springSoft } from '../motion';
+import { m, reveal } from '../motion';
 
 // Steps 1–3 run as rules, 4 by the AI agent, 5 by a person; the top border colour follows who acts.
 const STEPS: [number, 'rule' | 'ai' | 'human'][] = [[1, 'rule'], [2, 'rule'], [3, 'rule'], [4, 'ai'], [5, 'human']];
 const STATUS_ROWS: [Status, string][] = [
-  ['ALERT', 'about.st_warning'], ['WARNING', 'about.st_watch'], ['NO_OBSERVABLE', 'about.st_noobs'], ['SAFE', 'about.st_safe'],
+  ['ALERT', 'about.st_alert'], ['WARNING', 'about.st_warning'], ['NO_OBSERVABLE', 'about.st_noobs'], ['SAFE', 'about.st_safe'],
+];
+// Initial values of the backend RuleConfig (asapify_engine/rules.py): hypotheses until calibrated on past fires.
+const RULES: [string, string][] = [
+  ['about.r_dt_low', '−∞ … 1–3 K'],
+  ['about.r_dt_mid', '1–3 … 6–8 K'],
+  ['about.r_dt_high', '6–8 K … ∞'],
+  ['about.r_rh_high', '40–60 % … ∞'],
+  ['about.r_rh_low', '−∞ … 30–40 %'],
+  ['about.r_cloud', '> 60 %'],
+  ['about.r_weights', 'SAFE 0.6·ΔT low + 0.4·RH high · WARNING 1.0·ΔT medium · ALERT 0.6·ΔT high + 0.4·RH low'],
+  ['about.r_margin', '0.05'],
+  ['about.r_agent', '6 h · 20 / day'],
 ];
 const SOURCES: [string, string][] = [
-  ['Himawari-9 AHI', 'about.src_h'],
-  ['GEO-KOMPSAT-2A AMI', 'about.src_g'],
   ['NASA POWER', 'about.src_power'],
+  ['Open-Meteo', 'about.src_om'],
   ['NASA FIRMS VIIRS', 'about.src_firms'],
-  ['NASA GIBS', 'about.src_gibs'],
   ['KHG Indicative Peat Map', 'about.src_khg'],
-  ['ESA WorldCover v200', 'about.src_wc'],
   ['geoBoundaries IDN ADM1', 'about.src_gb'],
 ];
 
@@ -47,25 +54,7 @@ export function AboutPage() {
       </section>
 
       <div className="grid-2">
-        <m.section className="card" aria-labelledby="maut-h" {...reveal(0)}>
-          <h2 id="maut-h">{t('about.maut_title')}</h2>
-          <p className="muted">{t('about.maut_body')}</p>
-          <div className="weights">
-            {ATTR_ORDER.map((k, i) => (
-              <div className="w-row" key={k}>
-                <span>{t(`attr.${k}`)} <code>{k}</code></span>
-                <span className="w-bar" aria-hidden="true">
-                  <m.i
-                    initial={{ width: 0 }} whileInView={{ width: `${WEIGHTS[k] * 400}%` }} viewport={{ once: true }}
-                    transition={{ ...springSoft, delay: 0.15 + i * 0.07 }}
-                  />
-                </span>
-                <b>{fmtNum(WEIGHTS[k], 2)}</b>
-              </div>
-            ))}
-          </div>
-        </m.section>
-        <m.section className="card" aria-labelledby="st-h" {...reveal(1)}>
+        <m.section className="card" aria-labelledby="st-h" {...reveal(0)}>
           <h2 id="st-h">{t('about.status_title')}</h2>
           <dl className="status-def">
             {STATUS_ROWS.map(([s, k]) => (
@@ -74,30 +63,28 @@ export function AboutPage() {
           </dl>
           <p className="muted small">{t('alert.note')}</p>
         </m.section>
+        <m.section className="card" aria-labelledby="rules-h" {...reveal(1)}>
+          <h2 id="rules-h">{t('about.rules_title')}</h2>
+          <dl className="kv">
+            {RULES.map(([k, v]) => <div key={k}><dt>{t(k)}</dt><dd className="mono">{v}</dd></div>)}
+          </dl>
+          <p className="muted small">{t('about.rules_note')}</p>
+        </m.section>
       </div>
 
       <div className="grid-2">
-        <m.section className="card" aria-labelledby="sat-h" {...reveal(0)}>
-          <h2 id="sat-h">{t('about.sat_title')}</h2>
-          <ul>
-            <li>{t('about.sat_h')}</li>
-            <li>{t('about.sat_g')}</li>
-          </ul>
-          <p className="muted">{t('about.sat_note')}</p>
-        </m.section>
-        <m.section className="card" aria-labelledby="lim-h" {...reveal(1)}>
+        <m.section className="card" aria-labelledby="lim-h" {...reveal(0)}>
           <h2 id="lim-h">{t('about.limits_title')}</h2>
-          <ul>{[1, 2, 3, 4, 5].map((n) => <li key={n}>{t(`about.limit${n}`)}</li>)}</ul>
+          <ul>{[1, 2, 3, 4, 5, 6].map((n) => <li key={n}>{t(`about.limit${n}`)}</li>)}</ul>
+        </m.section>
+        <m.section className="card" aria-labelledby="data-h" {...reveal(1)}>
+          <h2 id="data-h">{t('about.data_title')}</h2>
+          <dl className="kv">
+            {SOURCES.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{t(v)}</dd></div>)}
+          </dl>
+          <p className="muted small">{t('about.data_note')}</p>
         </m.section>
       </div>
-
-      <m.section className="card" aria-labelledby="data-h" {...reveal(0)}>
-        <h2 id="data-h">{t('about.data_title')}</h2>
-        <dl className="kv">
-          {SOURCES.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{t(v)}</dd></div>)}
-        </dl>
-        <p className="muted small">{t('about.data_note')}</p>
-      </m.section>
     </div>
   );
 }

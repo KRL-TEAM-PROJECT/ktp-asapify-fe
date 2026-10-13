@@ -3,8 +3,10 @@
 **GCP integration:** see [docs/GCP.md](docs/GCP.md) for Firebase Hosting, Google sign-in,
 the operator custom claim and the Cloud Run API. Live mode sends the Firebase token; mock mode stays available.
 
-ASAPify operator web app (Google Cloud AI Builder Cup 2026): a status map of Sumatra and Kalimantan peat pixels
-(15 provinces), `WARNING` cluster detail (MAUT attributes, neighbours, agent verification), and the publish/reject decision.
+ASAPify operator web app (Google Cloud AI Builder Cup 2026): a map of 65 peat regions that the backend's risk engine
+rates hour by hour (SAFE < WARNING < ALERT, plus NO_OBSERVABLE), a region page (ΔT, humidity and cloud timeline,
+Fuzzy MAUT utilities, status changes), the Gemini agent's NASA FIRMS verification with a Re-verify button, and the
+publish/reject decision. The earlier pixel map of the Himawari design stays at `/pixels` without live data.
 
 - UI specification: `../asapify/ui.html` · API contract: `../asapify/backend.html` sections 03–05
 - System concept and rules: `../ASAPify_Pitch_Google_AI_Builder_2026/WORKLOG.md` sections 7–10
@@ -42,12 +44,17 @@ Vercel is only for mock-mode previews: import the repository in Vercel; settings
 
 ## Mock mode
 
-A fictional replay of 24 Sep 2023 22:10 UTC+7. Every province (10 Sumatra + 5 Kalimantan) has a fictional peat area
-over its real peat region, so any province filter shows pixels. Five WARNING clusters: Central Kalimantan (backtest,
+Regions (`/`): the real 65 regions and peat shapes from `public/regions.geojson` (built by the backend's
+`tools/build_regions.py`; copy it here when the region list changes), with generated hourly inputs up to
+11 Oct 2026 13:00 UTC+7, rated by a copy of the backend rules so every status appears. Re-verify returns a sample
+result after about 1.5 s. Decisions live in memory and disappear on reload.
+
+Pixels (`/pixels`): a fictional replay of 24 Sep 2023 22:10 UTC+7. Every province (10 Sumatra + 5 Kalimantan) has a fictional peat area
+over its real peat region, so any province filter shows pixels. Five ALERT clusters: Central Kalimantan (backtest,
 bbox `113.5,-2.6,114.3,-1.9`) `C-0924-002` strong evidence, `C-0924-001` inconclusive, `C-0923-001` already published;
 South Sumatra (OKI) `C-0924-003` strong evidence; Riau (Kampar) `C-0924-004` inconclusive.
 Archive nights 16 Feb–24 Sep 2023 (start of the GK2A archive on NOAA) open from the calendar in the slot player:
-faded date = no data, dot = WARNING clusters. The nights of 11 Apr, 2 Jul and 19 Aug 2023 have no data on purpose.
+faded date = no data, dot = ALERT clusters. The nights of 11 Apr, 2 Jul and 19 Aug 2023 have no data on purpose.
 The night of 15 Sep holds an old cluster `C-0915-001` (West Kalimantan, Kubu Raya) that was rejected and closed.
 VIIRS imagery comes straight from NASA GIBS (the real imagery of that date); Himawari crops are SVG illustrations.
 Decisions live in memory and disappear on reload. The login is a stand-in (no Firebase).

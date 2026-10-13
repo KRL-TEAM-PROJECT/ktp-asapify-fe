@@ -22,7 +22,8 @@ export type ExampleKey =
   | 'health' | 'meta' | 'grid' | 'clusters' | 'cluster' | 'verifyReq' | 'verifyRes' | 'decisionReq'
   | 'decisionRes' | 'decisionErr' | 'alerts' | 'closeReq' | 'closeRes' | 'peat'
   | 'pixels' | 'gridCompact' | 'night' | 'nights' | 'basemaps'
-  | 'notifSettings' | 'preferences' | 'deviceReq' | 'telegramLink' | 'inbox' | 'ack' | 'deliveries';
+  | 'notifSettings' | 'preferences' | 'deviceReq' | 'telegramLink' | 'inbox' | 'ack' | 'deliveries'
+  | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes';
 
 export interface Endpoint {
   id: string;
@@ -89,6 +90,11 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'CAPTION_INVALID', http: 422, when: 'Publish with an empty caption or > 1,024 characters' },
   { code: 'DEVICE_ALREADY_LINKED', http: 409, when: 'The push token is already registered to another account' },
   { code: 'TELEGRAM_NOT_CONFIGURED', http: 503, when: 'The Telegram bot is not set up in the backend' },
+  { code: 'DATA_NOT_READY', http: 503, when: 'No data yet: storage not configured, or the region has not been assessed' },
+  { code: 'INTEGRATION_NOT_READY', http: 503, when: 'The verification agent is not configured (FIRMS key or project missing)' },
+  { code: 'AGENT_QUOTA_EXHAUSTED', http: 429, when: 'The daily agent quota is used up; resets at 00:00 UTC' },
+  { code: 'VERIFIED_RECENTLY', http: 409, when: 'The region was verified less than 5 minutes ago' },
+  { code: 'VERIFICATION_REJECTED', http: 409, when: 'Publish on a verification the agent rejected' },
 ];
 
 const AS_OF_PARAM: Field = {
@@ -527,6 +533,82 @@ export const SCHEMAS: Schema[] = [
       { name: 'error.message', type: 'string', req: true, desc: 'Message for the operator.' },
     ],
   },
+  {
+    name: 'RegionSummary', origin: 'backend',
+    desc: 'One peat region of the risk engine (a NASA POWER cell with mapped peat) and its latest assessed hour.',
+    fields: [
+      { name: 'id', type: 'string', req: true, desc: 'Cell centre, e.g. `R2.50S113.750E`.' },
+      { name: 'province', type: PROV_T, req: true, desc: 'BPS code of the province holding most of its peat.' },
+      { name: 'lat, lon', type: 'number', req: true, desc: 'Cell centre.' },
+      { name: 'bounds', type: '[west, south, east, north]', req: true, desc: '0.5° × 0.625° NASA POWER cell.' },
+      { name: 'peat_km2', type: 'number', req: true, desc: 'KHG peat area inside the cell.' },
+      { name: 'status', type: `${STATUS_T} | null`, req: true, desc: 'Current state-machine status; null until the first cycle reaches the region.' },
+      { name: 'since, observed_at, updated_at', type: `${ISO} | null`, req: true, desc: 'Status since; latest assessed hour; last write.' },
+      { name: 'utilities', type: '{ SAFE?, WARNING?, ALERT?: number } | null', req: true, desc: 'Fuzzy MAUT utilities 0–1; empty when NO_OBSERVABLE.' },
+      { name: 'verification', type: 'VerificationBrief | null', req: true, desc: 'Latest agent result: id, validation_status, confidence_score, trigger, at, observed_at, error, decision.' },
+      { name: 'inputs, quality, reason', type: 'RegionInputs, HourQuality, string', req: true, desc: 'From the latest hour; see HourRecord.' },
+    ],
+  },
+  {
+    name: 'RegionDetail', origin: 'backend',
+    desc: 'RegionSummary fields (without inputs/quality/reason) plus the history of one region.',
+    fields: [
+      { name: 'latest', type: 'HourRecord', req: false, desc: 'Latest assessed hour.' },
+      { name: 'hours', type: 'HourRecord[]', req: true, desc: 'Oldest first; `hours` query parameter, default 72.' },
+      { name: 'transitions', type: 'object[]', req: true, desc: 'Last 20 status changes, newest first: observed_at, previous, current, utilities, reason.' },
+      { name: 'verifications', type: 'Verification[]', req: true, desc: 'Last 10 agent runs, newest first.' },
+      { name: 'last_error', type: 'string | null', req: true, desc: 'Error type of the last failed cycle for this region.' },
+    ],
+  },
+  {
+    name: 'HourRecord', origin: 'backend',
+    desc: 'Audit record of one assessed hour (design section 10, audit trail).',
+    fields: [
+      { name: 'observed_at', type: ISO, req: true, desc: 'Observation hour (UTC), not the ingestion time.' },
+      { name: 'inputs', type: 'RegionInputs', req: true, desc: 'skin_temperature_k, baseline_k, baseline_std_k, baseline_samples, baseline, delta_t_k, relative_humidity_pct, cloud_cover_pct.' },
+      { name: 'quality', type: "{ skin_temperature, relative_humidity, cloud_cover: 'ACCEPTED' | 'DEGRADED' | 'REJECTED' | 'MISSING' }", req: true, desc: 'Canonicalisation result per input.' },
+      { name: 'flags', type: 'string[]', req: true, desc: 'e.g. reanalysis_estimate, model_estimate, missing_value.' },
+      { name: 'status, utilities, memberships, reason', type: 'Status, object, object, string', req: true, desc: 'Rules-engine output for that hour.' },
+    ],
+  },
+  {
+    name: 'Verification', origin: 'backend',
+    desc: 'One agent run (design sections 7–9), checked by the backend before it is stored.',
+    fields: [
+      { name: 'id', type: 'string', req: true, desc: 'YYYYMMDDTHHMMSSZ; used as verification_id for the decision.' },
+      { name: 'trigger, requested_by, at', type: "'auto' | 'manual', string | null, ISO", req: true, desc: 'Who started it and when.' },
+      { name: 'observed_at, region_status', type: `${ISO}, ${STATUS_T}`, req: true, desc: 'The hour under review.' },
+      { name: 'validation_status', type: "'CONFIRMED' | 'REJECTED' | 'NEEDS_MANUAL_REVIEW'", req: true, desc: 'After backend checks; numbers the tool never returned force NEEDS_MANUAL_REVIEW.' },
+      { name: 'agent_validation_status', type: 'ValidationStatus | null', req: true, desc: 'What the agent answered.' },
+      { name: 'confidence_score, analysis', type: 'number 0–1 | null, string', req: true, desc: 'From the YAML output.' },
+      { name: 'supporting_data', type: '{ firms_hotspot_count, highest_brightness_temp } | null', req: true, desc: 'Must match a fetch_firms_data result.' },
+      { name: 'draft_operator_alert', type: '{ title, message } | null', req: true, desc: 'Starting caption for Publish.' },
+      { name: 'checks, error', type: 'string[], string | null', req: true, desc: 'Why the backend downgraded it; AGENT_TIMEOUT, INVALID_OUTPUT, LLM_CALL_LIMIT or AGENT_ERROR:<type>.' },
+      { name: 'tool_calls, evidence', type: 'object[], Hotspot[]', req: true, desc: 'Every FIRMS query and up to 15 hotspots (lat, lon, acquired_at, distance_km, confidence, frp_mw, brightness_k).' },
+      { name: 'model, usage, duration_s', type: 'string, object, number', req: true, desc: 'Cost trail.' },
+      { name: 'decision', type: 'Decision | null', req: true, desc: 'Operator decision on this verification.' },
+    ],
+  },
+  {
+    name: 'AgentInfo', origin: 'backend',
+    desc: 'Whether the Re-verify button can run.',
+    fields: [
+      { name: 'configured', type: 'boolean', req: true, desc: 'FIRMS key and project present.' },
+      { name: 'model', type: 'string', req: true, desc: 'Gemini model on Vertex AI.' },
+      { name: 'daily_quota, used_today, remaining', type: 'integer', req: true, desc: 'Hard daily quota (UTC day), taken before any model call.' },
+      { name: 'max_tool_calls', type: 'integer', req: true, desc: 'FIRMS calls per run.' },
+    ],
+  },
+  {
+    name: 'RegionDecisionRequest', origin: 'backend',
+    desc: 'DecisionRequest plus the verification it decides on.',
+    fields: [
+      { name: 'action', type: "'publish' | 'reject'", req: true, desc: 'Publish fans out to subscribers of the province (purpose = emergency).' },
+      { name: 'caption', type: 'string | null', req: false, desc: 'Required for publish; ≤ 1,024 characters.' },
+      { name: 'reason', type: 'string | null', req: false, desc: 'Required for reject.' },
+      { name: 'verification_id', type: 'string', req: true, desc: 'Verification.id; a second decision on it → 409 ALREADY_DECIDED.' },
+    ],
+  },
 ];
 
 export const ENDPOINTS: Endpoint[] = [
@@ -546,6 +628,53 @@ export const ENDPOINTS: Endpoint[] = [
     params: [AS_OF_PARAM],
     responses: [{ code: 200, schema: 'Meta', example: 'meta' }],
     errors: ['VALIDATION'],
+  },
+  {
+    id: 'regions', method: 'GET', path: '/operator/regions', auth: 'operator',
+    title: 'Peat regions',
+    purpose: 'All 65 regions with their current status and latest inputs. The engine runs every 15 minutes, so the UI refreshes no faster than that.',
+    usedBy: 'Regions map (home) → map fill, filters, list.',
+    responses: [{ code: 200, schema: 'RegionSummary[]', example: 'regions' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'DATA_NOT_READY'],
+  },
+  {
+    id: 'region', method: 'GET', path: '/operator/regions/{id}', auth: 'operator',
+    title: 'Region detail',
+    purpose: 'Latest hours (audit records), the last 20 status changes and the last 10 verifications of one region.',
+    usedBy: 'Region detail → timeline, inputs, utilities, status changes, verification card, decision.',
+    params: [
+      { name: 'id', type: 'path · string', req: true, desc: 'Region id, e.g. R2.50S113.750E.' },
+      { name: 'hours', type: 'query · integer 1–240', req: false, desc: 'Default 72.' },
+    ],
+    responses: [{ code: 200, schema: 'RegionDetail', example: 'region' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION', 'DATA_NOT_READY'],
+  },
+  {
+    id: 'agent', method: 'GET', path: '/operator/agent', auth: 'operator',
+    title: 'Agent status',
+    purpose: 'Configuration and today\'s quota, so the Re-verify button can say why it is disabled.',
+    usedBy: 'Regions map header, verification card.',
+    responses: [{ code: 200, schema: 'AgentInfo', example: 'agentInfo' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'region-verify', method: 'POST', path: '/operator/regions/{id}/verify', auth: 'operator',
+    title: 'Re-verify a region',
+    purpose: 'One agent run now for the latest assessed hour (Gemini + fetch_firms_data, YAML checked against the tool). Takes 10–20 s; at most one per region per 5 minutes; counts against the daily quota.',
+    usedBy: 'Region detail → Re-verify button.',
+    params: [{ name: 'id', type: 'path · string', req: true, desc: 'Region id.' }],
+    responses: [{ code: 200, schema: 'Verification', example: 'regionVerifyRes' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'DATA_NOT_READY', 'VERIFIED_RECENTLY', 'AGENT_QUOTA_EXHAUSTED', 'INTEGRATION_NOT_READY'],
+  },
+  {
+    id: 'region-decision', method: 'POST', path: '/operator/regions/{id}/decision', auth: 'operator',
+    title: 'Publish / reject a verification',
+    purpose: 'Same rules as cluster decisions: once per verification, audited, publish needs a caption and fans out to that province\'s subscribers. A REJECTED verification can only be rejected.',
+    usedBy: 'Region detail → DecisionPanel.',
+    params: [{ name: 'id', type: 'path · string', req: true, desc: 'Region id.' }],
+    body: { schema: 'RegionDecisionRequest', example: 'regionDecisionReq' },
+    responses: [{ code: 201, schema: 'DecisionResponse', example: 'regionDecisionRes' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ALREADY_DECIDED', 'VERIFICATION_REJECTED', 'REASON_REQUIRED', 'CAPTION_INVALID'],
   },
   {
     id: 'pixels', method: 'GET', path: '/operator/pixels', auth: 'operator',
@@ -749,11 +878,51 @@ export const INTERNAL: { method: string; path: string; desc: string }[] = [
   { method: 'POST', path: '/cluster-closed', desc: 'OIDC sa-jobs. Body {cluster_id}. If an alert was published: close it, label the inbox entries RESOLVED, cancel unsent jobs.' },
   { method: 'POST', path: '/api/v1/notifications/telegram-webhook', desc: 'Called by Telegram; requires the X-Telegram-Bot-Api-Secret-Token header. Only links private chats through /start; never replies.' },
   { method: 'POST', path: '/_internal/notifications/dispatch', desc: 'asapify-notify. OIDC asapify-task from Cloud Tasks. Body {job_id}. Claims one job, then sends it.' },
+  { method: 'POST', path: '/_internal/engine/tick', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every 15 minutes, ?batch=20&budget=240. One probe to NASA POWER; assesses new hours, steps the state machine, runs waiting agent requests.' },
   { method: 'POST', path: '/_internal/notifications/sweep', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every minute. Resumes pending fan-outs, queues pending jobs, marks stuck jobs unknown.' },
 ];
 
 /** Static examples for endpoints without a mock fixture. */
 export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
+  regions: [{
+    id: 'R3.50S105.625E', province: '16', lat: -3.5, lon: 105.625, bounds: [105.3125, -3.75, 105.9375, -3.25], peat_km2: 1450.2,
+    status: 'NO_OBSERVABLE', since: '2026-10-10T20:00:00Z', observed_at: '2026-10-10T23:00:00Z', utilities: {},
+    updated_at: '2026-10-13T11:30:00Z', agent_requested_at: null, last_agent_at: '2026-10-13T12:19:08Z',
+    verification: { id: '20261013T121908Z', validation_status: 'CONFIRMED', confidence_score: 0.95, trigger: 'manual', at: '2026-10-13T12:19:08Z', observed_at: '2026-10-10T23:00:00Z', error: null, decision: null },
+    inputs: { skin_temperature_k: 297.21, baseline_k: 299.166, baseline_std_k: 0.83, baseline_samples: 155, baseline: 'UTC hour 23, ±15 days of 10-10, years 2021-2025', delta_t_k: -1.956, relative_humidity_pct: 95.11, cloud_cover_pct: 91 },
+    quality: { skin_temperature: 'ACCEPTED', relative_humidity: 'ACCEPTED', cloud_cover: 'ACCEPTED' },
+    reason: 'not observable: cloud cover 91% > 60%',
+  }],
+  region: {
+    id: 'R3.50S105.625E', province: '16', status: 'NO_OBSERVABLE', observed_at: '2026-10-10T23:00:00Z', last_error: null,
+    hours: [{
+      observed_at: '2026-10-10T06:00:00Z',
+      inputs: { skin_temperature_k: 306.4, baseline_k: 303.02, baseline_std_k: 1.1, baseline_samples: 155, baseline: 'UTC hour 06, ±15 days of 10-10, years 2021-2025', delta_t_k: 3.38, relative_humidity_pct: 52.3, cloud_cover_pct: 34 },
+      quality: { skin_temperature: 'ACCEPTED', relative_humidity: 'ACCEPTED', cloud_cover: 'ACCEPTED' },
+      flags: ['model_estimate', 'reanalysis_estimate'], sources: { skin_temperature: 'nasa_power', relative_humidity: 'nasa_power', cloud_cover: 'open_meteo' },
+      status: 'WARNING', utilities: { SAFE: 0.3, WARNING: 1, ALERT: 0 }, memberships: { delta_t_low: 0, delta_t_medium: 1, delta_t_high: 0, humidity_high: 0.615, humidity_low: 0 },
+      reason: 'WARNING has the highest utility (1.000)',
+    }],
+    transitions: [{ observed_at: '2026-10-10T20:00:00Z', previous: 'SAFE', current: 'NO_OBSERVABLE', utilities: {}, reason: 'not observable: cloud cover 88% > 60%' }],
+    verifications: [],
+  },
+  agentInfo: { configured: true, model: 'gemini-3.5-flash', daily_quota: 20, used_today: 3, remaining: 17, max_tool_calls: 3 },
+  regionVerifyRes: {
+    id: '20261013T121908Z', region_id: 'R3.50S105.625E', trigger: 'manual', requested_by: 'operator@example.org', at: '2026-10-13T12:19:08Z',
+    observed_at: '2026-10-10T23:00:00Z', region_status: 'NO_OBSERVABLE', validation_status: 'CONFIRMED', agent_validation_status: 'CONFIRMED',
+    confidence_score: 0.95, analysis: 'NASA FIRMS VIIRS shows 1,938 hotspots in the buffered region within 24 hours, 1,794 of nominal or high confidence, up to 367 K. This is a thermal indication, not a visual confirmation.',
+    supporting_data: { firms_hotspot_count: 1938, highest_brightness_temp: 367 },
+    draft_operator_alert: { title: 'Thermal indication in South Sumatra', message: 'NASA FIRMS shows many hotspots near peat region R3.50S105.625E. Verify in the field.' },
+    checks: [], error: null,
+    tool_calls: [{ hours_window: 24, buffer_km: 10, from: '2026-10-09T23:00:00Z', to: '2026-10-11T23:00:00Z', hotspot_count: 1938, confident_count: 1794, highest_brightness_temp_k: 367, error: null }],
+    evidence: [{ lat: -3.42, lon: 105.71, acquired_at: '2026-10-11T06:24:00Z', hours_from_observation: 7.4, distance_km: 13.2, confidence: 'h', brightness_k: 367, frp_mw: 48.1, daynight: 'D', satellite: 'N21' }],
+    model: 'gemini-3.5-flash', usage: { model_calls: 2, prompt_tokens: 3499, output_tokens: 353, thought_tokens: 0 }, duration_s: 11.1, decision: null,
+  },
+  regionDecisionReq: { action: 'publish', caption: 'Thermal indication in South Sumatra\n\nNASA FIRMS shows many hotspots near peat region R3.50S105.625E. Verify in the field.', reason: null, verification_id: '20261013T121908Z' },
+  regionDecisionRes: {
+    action: 'publish', by: 'operator@example.org', at: '2026-10-13T12:25:00Z', reason: null, alert_id: 'A-R3.50S105.625E-20261013T121908Z',
+    notifications: { state: 'outbox_saved', recipients: 2, jobs: 2 }, queue: { state: 'accepted', count: 2 },
+  },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },
   verifyReq: { force: false },
   verifyRes: { verification_id: 'V-0924-002-1510', cluster_id: 'C-0924-002', status: 'queued' },

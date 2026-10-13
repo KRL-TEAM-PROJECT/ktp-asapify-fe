@@ -1,8 +1,8 @@
 import {
   ApiError,
-  type Api, type AttrDetail, type AttrKey, type Attributes, type Basemap, type ClusterDetail, type ClusterSummary, type Decision, type EvidenceImg, type Grid,
+  type AttrDetail, type AttrKey, type Attributes, type Basemap, type ClusterDetail, type ClusterSummary, type Decision, type EvidenceImg, type Grid,
   type GridCompact, type LngLat, type Meta, type Neighbour, type NeighbourDir, type NightCompact, type NightSummary,
-  type PeatBoundary, type PixelIndex, type ProvinceBoundary, type ProvinceCode, type SeriesPoint, type Status, type StatusCode,
+  type PeatBoundary, type PixelApi, type PixelIndex, type ProvinceBoundary, type ProvinceCode, type SeriesPoint, type Status, type StatusCode,
   type VerificationDetail, type ViirsDetection,
 } from '../types';
 import { T_ALERT, T_WARNING, utility } from '../lib/maut';
@@ -738,7 +738,7 @@ function buildBasemaps(): Basemap[] {
 const wait = <T>(v: T, ms = 300): Promise<T> =>
   new Promise((res) => setTimeout(() => res(structuredClone(v)), ms + Math.random() * 200));
 
-export const mockApi: Api = {
+export const mockApi: PixelApi = {
   meta: () => wait(buildMeta(currentScenario()), 150),
   pixels: () => wait(buildPixels(), 200),
   gridCompact: () => wait(buildCompact(currentScenario()), 250),

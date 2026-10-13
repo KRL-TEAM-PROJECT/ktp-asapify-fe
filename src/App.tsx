@@ -9,8 +9,10 @@ import { currentScenario } from './mock/scenario';
 import { LoginPage } from './pages/Login';
 import { AboutPage } from './pages/About';
 
-// MapLibre (±230 KB gzip), the cluster detail page (thermal imagery, charts, parameter tables) and the
-// contract text load only on their own routes.
+// MapLibre (±230 KB gzip), the detail pages (charts, imagery, parameter tables) and the contract text load only
+// on their own routes. "/" is the risk engine's region map; the earlier pixel map stays at /pixels.
+const RegionsPage = lazy(() => import('./pages/Regions').then((m) => ({ default: m.RegionsPage })));
+const RegionPage = lazy(() => import('./pages/RegionPage').then((m) => ({ default: m.RegionPage })));
 const OperatorMapPage = lazy(() => import('./pages/OperatorMap').then((m) => ({ default: m.OperatorMapPage })));
 const ClusterPage = lazy(() => import('./pages/ClusterPage').then((m) => ({ default: m.ClusterPage })));
 const NotificationsPage = lazy(() => import('./pages/Notifications').then((m) => ({ default: m.NotificationsPage })));
@@ -57,7 +59,7 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
           <span className="mock-badge" title={t('mock.title', { sc: currentScenario() })}>{t('mock.badge')}</span>
         )}
         <nav className="navlinks" aria-label={t('nav.label')}>
-          {user?.role === 'operator' && <NavItem to="/" end>{t('nav.map')}</NavItem>}
+          {user?.role === 'operator' && <NavItem to="/" end>{t('nav.regions')}</NavItem>}
           <NavItem to="/notifications">{t('nav.notifications')}</NavItem>
           <NavItem to="/about">{t('nav.about')}</NavItem>
           <NavItem to="/api-contract">
@@ -81,15 +83,16 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
 
 function Shell({ theme }: { theme: ReturnType<typeof useTheme> }) {
   const loc = useLocation();
+  const isMap = loc.pathname === '/' || loc.pathname === '/pixels';
   return (
     <>
       <TopBar theme={theme} />
-      <main className={loc.pathname === '/' ? 'main-map' : 'main'}>
+      <main className={isMap ? 'main-map' : 'main'}>
         <Suspense fallback={<PageFallback />}>
           {/* Remounted on every route (and after a lazy chunk loads), so a new page always enters with motion. */}
           <m.div
             key={loc.pathname} className="route"
-            initial={{ opacity: 0, y: loc.pathname === '/' ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={springSoft}
+            initial={{ opacity: 0, y: isMap ? 0 : 12 }} animate={{ opacity: 1, y: 0 }} transition={springSoft}
           >
             <Outlet />
           </m.div>
@@ -108,7 +111,9 @@ function Root() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/api-contract" element={<ApiContractPage />} />
         <Route path="/notifications" element={<RequireAuth operator={false}><NotificationsPage /></RequireAuth>} />
-        <Route path="/" element={<RequireAuth><OperatorMapPage dark={theme.dark} /></RequireAuth>} />
+        <Route path="/" element={<RequireAuth><RegionsPage dark={theme.dark} /></RequireAuth>} />
+        <Route path="/regions/:id" element={<RequireAuth><RegionPage /></RequireAuth>} />
+        <Route path="/pixels" element={<RequireAuth><OperatorMapPage dark={theme.dark} /></RequireAuth>} />
         <Route path="/clusters/:id" element={<RequireAuth><ClusterPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

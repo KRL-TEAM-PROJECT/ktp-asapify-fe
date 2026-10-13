@@ -43,7 +43,7 @@ export function ClusterPage() {
     const notFound = error instanceof ApiError && error.status === 404;
     return (
       <div className="wrap detail">
-        <Link className="back" to="/"><IconArrowLeft />{t('cluster.back')}</Link>
+        <Link className="back" to="/pixels"><IconArrowLeft />{t('cluster.back')}</Link>
         <p className="error" role="alert">
           {notFound ? t('cluster.not_found') : t('load_error', { msg: errorText(error, t) })}{' '}
           {!notFound && <button className="link-btn" onClick={reload}>{t('retry')}</button>}
@@ -58,7 +58,7 @@ export function ClusterPage() {
   return (
     <div className="wrap detail">
       <m.header className="detail-head" {...reveal(0)}>
-        <Link className="back" to="/"><IconArrowLeft />{t('cluster.back')}</Link>
+        <Link className="back" to="/pixels"><IconArrowLeft />{t('cluster.back')}</Link>
         <div className="title-row">
           <h1 className="mono">{c.id}</h1>
           {c.state === 'closed' ? <span className="pill grey">{t('cluster.closed')}</span> : <StatusBadge status="ALERT" />}
@@ -135,7 +135,15 @@ export function ClusterPage() {
             )}
           </m.section>
 
-          <DecisionPanel key={`${c.id}-${c.decision?.at ?? 'open'}`} cluster={c} caption={caption} onDecided={reload} />
+          <DecisionPanel
+            key={`${c.id}-${c.decision?.at ?? 'open'}`} decision={c.decision} province={c.province} caption={caption}
+            summary={<>
+              ALERT · U {fmtNum(c.utility_score, 2)} · {t('map.nbr', { k: Math.round(c.neighbour_support * 8) })} ·{' '}
+              {c.n_sat >= 2 ? t('sat.agree') : t('sat.single')} ·{' '}
+              {v ? t(v.result === 'strong_evidence' ? 'evidence.strong' : 'evidence.inconclusive') : t('evidence.none')}
+            </>}
+            submit={(body) => api.decide(c.id, body)} onDecided={reload}
+          />
         </div>
       </div>
     </div>

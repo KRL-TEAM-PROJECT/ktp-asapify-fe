@@ -60,7 +60,8 @@ const liveApi: Api = {
   peatBoundary: () => file<PeatBoundary>(import.meta.env.VITE_PEAT_LAYER_URL, EMPTY_FC),
   provinces: () => file<ProvinceBoundary>(import.meta.env.VITE_PROVINCES_LAYER_URL, EMPTY_FC),
   regions: () => req<RegionSummary[]>('/operator/regions'),
-  region: (id, hours = 72) => req<RegionDetail>(`/operator/regions/${enc(id)}?hours=${hours}`),
+  // 6 slot records per hour are read per request (24 h = 144 reads), so ask only for what the page shows
+  region: (id, hours = 24) => req<RegionDetail>(`/operator/regions/${enc(id)}?hours=${hours}`),
   peatRegions,
   agent: () => req<AgentInfo>('/operator/agent'),
   verifyRegion: (id) => req<Verification>(`/operator/regions/${enc(id)}/verify`, { method: 'POST' }),

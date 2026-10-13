@@ -10,6 +10,7 @@ import { fmtNum, fmtSigned, fmtSlot } from '../lib/format';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { detectLite, loadLitePref } from '../lib/device';
 import { ISLANDS, PROVINCES, REGION, provincesOf } from '../lib/provinces';
+import { agreement } from '../lib/satellites';
 import { RegionMapController } from '../map/regionMap';
 import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
 import { ValidationBadge } from '../components/VerificationCard';
@@ -22,7 +23,7 @@ import '../regions.css';
 type Filter = Status | 'NONE';
 const FILTERS: Filter[] = ['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE', 'NONE'];
 const RANK: Record<Filter, number> = { ALERT: 0, WARNING: 1, NO_OBSERVABLE: 2, SAFE: 3, NONE: 4 };
-const REFRESH_MS = 15 * 60_000; // the engine runs every 15 minutes; polling faster only costs reads
+const REFRESH_MS = 10 * 60_000; // one satellite slot every 10 minutes; polling faster only costs reads
 
 type Sort = 'severity' | 'delta_t' | 'verified';
 const dt = (r: RegionSummary) => r.inputs?.delta_t_k ?? -Infinity;
@@ -93,12 +94,16 @@ export function RegionsPage({ dark }: { dark: boolean }) {
     for (const r of all) c[r.status ?? 'NONE'] += 1;
     return c;
   }, [all]);
-  const latestHour = useMemo(() => all.reduce<string | null>((a, r) => (r.observed_at && (!a || r.observed_at > a) ? r.observed_at : a), null), [all]);
+  const latestSlot = useMemo(() => all.reduce<string | null>((a, r) => (r.observed_at && (!a || r.observed_at > a) ? r.observed_at : a), null), [all]);
   const visible = useMemo(
     () => all.filter((r) => filters.includes(r.status ?? 'NONE') && (!province || r.province === province)).sort(SORTS[sort]),
     [all, filters, province, sort],
   );
   const toggle = (f: Filter) => setFilters((c) => (c.includes(f) ? c.filter((x) => x !== f) : [...c, f]));
+  const viewTag = (r: RegionSummary) => {
+    const a = agreement(r.flags);
+    return a && r.night != null ? `${t(`view.${a.key}`, a.sat ? { sat: a.sat } : undefined)} · ${t(r.night ? 'rgt.night' : 'rgt.day')}` : null;
+  };
 
   const focus = (r: RegionSummary) => {
     setSelected(r.id);
@@ -115,7 +120,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
             <h1 className="rg-title">{t('rg.title')}</h1>
             <p className="muted small">{t('rg.lede')}</p>
             <p className="small">
-              {latestHour ? t('rg.latest_hour', { when: fmtSlot(latestHour) }) : t('rg.no_hour')}
+              {latestSlot ? t('rg.latest_slot', { when: fmtSlot(latestSlot) }) : t('rg.no_slot')}
               {agent.data && <> · {agent.data.configured ? t('agent.quota', { left: agent.data.remaining, total: agent.data.daily_quota }) : t('agent.off')}</>}
             </p>
           </div>
@@ -187,6 +192,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
                           {r.inputs.cloud_cover_pct != null ? `${fmtNum(r.inputs.cloud_cover_pct, 0)}%` : '–'}
                         </span>
                       )}
+                      {viewTag(r) && <span className="qi-row muted rg-view">{viewTag(r)}</span>}
                       {r.verification && (
                         <span className="qi-row small">
                           <ValidationBadge status={r.verification.validation_status} />

@@ -17,8 +17,15 @@
 .pill.vs-rejected { background: var(--moss-soft); color: var(--moss); }
 .pill.vs-review { background: var(--amber-soft); color: var(--amber); }
 
+.qi-row .rg-view { font-size: 11.5px; }
+
 /* ---------- region detail ---------- */
 .rg-timeline svg text.ax { font-size: 10px; }
+.rg-key { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.rg-key i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
+.rg-key i.tick { width: 2px; height: 9px; border-radius: 0; background: var(--ember); }
+.rg-sats td:first-child { font-weight: 500; }
+.rg-sats .na { color: var(--ink-dim); }
 .rg-kv dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
 .rg-kv dd .small { color: var(--ink-dim); }
 .pill.q-ok { color: var(--moss); }

@@ -1,10 +1,11 @@
 import { Link, useParams } from 'react-router';
-import { ApiError, type HourRecord, type Quality, type RegionDetail, type Verification } from '../types';
+import { ApiError, type PowerSupport, type Quality, type RegionDetail, type SatelliteName, type SlotRecord, type Verification } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
-import { fmtC, fmtCoord, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { fmtCoord, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { agreement, SATELLITE_NAMES } from '../lib/satellites';
 import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
 import { RegionTimeline } from '../components/RegionTimeline';
 import { RegionUtilities } from '../components/RegionUtilities';
@@ -15,49 +16,85 @@ import { m, reveal } from '../motion';
 import '../regions.css';
 
 const Q_CLASS: Record<Quality, string> = { ACCEPTED: 'q-ok', DEGRADED: 'q-mid', REJECTED: 'q-bad', MISSING: 'q-bad' };
+const SATS: SatelliteName[] = ['himawari9', 'gk2a'];
 
 function QualityTag({ q }: { q: Quality }) {
   const { t } = useI18n();
   return <span className={`pill outline ${Q_CLASS[q]}`}>{t(`q.${q}`)}</span>;
 }
 
-function Inputs({ h }: { h: HourRecord }) {
+function ViewText({ flags }: { flags: string[] }) {
   const { t } = useI18n();
-  const i = h.inputs;
+  const a = agreement(flags);
+  return a ? <>{t(`view.${a.key}`, a.sat ? { sat: a.sat } : undefined)}</> : <>–</>;
+}
+
+/** What each satellite saw in the slot, then what the rules used. */
+function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | undefined }) {
+  const { t } = useI18n();
+  const i = s.inputs;
+  const cell = (name: SatelliteName, show: (v: NonNullable<SlotRecord['views'][SatelliteName]>) => string) => {
+    const v = s.views[name];
+    if (!v) return <td key={name} className="na">{t('rgi.no_data')}</td>;
+    if (v.max_anomaly_k == null) return <td key={name} className="na">{t('rgi.no_verdict')}</td>;
+    return <td key={name} className="mono">{show(v)}</td>;
+  };
+  const support = Object.entries(s.support);
   return (
     <>
+      <div className="rg-table-wrap">
+        <table className="rg-table rg-sats">
+          <thead><tr><th />{SATS.map((n) => <th key={n}>{SATELLITE_NAMES[n]}</th>)}</tr></thead>
+          <tbody>
+            <tr><td>{t('rgi.anomaly')}</td>{SATS.map((n) => cell(n, (v) => `${fmtSigned(v.max_anomaly_k!, 1)} K${v.max_z ? ` · z ${fmtNum(v.max_z, 1)}` : ''}`))}</tr>
+            <tr><td>{t('rgi.hot')}</td>{SATS.map((n) => cell(n, (v) => t('rgi.hot_n', { n: v.n_hot, peat: v.n_hot_peat })))}</tr>
+            <tr><td>{t('rgi.bt')}</td>{SATS.map((n) => cell(n, (v) => v.mwir_k != null && v.lwir_k != null ? `${fmtNum(v.mwir_k, 1)} / ${fmtNum(v.lwir_k, 1)} K` : '–'))}</tr>
+            <tr><td>{t('rgi.where')}</td>{SATS.map((n) => cell(n, (v) => v.hot_lat != null && v.hot_lon != null ? `${fmtCoord(v.hot_lon, v.hot_lat)}${v.hot_on_peat ? ` · ${t('rgi.on_peat')}` : ''}` : '–'))}</tr>
+            <tr><td>{t('rgi.cloud_sat')}</td>{SATS.map((n) => {
+              const v = s.views[n];
+              return <td key={n} className={v ? 'mono' : 'na'}>{v ? `${fmtNum(v.cloud_fraction * 100, 0)}%` : t('rgi.no_data')}</td>;
+            })}</tr>
+          </tbody>
+        </table>
+      </div>
       <dl className="kv rg-kv">
         <div>
-          <dt>{t('rgi.skin')}</dt>
+          <dt>{t('rgi.dt')}</dt>
           <dd>
-            {i.skin_temperature_k != null ? <span className="mono">{fmtNum(i.skin_temperature_k, 2)} K ({fmtC(i.skin_temperature_k)})</span> : '–'}{' '}
-            <QualityTag q={h.quality.skin_temperature} />
+            <b className="mono">{i.delta_t_k != null ? `${fmtSigned(i.delta_t_k, 1)} K` : '–'}</b> <QualityTag q={s.quality.thermal} />
+            <span className="small"><ViewText flags={s.flags} /></span>
           </dd>
         </div>
         <div>
-          <dt>{t('rgi.baseline')}</dt>
-          <dd>
-            {i.baseline_k != null ? <span className="mono">{fmtNum(i.baseline_k, 2)} K ± {fmtNum(i.baseline_std_k ?? 0, 2)}</span> : '–'}
-            <br /><span className="small">{t('rgi.baseline_how', { how: i.baseline, n: i.baseline_samples })}</span>
-          </dd>
-        </div>
-        <div>
-          <dt>ΔT</dt>
-          <dd><b className="mono">{i.delta_t_k != null ? `${fmtSigned(i.delta_t_k, 2)} K` : '–'}</b> <span className="small">{t('rgi.dt_note')}</span></dd>
+          <dt>{t('rgi.sun')}</dt>
+          <dd>{t(s.night ? 'rgi.night' : 'rgi.day', { deg: fmtNum(s.sun_elevation_deg, 0) })}</dd>
         </div>
         <div>
           <dt>{t('rgi.rh')}</dt>
-          <dd>{i.relative_humidity_pct != null ? <span className="mono">{fmtNum(i.relative_humidity_pct, 1)}%</span> : '–'} <QualityTag q={h.quality.relative_humidity} /></dd>
+          <dd>{i.relative_humidity_pct != null ? <span className="mono">{fmtNum(i.relative_humidity_pct, 0)}%</span> : '–'} <QualityTag q={s.quality.relative_humidity} /></dd>
         </div>
         <div>
           <dt>{t('rgi.cloud')}</dt>
-          <dd>{i.cloud_cover_pct != null ? <span className="mono">{fmtNum(i.cloud_cover_pct, 0)}%</span> : '–'} <QualityTag q={h.quality.cloud_cover} /></dd>
+          <dd>{i.cloud_cover_pct != null ? <span className="mono">{fmtNum(i.cloud_cover_pct, 0)}%</span> : '–'}</dd>
+        </div>
+        <div>
+          <dt>{t('rgi.support')}</dt>
+          <dd>{support.length ? support.map(([k, v]) => <span key={k} className="pill grey">{t(`rgu.m.${k}`)} {fmtNum(v, 2)}</span>) : <span className="small">{t('rgi.no_support')}</span>}</dd>
+        </div>
+        <div>
+          <dt>{t('rgi.power')}</dt>
+          <dd>
+            {power?.delta_t_k != null
+              ? <span className="mono">ΔT {fmtSigned(power.delta_t_k, 1)} K · RH {power.relative_humidity_pct != null ? `${fmtNum(power.relative_humidity_pct, 0)}%` : '–'}</span>
+              : '–'}
+            {power && <span className="small">{t('rgi.power_when', { when: fmtSlot(power.observed_at) })}</span>}
+          </dd>
         </div>
       </dl>
-      {h.flags.length > 0 && (
+      {s.flags.length > 0 && (
         <p className="small">
           <span className="lbl">{t('rgi.flags')}</span>{' '}
-          {h.flags.map((f) => <span key={f} className="pill grey" title={t(`flag.${f}`)}>{f}</span>)}
+          {s.flags.map((f) => <span key={f} className="pill grey" title={t(`flag.${f.split(':')[0]}`)}>{f}</span>)}
         </p>
       )}
       <p className="muted small">{t('rgi.sources')}</p>
@@ -73,7 +110,7 @@ function caption(r: RegionDetail, v: Verification, prov: string, t: (k: string, 
 export function RegionPage() {
   const { id = '' } = useParams();
   const { t } = useI18n();
-  const q = useLoad(() => api.region(id, 72), [id]);
+  const q = useLoad(() => api.region(id, 24), [id]);
   const agent = useLoad(() => api.agent().catch(() => null), [id]);
   const r = q.data;
 
@@ -102,7 +139,9 @@ export function RegionPage() {
     );
   }
 
-  const latest = r.latest ?? r.hours[r.hours.length - 1];
+  // until the first satellite slot lands, `latest` can still be an hourly NASA POWER record without `views`
+  const slots = r.slots ?? [];
+  const latest = r.latest && 'views' in r.latest ? r.latest : slots[slots.length - 1];
   const v = r.verifications[0] ?? null;
   const prov = t(`prov.${r.province}`);
   const reload = () => { q.reload(); agent.reload(); };
@@ -123,9 +162,10 @@ export function RegionPage() {
         {latest && (
           <dl className="facts">
             <div className={latest.status === 'ALERT' ? 'hot' : ''}><dt>ΔT</dt><dd>{latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}</dd></div>
+            <div><dt>{t('rg.f_view')}</dt><dd><ViewText flags={latest.flags} /> · {t(latest.night ? 'rgt.night' : 'rgt.day')}</dd></div>
             <div><dt>{t('rg.f_rh')}</dt><dd>{latest.inputs.relative_humidity_pct != null ? `${fmtNum(latest.inputs.relative_humidity_pct, 0)}%` : '–'}</dd></div>
             <div><dt>{t('rg.f_cloud')}</dt><dd>{latest.inputs.cloud_cover_pct != null ? `${fmtNum(latest.inputs.cloud_cover_pct, 0)}%` : '–'}</dd></div>
-            <div><dt>{t('rg.f_hour')}</dt><dd>{fmtSlot(latest.observed_at)}</dd></div>
+            <div><dt>{t('rg.f_slot')}</dt><dd>{fmtSlot(latest.observed_at)}</dd></div>
             <div><dt>{t('cluster.f_dec')}</dt><dd><DecisionState decision={v?.decision ?? null} /></dd></div>
           </dl>
         )}
@@ -140,12 +180,12 @@ export function RegionPage() {
               <h2 id="tl-h">{t('rg.timeline')}</h2>
               <button className="link-btn" onClick={reload}>{t('notif.refresh')}</button>
             </div>
-            <RegionTimeline hours={r.hours} />
+            <RegionTimeline slots={slots} />
           </m.section>
           {latest && (
             <m.section className="card" aria-labelledby="in-h" {...reveal(2)}>
               <h2 id="in-h">{t('rg.inputs', { when: fmtSlot(latest.observed_at) })}</h2>
-              <Inputs h={latest} />
+              <Satellites s={latest} power={r.power} />
             </m.section>
           )}
           {latest && (
@@ -179,7 +219,7 @@ export function RegionPage() {
               caption={caption(r, v, prov, t)}
               summary={<>
                 {r.status ? t(STATUS_KEY[r.status]) : '–'} · {t(`vs.${v.validation_status}`)} ·{' '}
-                {t('rg.dec_hotspots', { n: v.supporting_data?.firms_hotspot_count ?? 0 })} · {t('rg.dec_hour', { when: fmtSlot(v.observed_at) })}
+                {t('rg.dec_hotspots', { n: v.supporting_data?.firms_hotspot_count ?? 0 })} · {t('rg.dec_slot', { when: fmtSlot(v.observed_at) })}
               </>}
               publishBlocked={v.validation_status === 'REJECTED' ? t('rg.publish_rejected') : null}
               submit={(body) => api.decideRegion(r.id, { ...body, verification_id: v.id })} onDecided={reload}

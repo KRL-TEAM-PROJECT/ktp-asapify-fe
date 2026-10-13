@@ -61,17 +61,19 @@ Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, 
 in Firestore, and refusal of access without sign-in. Not tested yet: the operator flow with real data, publishing and
 Telegram delivery. The MapLibre chunk size warning predates this work; it stays lazily loaded.
 
-## Redeploy
+## Deploy
 
-The `.github/workflows/deploy-firebase.yml` workflow (manual, `workflow_dispatch`) builds live mode from the
-chosen branch and deploys Hosting through Workload Identity Federation (account
-`asapify-firebase-deployer`, no key file). The only repository secret is `VITE_FIREBASE_API_KEY`.
+The `.github/workflows/deploy-firebase.yml` workflow runs on every push to `main` (docs-only changes are skipped).
+It builds live mode, deploys Hosting through Workload Identity Federation (account `asapify-firebase-deployer`,
+no key file), then checks that the site serves the new bundle and that `/api/v1/health` still answers through
+the rewrite. The only repository secret is `VITE_FIREBASE_API_KEY`. To redeploy `main` without a new commit:
 
 ```bash
 gh workflow run "Deploy ASAPify Frontend" --repo KRL-TEAM-PROJECT/ktp-asapify-fe --ref main
 ```
 
-Deploy only reviewed `main`. This workflow never changes the backend, Firestore rules or IAM.
+Merge only reviewed changes to `main`. This workflow never changes the backend, Firestore rules or IAM.
+If a release misbehaves, roll it back in the Firebase console (Hosting → release history → Roll back).
 
 References: https://firebase.google.com/docs/hosting/cloud-run and
 https://firebase.google.com/docs/auth/admin/custom-claims.

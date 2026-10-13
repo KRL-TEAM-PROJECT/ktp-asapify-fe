@@ -1,11 +1,26 @@
 name: Deploy ASAPify Frontend
 
+# Every merge to main that changes the app is type-checked, built and released to Firebase Hosting.
+# Docs-only changes skip the deploy; a manual run redeploys main without a new commit.
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.env.example'
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+env:
+  SITE: https://hack2skill-510921.web.app
 
 jobs:
   deploy:
@@ -43,3 +58,23 @@ jobs:
 
       - name: Deploy Firebase Hosting
         run: npx firebase-tools@15.32.0 deploy --only hosting --project hack2skill-510921 --non-interactive
+
+      - name: Smoke test the live site
+        run: |
+          built=$(grep -oE '/assets/app-[A-Za-z0-9_-]+\.js' dist/index.html | head -n 1)
+          echo "built bundle: $built"
+          test -n "$built"
+          live=""
+          for attempt in 1 2 3 4 5 6; do
+            live=$(curl -s "$SITE/" | grep -oE '/assets/app-[A-Za-z0-9_-]+\.js' | head -n 1 || true)
+            [ "$live" = "$built" ] && break
+            sleep 10
+          done
+          echo "live bundle: $live"
+          test "$live" = "$built"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$SITE$built")
+          echo "bundle download: $code"
+          test "$code" = 200
+          health=$(curl -s "$SITE/api/v1/health" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' || true)
+          echo "API health through Hosting: $health"
+          test "$health" = ok

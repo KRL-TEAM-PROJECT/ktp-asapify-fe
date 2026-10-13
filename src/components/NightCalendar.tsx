@@ -35,7 +35,7 @@ const slide: Variants = {
 
 /**
  * Archive night calendar: one month per view, month and year navigation, nights without data
- * disabled, nights with WARNING clusters marked with a dot. Content from GET /operator/nights?month=.
+ * disabled, nights with ALERT clusters marked with a dot. Content from GET /operator/nights?month=.
  */
 export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
   const { t } = useI18n();
@@ -108,7 +108,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
   const dayLabel = (d: string, s: NightSummary | undefined) => {
     const date = fmtNight(d);
     if (!s?.has_data) return t('cal.day_none', { date });
-    return s.warning_clusters > 0 ? t('cal.day_warning', { date, n: s.warning_clusters }) : date;
+    return s.alert_clusters > 0 ? t('cal.day_alert', { date, n: s.alert_clusters }) : date;
   };
 
   return (
@@ -146,7 +146,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
               const s = days?.get(d);
               return (
                 <button
-                  key={d} className={`cal-day${d === value ? ' on' : ''}${s?.warning_clusters ? ' hot' : ''}`}
+                  key={d} className={`cal-day${d === value ? ' on' : ''}${s?.alert_clusters ? ' hot' : ''}`}
                   disabled={!s?.has_data} aria-pressed={d === value} aria-label={dayLabel(d, s)} title={dayLabel(d, s)}
                   onClick={() => onPick(d)}
                 >
@@ -163,7 +163,7 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
       ) : !days ? (
         <p className="cal-note">{t('cal.loading')}</p>
       ) : (
-        <p className="cal-note"><i className="cal-dot" aria-hidden="true" />{t('cal.legend_warning')} · {t('cal.legend_none')}</p>
+        <p className="cal-note"><i className="cal-dot" aria-hidden="true" />{t('cal.legend_alert')} · {t('cal.legend_none')}</p>
       )}
     </m.div>
   );

@@ -5,7 +5,7 @@ import {
   type PeatBoundary, type PixelIndex, type ProvinceBoundary, type ProvinceCode, type SeriesPoint, type Status, type StatusCode,
   type VerificationDetail, type ViirsDetection,
 } from '../types';
-import { T_WARNING, T_WATCH, utility } from '../lib/maut';
+import { T_ALERT, T_WARNING, utility } from '../lib/maut';
 import { bearingDeg, destination } from '../lib/geo';
 import { GRID_ORIGIN, GRID_STEP, NIGHT_SLOTS, SLOT_MS, STATUS_CODE, encodeUtility, nightOf } from '../lib/grid';
 import { rand } from './rand';
@@ -17,7 +17,7 @@ import { currentScenario, type Scenario } from './scenario';
 // Archive nights 16 Feb–24 Sep 2023 open from the calendar in the slot player.
 
 const AS_OF = '2023-09-24T15:10:00Z'; // 22:10 UTC+7
-const ARCHIVE_FIRST = '2023-02-16'; // the GK2A archive on NOAA starts here; WARNING needs both satellites
+const ARCHIVE_FIRST = '2023-02-16'; // the GK2A archive on NOAA starts here; ALERT needs both satellites
 const OUTAGES = new Set(['2023-04-11', '2023-07-02', '2023-08-19']); // nights without data (fictional outages)
 const STEP = GRID_STEP;
 const ORIGIN = GRID_ORIGIN; // combined Sumatra + Kalimantan grid
@@ -111,12 +111,12 @@ function buildSeries(nights: Night[], seed: number): SeriesPoint[] {
     for (let i = 0; i <= end; i++) {
       const slot = iso(t0 + i * 600_000);
       if (n.clouds?.some(([a, b]) => i >= a && i <= b)) {
-        out.push({ slot, U: null, status: 'NO_OBSERVATION' });
+        out.push({ slot, U: null, status: 'NO_OBSERVABLE' });
         continue;
       }
       const noise = (rand(ni, i, seed) - 0.5) * 0.05;
       const U = r2(clamp01(i === peak ? n.to : i < peak ? n.from + ((n.to - n.from) * i) / peak + noise : n.to - 0.05 + noise));
-      out.push({ slot, U, status: U >= T_WARNING ? 'WARNING' : U >= T_WATCH ? 'WATCH' : 'SAFE' });
+      out.push({ slot, U, status: U >= T_ALERT ? 'ALERT' : U >= T_WARNING ? 'WARNING' : 'SAFE' });
     }
   });
   return out;
@@ -275,7 +275,7 @@ const DEFS: ClusterDef[] = [
     trigger: AS_OF,
     nights: [
       { date: '2023-09-22', from: 0.3, to: 0.45, clouds: [[44, 47]] },
-      { date: '2023-09-23', from: 0.45, to: 0.62, peakAt: 30 }, // WATCH; WARNING only on 24 Sep
+      { date: '2023-09-23', from: 0.45, to: 0.62, peakAt: 30 }, // WARNING; ALERT only on 24 Sep
       { date: '2023-09-24', from: 0.6, to: 0.83, end: 13 },
     ],
     verification: {
@@ -488,7 +488,7 @@ function buildGrid(sc: Scenario): Grid {
       const U = toDetail(d).utility_score;
       d.pixels.forEach((p, i) => {
         const { row, col } = cell(p);
-        clusterPx.set(`${row}_${col}`, { id: d.id, U: Math.max(T_WARNING + 0.01, r2(U - i * 0.02)) });
+        clusterPx.set(`${row}_${col}`, { id: d.id, U: Math.max(T_ALERT + 0.01, r2(U - i * 0.02)) });
       });
     }
   }
@@ -508,11 +508,11 @@ function buildGrid(sc: Scenario): Grid {
     let U: number | null;
     if (cl) {
       U = cl.U;
-      status = sc === 'one_satellite' ? 'WATCH' : 'WARNING'; // one satellite: WARNING is impossible
+      status = sc === 'one_satellite' ? 'WARNING' : 'ALERT'; // one satellite: ALERT is impossible
     } else if (cloudy) {
-      status = 'NO_OBSERVATION'; U = null;
+      status = 'NO_OBSERVABLE'; U = null;
     } else if ((near(p, 0.03) && k < 0.55) || k < 0.025) {
-      status = 'WATCH'; U = r2(T_WATCH + k * 0.5);
+      status = 'WARNING'; U = r2(T_WARNING + k * 0.5);
     } else {
       status = 'SAFE'; U = r2(k * 0.25);
     }
@@ -521,7 +521,7 @@ function buildGrid(sc: Scenario): Grid {
       geometry: { type: 'Point', coordinates: p },
       properties: {
         pixel_id: `p${row}_${col}`, status, utility: U,
-        n_sat: status === 'NO_OBSERVATION' ? 0 : sc === 'one_satellite' ? 1 : 2,
+        n_sat: status === 'NO_OBSERVABLE' ? 0 : sc === 'one_satellite' ? 1 : 2,
         cluster_id: cl?.id ?? null, province: code,
       },
     });
@@ -629,11 +629,11 @@ function seriesStatus(d: ClusterDef, slots: string[], k: number): Status | undef
   return m.get(slots[k]) ?? (k > SERIES_END ? m.get(slots[SERIES_END]) : undefined);
 }
 
-/** Whether this cluster was at WARNING in any slot of that night (up to the last slot that exists). */
-function warningOn(d: ClusterDef, night: string): boolean {
+/** Whether this cluster was at ALERT in any slot of that night (up to the last slot that exists). */
+function alertOn(d: ClusterDef, night: string): boolean {
   const slots = slotsOf(night);
   const last = lastSlotOf(night);
-  for (let k = 0; k <= last; k++) if (seriesStatus(d, slots, k) === 'WARNING') return true;
+  for (let k = 0; k <= last; k++) if (seriesStatus(d, slots, k) === 'ALERT') return true;
   return false;
 }
 
@@ -641,7 +641,7 @@ const nightCache = new Map<string, NightCompact>();
 
 /**
  * Status per slot for one night. The replay night evolves towards the last slot's status (exactly
- * like buildCompact); earlier nights have fewer WATCH pixels and two drifting clouds.
+ * like buildCompact); earlier nights have fewer WARNING pixels and two drifting clouds.
  */
 function buildNight(sc: Scenario, night: string): NightCompact {
   const key = `${sc}|${night}`;
@@ -654,7 +654,7 @@ function buildNight(sc: Scenario, night: string): NightCompact {
   const last = lastSlotOf(night);
   const span = current ? last : NIGHT_SLOTS - 1;
   const ni = nightIdx(night);
-  // Towards the peak of the dry season (24 Sep) more pixels reach WATCH.
+  // Towards the peak of the dry season (24 Sep) more pixels reach WARNING.
   const watchShare = current ? 1 : 0.15 + 0.75 * (ni / nightIdx(nightOf(AS_OF)));
   const defs = sc === 'empty' ? [] : DEFS;
   const index = new Map(grid.features.map((f, i) => [f.properties.pixel_id, i]));
@@ -676,7 +676,7 @@ function buildNight(sc: Scenario, night: string): NightCompact {
       const cloudy = !current
         ? clouds.some((c) => ((p[0] - (c.x - 0.01 * (span - k))) / c.rx) ** 2 + ((p[1] - c.y) / c.ry) ** 2 <= 1)
         : sc === 'cloud'
-          ? f.properties.status === 'NO_OBSERVATION' && rand(row, col, 13) < 0.3 + 0.7 * (k / Math.max(1, last))
+          ? f.properties.status === 'NO_OBSERVABLE' && rand(row, col, 13) < 0.3 + 0.7 * (k / Math.max(1, last))
           : ((p[0] - (113.66 - 0.012 * (last - k))) / 0.08) ** 2 + ((p[1] + 2.36) / 0.06) ** 2 <= 1;
       let code: StatusCode;
       if (st) code = STATUS_CODE[st];
@@ -691,7 +691,7 @@ function buildNight(sc: Scenario, night: string): NightCompact {
 
   const clusters: Record<string, number[]> = {};
   for (const d of defs) {
-    if (!warningOn(d, night)) continue;
+    if (!alertOn(d, night)) continue;
     clusters[d.id] = d.pixels.map((p) => index.get(pixelId(p))).filter((i): i is number => i != null).sort((a, b) => a - b);
   }
 
@@ -716,7 +716,7 @@ function buildNights(sc: Scenario, month: string): NightSummary[] {
     const night = `${month}-${String(d).padStart(2, '0')}`;
     if (night < ARCHIVE_FIRST || night > nightOf(AS_OF)) continue;
     const has = lastSlotOf(night) >= 0;
-    out.push({ night, has_data: has, warning_clusters: has && sc !== 'empty' ? DEFS.filter((x) => warningOn(x, night)).length : 0 });
+    out.push({ night, has_data: has, alert_clusters: has && sc !== 'empty' ? DEFS.filter((x) => alertOn(x, night)).length : 0 });
   }
   return out;
 }
@@ -751,7 +751,7 @@ export const mockApi: Api = {
   },
   clusters: (night) => {
     if (currentScenario() === 'empty') return wait([]);
-    const defs = night ? DEFS.filter((d) => warningOn(d, night)) : ACTIVE;
+    const defs = night ? DEFS.filter((d) => alertOn(d, night)) : ACTIVE;
     return wait(defs.map((d) => toSummary(toDetail(d))));
   },
   cluster: async (id) => {
@@ -787,7 +787,7 @@ export function contractExamples() {
   const detail = (id: string) => toDetail(DEFS.find((d) => d.id === id)!);
   return {
     meta: buildMeta('normal'),
-    grid: { type: 'FeatureCollection' as const, features: [pick('WARNING'), pick('NO_OBSERVATION')] },
+    grid: { type: 'FeatureCollection' as const, features: [pick('ALERT'), pick('NO_OBSERVABLE')] },
     gridCount: grid.features.length,
     pixels: buildPixels(),
     gridCompact: buildCompact('normal'),

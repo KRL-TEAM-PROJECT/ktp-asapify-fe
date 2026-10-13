@@ -43,8 +43,8 @@ export const IconArrowLeft = ({ size }: P) => <svg {...base(size)}><path d="M13 
 export function StatusIcon({ status, size }: { status: Status; size?: number }) {
   switch (status) {
     case 'SAFE': return <IconCheck size={size} />;
-    case 'NO_OBSERVATION': return <IconCloud size={size} />;
-    case 'WATCH': return <IconEye size={size} />;
-    case 'WARNING': return <IconAlert size={size} />;
+    case 'NO_OBSERVABLE': return <IconCloud size={size} />;
+    case 'WARNING': return <IconEye size={size} />;
+    case 'ALERT': return <IconAlert size={size} />;
   }
 }

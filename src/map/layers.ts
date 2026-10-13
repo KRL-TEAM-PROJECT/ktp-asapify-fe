@@ -45,10 +45,10 @@ export function styleFor(basemap: BasemapId, dark: boolean, list: Basemap[]): st
   return style;
 }
 
-interface Palette { safe: string; safeOp: number; watch: string; warning: string; ink: string; halo: string; sat: string; hatch: string }
+interface Palette { safe: string; safeOp: number; warning: string; alert: string; ink: string; halo: string; sat: string; hatch: string }
 const PALETTE: Record<'light' | 'dark', Palette> = {
-  light: { safe: '#3c6a4c', safeOp: 0.16, watch: '#f0c46a', warning: '#c2410c', ink: '#1b2520', halo: '#ffffff', sat: '#2c628c', hatch: '#7d887f' },
-  dark: { safe: '#7fbf93', safeOp: 0.13, watch: '#e0a93e', warning: '#f26b2f', ink: '#e4ebe5', halo: '#121815', sat: '#7fb3dc', hatch: '#7d8b83' },
+  light: { safe: '#3c6a4c', safeOp: 0.16, warning: '#f0c46a', alert: '#c2410c', ink: '#1b2520', halo: '#ffffff', sat: '#2c628c', hatch: '#7d887f' },
+  dark: { safe: '#7fbf93', safeOp: 0.13, warning: '#e0a93e', alert: '#f26b2f', ink: '#e4ebe5', halo: '#121815', sat: '#7fb3dc', hatch: '#7d8b83' },
 };
 // Over satellite imagery, Safe needs a little more weight.
 const satSafeOp = 0.28;
@@ -153,12 +153,12 @@ function addImages(map: MlMap, p: Palette) {
     c.strokeStyle = p.hatch; c.lineWidth = 1.6;
     c.beginPath(); c.moveTo(-2, 10); c.lineTo(10, -2); c.moveTo(-2, 2); c.lineTo(2, -2); c.moveTo(6, 10); c.lineTo(10, 6); c.stroke();
   }));
-  put('ico-warning', canvasImage(40, (c) => {
-    c.fillStyle = '#ffffff'; c.strokeStyle = p.warning; c.lineWidth = 3; c.lineJoin = 'round';
+  put('ico-alert', canvasImage(40, (c) => {
+    c.fillStyle = '#ffffff'; c.strokeStyle = p.alert; c.lineWidth = 3; c.lineJoin = 'round';
     c.beginPath(); c.moveTo(20, 4); c.lineTo(37, 34); c.lineTo(3, 34); c.closePath(); c.fill(); c.stroke();
-    c.fillStyle = p.warning; c.fillRect(18.5, 14, 3, 11); c.fillRect(18.5, 27.5, 3, 3);
+    c.fillStyle = p.alert; c.fillRect(18.5, 14, 3, 11); c.fillRect(18.5, 27.5, 3, 3);
   }), 2);
-  put('ico-watch', canvasImage(40, (c) => {
+  put('ico-warning', canvasImage(40, (c) => {
     c.fillStyle = '#ffffff'; c.strokeStyle = '#7a5200'; c.lineWidth = 2.6;
     c.beginPath(); c.arc(20, 20, 15, 0, Math.PI * 2); c.fill(); c.stroke();
     c.beginPath(); c.ellipse(20, 20, 10, 6, 0, 0, Math.PI * 2); c.stroke();
@@ -177,11 +177,11 @@ function pixelPaint(o: PaintOpts) {
   const p = PALETTE[o.dark ? 'dark' : 'light'];
   const safeOp = o.satellite ? satSafeOp : p.safeOp;
   return {
-    fillColor: ['match', S, 'A', p.warning, 'W', p.watch, p.safe] as ExpressionSpecification,
+    fillColor: ['match', S, 'A', p.alert, 'W', p.warning, p.safe] as ExpressionSpecification,
     fillOpacity: ['case', shown(o.statuses), ['match', S, 'A', 0.95, 'W', 0.82, 'N', 0, safeOp], 0] as ExpressionSpecification,
     hatchOpacity: ['case', ['all', ['==', S, 'N'], shown(o.statuses)], 0.75, 0] as ExpressionSpecification,
-    warningIcon: ['case', ['all', ['==', S, 'A'], shown(o.statuses)], 1, 0] as ExpressionSpecification,
-    watchIcon: ['case', ['all', ['==', S, 'W'], shown(o.statuses)], 1, 0] as ExpressionSpecification,
+    alertIcon: ['case', ['all', ['==', S, 'A'], shown(o.statuses)], 1, 0] as ExpressionSpecification,
+    warningIcon: ['case', ['all', ['==', S, 'W'], shown(o.statuses)], 1, 0] as ExpressionSpecification,
   };
 }
 
@@ -223,7 +223,7 @@ export function installLayers(map: MlMap, o: PaintOpts, data: MapData, selectedC
     id: 'province-focus', type: 'line', source: 'province-focus', layout: { 'line-join': 'round' },
     paint: { 'line-color': p.ink, 'line-width': ['interpolate', ['linear'], ['zoom'], 4, 1.8, 10, 3] },
   });
-  map.addLayer({ id: 'cluster-glow', type: 'line', source: 'clusters', paint: { 'line-color': p.warning, 'line-width': 10, 'line-blur': 8, 'line-opacity': 0.6 } });
+  map.addLayer({ id: 'cluster-glow', type: 'line', source: 'clusters', paint: { 'line-color': p.alert, 'line-width': 10, 'line-blur': 8, 'line-opacity': 0.6 } });
   map.addLayer({ id: 'clusters', type: 'line', source: 'clusters', paint: { 'line-color': p.ink, 'line-width': 1.8, 'line-dasharray': [2.5, 1.5] } });
   map.addLayer({ id: 'clusters-selected', type: 'line', source: 'clusters', filter: ['==', ['get', 'id'], ''], paint: { 'line-color': p.sat, 'line-width': 3.5 } });
   const icon = (id: string, image: string, opacity: ExpressionSpecification) => map.addLayer({
@@ -234,8 +234,8 @@ export function installLayers(map: MlMap, o: PaintOpts, data: MapData, selectedC
     },
     paint: { 'icon-opacity': opacity },
   });
-  icon('icon-watch', 'ico-watch', pp.watchIcon);
   icon('icon-warning', 'ico-warning', pp.warningIcon);
+  icon('icon-alert', 'ico-alert', pp.alertIcon);
   map.addLayer({ id: 'selection', type: 'line', source: 'selection', paint: { 'line-color': p.sat, 'line-width': 3 } });
   map.addLayer({
     id: 'province-label', type: 'symbol', source: 'province-labels', maxzoom: 8,
@@ -267,12 +267,12 @@ export function setStatusPaint(map: MlMap, o: PaintOpts) {
   const pp = pixelPaint(o);
   map.setPaintProperty('pixel-fill', 'fill-opacity', pp.fillOpacity);
   map.setPaintProperty('pixel-hatch', 'fill-opacity', pp.hatchOpacity);
+  map.setPaintProperty('icon-alert', 'icon-opacity', pp.alertIcon);
   map.setPaintProperty('icon-warning', 'icon-opacity', pp.warningIcon);
-  map.setPaintProperty('icon-watch', 'icon-opacity', pp.watchIcon);
 }
 
 const LAYERS_OF: Record<LayerKey, string[]> = {
-  status: ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-watch', 'icon-warning'],
+  status: ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-warning', 'icon-alert'],
   peat: ['peat-boundary'],
   provinces: ['provinces-line', 'province-label'],
   clusters: ['cluster-glow', 'clusters', 'clusters-selected', 'clusters-label'],
@@ -290,7 +290,7 @@ export function applyVisibility(map: MlMap, vis: Record<LayerKey, boolean>, lite
 
 export function applyFilters(map: MlMap, province: ProvinceCode | '', selectedCluster: string | null) {
   const prov: ExpressionSpecification = province ? ['==', ['get', 'p'], province] : ['boolean', true];
-  for (const id of ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-watch', 'icon-warning', 'cluster-glow', 'clusters', 'clusters-label']) {
+  for (const id of ['pixel-fill', 'pixel-hatch', 'pixel-grid', 'icon-warning', 'icon-alert', 'cluster-glow', 'clusters', 'clusters-label']) {
     map.setFilter(id, prov);
   }
   map.setFilter('clusters-selected', ['==', ['get', 'id'], selectedCluster ?? '']);

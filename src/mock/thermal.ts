@@ -1,6 +1,6 @@
 import type { AttrDetail, AttrKey, AttrPart, Attributes, LngLat, ThermalBand, ThermalCrop } from '../types';
 import { GRID_ORIGIN, GRID_STEP } from '../lib/grid';
-import { T_WATCH } from '../lib/maut';
+import { T_WARNING } from '../lib/maut';
 import { readingAt, thermalColor } from '../lib/thermal';
 import { rand } from './rand';
 
@@ -177,7 +177,7 @@ export function attributeDetails({ attrs, neighbourAnomalies, crop, rep, nightPe
     u_LST: surface('u_LST', 'ts'),
     u_SAT: surface('u_SAT', 't2m'),
     u_T: {
-      value: attrs.u_T == null ? null : nightPeaks.filter((p) => p.peak >= T_WATCH).length,
+      value: attrs.u_T == null ? null : nightPeaks.filter((p) => p.peak >= T_WARNING).length,
       unit: 'nights', scale: ATTR_SCALES.u_T, parts: nights,
     },
     u_N: { value: neighbourAnomalies, unit: 'pixels', scale: ATTR_SCALES.u_N, parts: [] },

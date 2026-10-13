@@ -97,7 +97,7 @@ export function DecisionPanel({ cluster, caption: initialCaption, onDecided }: P
       <div className="dec-summary">
         <span className="lbl">{t('dec.summary')}</span>
         <p>
-          WARNING · U {fmtNum(cluster.utility_score, 2)} · {t('map.nbr', { k: Math.round(cluster.neighbour_support * 8) })} ·{' '}
+          ALERT · U {fmtNum(cluster.utility_score, 2)} · {t('map.nbr', { k: Math.round(cluster.neighbour_support * 8) })} ·{' '}
           {cluster.n_sat >= 2 ? t('sat.agree') : t('sat.single')} ·{' '}
           {v ? t(v.result === 'strong_evidence' ? 'evidence.strong' : 'evidence.inconclusive') : t('evidence.none')}
         </p>

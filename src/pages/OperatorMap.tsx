@@ -27,7 +27,7 @@ import { Sheet } from '../components/Sheet';
 import { LiteMotion, m, spring } from '../motion';
 import { StatusIcon } from '../components/icons';
 
-const ALL: Status[] = ['WARNING', 'WATCH', 'NO_OBSERVATION', 'SAFE'];
+const ALL: Status[] = ['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE'];
 const COORD = /^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/;
 
 type Sort = 'utility' | 'newest' | 'oldest';
@@ -80,7 +80,7 @@ export function OperatorMapPage({ dark }: { dark: boolean }) {
   const viewNight = nightSel ?? currentNight;
   const night = useLoad(() => (viewNight ? api.night(viewNight) : Promise.resolve(null)), [viewNight]);
   const nightData = night.data?.night === viewNight ? night.data : null; // ignore the previous night's data while loading
-  // Latest night: active clusters. Archive night: clusters at WARNING that night, whatever their state.
+  // Latest night: active clusters. Archive night: clusters at ALERT that night, whatever their state.
   const clustersQ = useLoad(() => (meta ? api.clusters(nightSel ?? undefined) : Promise.resolve(null)), [meta, nightSel]);
   const clusters = clustersQ.loading ? null : (clustersQ.data ?? null);
   const peat = useLoad(() => api.peatBoundary(), []);
@@ -361,7 +361,7 @@ export function OperatorMapPage({ dark }: { dark: boolean }) {
               <li><i className="lg-line thick" />{t('map.cluster')}</li>
               <li><i className="lg-dot" />{t('map.viirs')}</li>
             </ul>
-            <p className="muted small">{t('warning.note')}</p>
+            <p className="muted small">{t('alert.note')}</p>
           </details>
         </Sheet>
 

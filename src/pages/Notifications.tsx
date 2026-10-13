@@ -109,7 +109,7 @@ export function NotificationsPage() {
         {loaded && items.length === 0 && <p className="empty">{t('notif.empty')}</p>}
         {items.map(item => <article className="notify-item" key={item.id} id={item.id}>
           <div className="card-head">
-            <strong>{item.purpose === 'exercise' ? t('notif.exercise') : 'WARNING'}</strong>
+            <strong>{item.purpose === 'exercise' ? t('notif.exercise') : 'ALERT'}</strong>
             <span className="mono muted small">{item.alert_id}</span>
           </div>
           <p className="notify-text">{plain(item.text)}</p>

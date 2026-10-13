@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react';
 import type { AttrDetail, AttrKey, AttrPart, Attributes } from '../types';
 import { useI18n } from '../i18n';
 import { fmtC, fmtDate, fmtNum, fmtNumM, fmtSigned } from '../lib/format';
-import { ATTR_ORDER, T_WARNING, T_WATCH, utility } from '../lib/maut';
+import { ATTR_ORDER, T_ALERT, T_WARNING, utility } from '../lib/maut';
 import { m, springSoft } from '../motion';
 import { FloatingTip } from './FloatingTip';
 
@@ -123,7 +123,7 @@ export function AttributeBars({ attributes, neighbourSupport, weights, details }
           <div className={`attr${u == null ? ' na' : ''}`} key={k}>
             <span className="attr-name">
               <span>{t(`attr.${k}`)} <code>{k}</code></span>
-              {anyDetail && d ? <small>{k === 'u_T' ? t('attrd.head.u_T_t', { t: f2(T_WATCH) }) : t(`attrd.head.${k}`)}</small> : u == null ? <small>{t('attr.na')}</small> : null}
+              {anyDetail && d ? <small>{k === 'u_T' ? t('attrd.head.u_T_t', { t: f2(T_WARNING) }) : t(`attrd.head.${k}`)}</small> : u == null ? <small>{t('attr.na')}</small> : null}
             </span>
             {anyDetail && <b className="attr-meas">{d ? measured(d) : ''}</b>}
             <Bar k={k} u={u} d={d} index={i} />
@@ -146,14 +146,14 @@ export function AttributeBars({ attributes, neighbourSupport, weights, details }
 
       <div className="attr total">
         <span className="attr-name"><span>{t('attr.total')}</span></span>
-        {anyDetail && <b className="attr-meas thr">{t('attr.threshold', { t: f2(T_WARNING) })}</b>}
+        {anyDetail && <b className="attr-meas thr">{t('attr.threshold', { t: f2(T_ALERT) })}</b>}
         <span className="attr-bar" aria-hidden="true">
-          <m.i {...grow(U * 100, ATTR_ORDER.length)} className={U >= T_WARNING ? 'hot' : ''} />
-          <em style={{ left: `${T_WARNING * 100}%` }} />
+          <m.i {...grow(U * 100, ATTR_ORDER.length)} className={U >= T_ALERT ? 'hot' : ''} />
+          <em style={{ left: `${T_ALERT * 100}%` }} />
         </span>
         <span className="attr-nums">
           <b className="attr-u">{f2(U)}</b>
-          <small className="attr-w">{anyDetail ? '' : `≥ ${f2(T_WARNING)}`}</small>
+          <small className="attr-w">{anyDetail ? '' : `≥ ${f2(T_ALERT)}`}</small>
           <small className="attr-c" />
         </span>
         <p className="attr-parts">

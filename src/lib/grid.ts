@@ -1,7 +1,7 @@
 import type { LngLat, PixelIndex, ProvinceCode, Status, StatusCode } from '../types';
 
-export const CODE_STATUS: Record<StatusCode, Status> = { S: 'SAFE', N: 'NO_OBSERVATION', W: 'WATCH', A: 'WARNING' };
-export const STATUS_CODE: Record<Status, StatusCode> = { SAFE: 'S', NO_OBSERVATION: 'N', WATCH: 'W', WARNING: 'A' };
+export const CODE_STATUS: Record<StatusCode, Status> = { S: 'SAFE', N: 'NO_OBSERVABLE', W: 'WARNING', A: 'ALERT' };
+export const STATUS_CODE: Record<Status, StatusCode> = { SAFE: 'S', NO_OBSERVABLE: 'N', WARNING: 'W', ALERT: 'A' };
 
 /** Combined 0.02° Sumatra + Kalimantan grid; `pixel_id` = p{row}_{col} from this top-left corner (PixelIndex.origin/step). */
 export const GRID_ORIGIN: LngLat = [94.9, 6.2];

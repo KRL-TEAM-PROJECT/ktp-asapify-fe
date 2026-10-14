@@ -61,9 +61,11 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
           {user?.role === 'operator' && <NavItem to="/" end>{t('nav.regions')}</NavItem>}
           <NavItem to="/notifications">{t('nav.notifications')}</NavItem>
           <NavItem to="/about">{t('nav.about')}</NavItem>
-          <NavItem to="/api-contract">
-            <span className="nl-full">{t('nav.api')}</span><span className="nl-short">{t('nav.api_short')}</span>
-          </NavItem>
+          {user?.role === 'operator' && (
+            <NavItem to="/api-contract">
+              <span className="nl-full">{t('nav.api')}</span><span className="nl-short">{t('nav.api_short')}</span>
+            </NavItem>
+          )}
         </nav>
         <div className="tools">
           <button className="icon-btn" onClick={theme.cycle} title={t(`theme.${theme.pref}`)} aria-label={t(`theme.${theme.pref}`)}>
@@ -105,10 +107,10 @@ function Root() {
   const theme = useTheme();
   return (
     <Routes>
+      <Route path="/login" element={<LoginPage />} />
       <Route element={<Shell theme={theme} />}>
-        <Route path="/login" element={<LoginPage />} />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/api-contract" element={<ApiContractPage />} />
+        <Route path="/api-contract" element={<RequireAuth><ApiContractPage /></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth operator={false}><NotificationsPage /></RequireAuth>} />
         <Route path="/" element={<RequireAuth><RegionsPage dark={theme.dark} /></RequireAuth>} />
         <Route path="/regions/:id" element={<RequireAuth><RegionPage /></RequireAuth>} />

@@ -3,14 +3,10 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { signIn, useAuthState } from '../auth';
 import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
-import type { Status } from '../types';
-import { StatusBadge } from '../components/StatusBadge';
-import { BrandLockup } from '../components/BrandMark';
+import { BrandMark, BrandWordmark } from '../components/BrandMark';
 import { m, springSoft } from '../motion';
 
-// The four levels a peat region can have, most severe first.
-const LEVELS: Status[] = ['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE'];
-
+// Full screen without the app chrome: the mark and one line on the left, the sign-in on the right.
 export function LoginPage() {
   const { t } = useI18n();
   const { user, loading, error: authError } = useAuthState();
@@ -31,31 +27,29 @@ export function LoginPage() {
   }
 
   return (
-    <div className="login">
+    <main className="login">
       <m.section
-        className="login-aside" aria-labelledby="rule-h"
-        initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ ...springSoft, delay: 0.05 }}
+        className="login-hero" aria-label="ASAPify"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={springSoft}
       >
-        <span className="brand big"><BrandLockup size={56} /></span>
-        <h2 id="rule-h">{t('login.rule_t')}</h2>
-        <p>{t('login.rule')}</p>
-        <ul className="login-levels">
-          {LEVELS.map((s) => <li key={s}><StatusBadge status={s} /> {t(`rg.legend.${s}`)}</li>)}
-        </ul>
+        <BrandMark />
+        <BrandWordmark />
+        <p className="login-tagline">
+          {t('login.tagline')} <span className="login-beat">{t('login.tagline_beat')}</span>
+        </p>
       </m.section>
       <m.div
-        className="card login-card"
-        initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ ...springSoft, delay: 0.12 }}
+        className="login-card"
+        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...springSoft, delay: 0.08 }}
       >
         <h1>{t('login.title')}</h1>
-        <p className="muted">{t('login.lede')}</p>
         <button className="btn primary wide" disabled={busy || loading} onClick={() => { void login(); }}>
           {t(busy || loading ? 'login.wait' : API_MODE === 'live' ? 'login.google' : 'login.btn')}
         </button>
         <p className="muted small">{t(API_MODE === 'live' ? 'login.live_note' : 'login.note')}</p>
         {(error || authError) && <p className="error" role="alert">{error ?? t(authError === 'FORBIDDEN' ? 'err.FORBIDDEN' : 'login.config_error')}</p>}
-        <Link to="/about">{t('login.about')}</Link>
+        <Link className="small" to="/about">{t('login.about')}</Link>
       </m.div>
-    </div>
+    </main>
   );
 }

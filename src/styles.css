@@ -76,7 +76,6 @@ button { font: inherit; color: inherit; }
 .topnav .brand-word { display: none; } /* phones: the mark only; the name stays for screen readers */
 .topnav .brand-mark { height: 28px; width: auto; }
 .brand small { display: none; font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-xs); color: var(--ink-dim); letter-spacing: 0.04em; }
-.brand.big { gap: 12px; }
 /* Brand mark tokens (BrandMark.tsx defaults to the official palette); the dark theme uses the inverted monochrome variant. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { --brand-ink: #F8FAFC; --brand-leaf: #F8FAFC; --brand-flame-hi: #F8FAFC; --brand-flame-lo: #F8FAFC; --brand-dot: #F8FAFC; }
@@ -260,14 +259,16 @@ button { font: inherit; color: inherit; }
 .decision blockquote { margin: 0; padding: 6px 12px; border-left: 3px solid var(--line-strong); color: var(--ink-dim); }
 
 /* ---------- login ---------- */
-.login { max-width: 460px; margin: 0 auto; display: grid; gap: 24px; }
-.login-aside { order: 2; display: grid; gap: 12px; align-content: center; max-width: 46ch; }
-.login-aside h2 { font-size: var(--fs-lg); font-weight: 800; }
-.login-aside p { color: var(--ink-dim); }
-.login-levels { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: var(--fs-sm); color: var(--ink-dim); }
-.login-levels li { display: flex; align-items: center; gap: 8px; }
-.login-card { width: 100%; gap: 16px; padding: 20px; }
-.login-card h1 { font-size: 24px; }
+.login { min-height: 100dvh; max-width: 440px; margin: 0 auto; padding: 40px 16px calc(32px + env(safe-area-inset-bottom));
+  display: grid; align-content: center; gap: 40px; }
+.login-hero { display: grid; justify-items: start; gap: 16px; }
+.login-hero .brand-mark { width: auto; height: 88px; }
+.login-hero .brand-word { width: auto; height: 36px; }
+.login-tagline { font-size: var(--fs-xl); font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; max-width: 16ch; text-wrap: balance; }
+/* the cadence is the product: set as a reading, in the thermal ink */
+.login-beat { font-family: var(--font-mono); font-weight: 700; letter-spacing: -0.03em; color: var(--ember-ink); white-space: nowrap; }
+.login-card { display: grid; gap: 16px; padding-top: 24px; border-top: 1px solid var(--line-strong); }
+.login-card h1 { font-size: var(--fs-lg); }
 
 /* ---------- about ---------- */
 .about { gap: 32px; }
@@ -392,7 +393,6 @@ a.tag:hover { color: var(--ink); }
   .facts div { flex: 1 1 120px; border-bottom: 0; }
   .facts div:last-child { border-right: 0; }
   .card { padding: 18px 20px; }
-  .login-card { padding: 28px; }
 }
 
 /* ======================= 1024px and up: desktop; navigation returns to the top bar ======================= */
@@ -419,8 +419,12 @@ a.tag:hover { color: var(--ink); }
   .panel .grab { display: none; }
   .detail-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
   .steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .login { max-width: 900px; min-height: calc(100dvh - var(--topbar) - 88px); grid-template-columns: minmax(0, 1fr) minmax(0, 400px); gap: 40px; align-items: center; }
-  .login-aside { order: 0; }
+  .login { max-width: 1040px; padding: 48px 40px; grid-template-columns: minmax(0, 1fr) 360px; gap: 80px; align-items: center; }
+  .login-hero { gap: 24px; }
+  .login-hero .brand-mark { height: 168px; }
+  .login-hero .brand-word { height: 64px; }
+  .login-tagline { font-size: 44px; max-width: 15ch; }
+  .login-card { padding: 0 0 0 40px; border-top: 0; border-left: 1px solid var(--line-strong); }
   .contract-grid { grid-template-columns: 280px minmax(0, 1fr); gap: 28px; }
   .toc { position: sticky; top: calc(var(--topbar) + 16px); max-height: calc(100dvh - var(--topbar) - 32px); overflow-y: auto; overflow-x: visible;
     display: grid; gap: 1px; padding: 0 4px 0 0; border-bottom: 0; }

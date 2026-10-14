@@ -5,6 +5,7 @@ import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
 import type { Status } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { BrandLockup } from '../components/BrandMark';
 import { m, springSoft } from '../motion';
 
 // The four levels a peat region can have, most severe first.
@@ -35,7 +36,7 @@ export function LoginPage() {
         className="login-aside" aria-labelledby="rule-h"
         initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ ...springSoft, delay: 0.05 }}
       >
-        <span className="brand big"><i aria-hidden="true" />ASAPify</span>
+        <span className="brand big"><BrandLockup size={56} /></span>
         <h2 id="rule-h">{t('login.rule_t')}</h2>
         <p>{t('login.rule')}</p>
         <ul className="login-levels">

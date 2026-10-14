@@ -67,9 +67,14 @@ button { font: inherit; color: inherit; }
   background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 .topnav-in { width: 100%; display: flex; align-items: center; gap: 12px; min-width: 0; }
 .brand { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; }
-.brand i { width: 10px; height: 10px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 0 4px var(--ember-soft); }
+.brand-mark, .brand-word { flex: none; }
 .brand small { font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: var(--ink-dim); letter-spacing: 0.06em; text-transform: uppercase; }
-.brand.big { font-size: 22px; }
+.brand.big { gap: 12px; }
+/* Brand mark tokens (BrandMark.tsx defaults to the official palette); the dark theme uses the inverted monochrome variant. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --brand-ink: #F8FAFC; --brand-leaf: #F8FAFC; --brand-flame-hi: #F8FAFC; --brand-flame-lo: #F8FAFC; --brand-dot: #F8FAFC; }
+}
+:root[data-theme="dark"] { --brand-ink: #F8FAFC; --brand-leaf: #F8FAFC; --brand-flame-hi: #F8FAFC; --brand-flame-lo: #F8FAFC; --brand-dot: #F8FAFC; }
 .mock-badge { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 4px; background: var(--sat-soft); color: var(--sat); white-space: nowrap; cursor: help; }
 .navlinks { display: flex; gap: 2px; margin-left: auto; }
 .navlinks a { position: relative; font-size: 14px; font-weight: 500; color: var(--ink-dim); text-decoration: none; padding: 0 12px; border-radius: 8px; white-space: nowrap; min-height: 40px; display: inline-flex; align-items: center;
@@ -442,8 +447,8 @@ button { font: inherit; color: inherit; }
   .card { padding: 14px; }
   .topnav { padding: 0 12px; }
   .topnav-in { gap: 6px; }
-  .brand { font-size: 0; gap: 0; } /* dot only; the text stays for screen readers */
-  .brand i { margin: 0 6px; }
+  .topnav .brand-word { display: none; } /* mark only; the sr-only name stays for screen readers */
+  .topnav .brand-mark { height: 28px; width: auto; }
   .navlinks { gap: 0; }
   .navlinks a { padding: 0 5px; }
   .icon-btn { min-width: 34px; }

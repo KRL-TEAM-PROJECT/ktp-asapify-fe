@@ -6,6 +6,7 @@ import { signOut, useAuthState, useUser } from './auth';
 import { useTheme } from './lib/theme';
 import { API_MODE } from './api';
 import { currentScenario } from './mock/scenario';
+import { BrandLockup } from './components/BrandMark';
 import { LoginPage } from './pages/Login';
 import { AboutPage } from './pages/About';
 
@@ -53,7 +54,8 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
     <header className="topnav">
       <div className="topnav-in">
         <Link className="brand" to={user ? '/' : '/about'}>
-          <i aria-hidden="true" />ASAPify <small>{t('app.role')}</small>
+          <BrandLockup size={36} />
+          <small>{t('app.role')}</small>
         </Link>
         {API_MODE === 'mock' && (
           <span className="mock-badge" title={t('mock.title', { sc: currentScenario() })}>{t('mock.badge')}</span>

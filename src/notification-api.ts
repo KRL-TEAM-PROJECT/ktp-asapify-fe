@@ -2,11 +2,12 @@ import { getUserToken } from './auth';
 import { API_MODE } from './api';
 import { ApiError } from './types';
 
-export const CHANNELS = ['telegram', 'fcm', 'web_push', 'whatsapp', 'sms', 'gmail', 'lora', 'bluetooth_mesh'] as const;
+// Personal channels. Telegram is not one: alerts are posted in the ASAPify Telegram group an operator linked.
+export const CHANNELS = ['fcm', 'web_push', 'whatsapp', 'sms', 'gmail', 'lora', 'bluetooth_mesh'] as const;
 export type Channel = typeof CHANNELS[number];
 export interface Preferences { provinces: string[]; channels: Channel[]; consent: boolean; exercises: boolean }
 export interface Settings {
-  preferences: Preferences & { telegram_linked?: boolean; device_registered?: boolean };
+  preferences: Preferences & { device_registered?: boolean };
   channels: { channel: Channel; implemented: boolean; enabled: boolean; restriction: string | null }[];
   mode: string;
 }
@@ -40,7 +41,7 @@ export const notifications = {
     let preferences = INITIAL;
     try { preferences = JSON.parse(sessionStorage.getItem(MOCK_KEY) ?? 'null') ?? INITIAL; } catch { /* clean demo */ }
     return { preferences, mode: 'dry_run', channels: CHANNELS.map(channel => ({ channel,
-      implemented: ['telegram', 'fcm', 'web_push'].includes(channel), enabled: false,
+      implemented: ['fcm', 'web_push'].includes(channel), enabled: false,
       restriction: ['fcm', 'web_push'].includes(channel) ? 'NON_EMERGENCY_ONLY' : null })) };
   },
   async save(preferences: Preferences) {
@@ -57,9 +58,5 @@ export const notifications = {
   async ack(id: string): Promise<{ acknowledged_at: string }> {
     if (API_MODE === 'live') return notificationRequest(`/inbox/${encodeURIComponent(id)}/ack`, 'POST');
     mockAck ??= new Date().toISOString(); return { acknowledged_at: mockAck };
-  },
-  async telegram(): Promise<{ url: string }> {
-    if (API_MODE !== 'live') throw new ApiError(503, 'TELEGRAM_NOT_CONFIGURED', 'The Telegram bot is not configured.');
-    return notificationRequest('/telegram-link', 'POST');
   },
 };

@@ -53,11 +53,10 @@ from the BE repository; the user signs out and in again. No team email is allowe
 - Non-operator accounts get 403. Signing out and in again works on the Hosting domain.
 - Without pipeline data, the "data not available" message appears; never read it as safe data.
 - The region detail page and its `/regions/:id` deep link work; the MapLibre worker is served as JavaScript.
-- Decisions whose Telegram status is `pending`, `failed` or `unknown` are marked unconfirmed.
 
 Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, saving preferences and the inbox
 in Firestore, and refusal of access without sign-in. Not tested yet: the operator flow with real data, publishing and
-Telegram delivery. The MapLibre chunk size warning predates this work; it stays lazily loaded.
+the alert in the Telegram group. The MapLibre chunk size warning predates this work; it stays lazily loaded.
 
 ## Deploy
 
@@ -83,7 +82,8 @@ Use the Notification Engine v1 backend from the BE repository; follow its `docs/
 Fill `VITE_FIREBASE_MESSAGING_SENDER_ID` and `VITE_FIREBASE_VAPID_KEY` before building.
 FCM/Web Push are exercise/non-emergency only; WhatsApp/SMS/Gmail/LoRa/Bluetooth are planned, not active senders.
 
-The Telegram button creates a one-time deep link; press Start in the bot, then save the preferences. Push must be
+Telegram is the alert group, not a personal channel: an operator adds the bot to the group from the Regions page
+(Telegram groups panel), and every published alert is posted there. Push must be
 registered from a browser that allows it. Offline use is turned on by a user checkbox; only the public shell
 and inboxes that were loaded are stored. Tokens and API responses never enter the service-worker cache. The local
 inbox is deleted on sign-out. Confirmation needs the server; the UI never fakes a confirmation while offline.

@@ -20,10 +20,10 @@ export interface Schema {
 
 export type ExampleKey =
   | 'health' | 'alerts' | 'closeReq' | 'closeRes'
-  | 'notifSettings' | 'preferences' | 'deviceReq' | 'telegramLink' | 'inbox' | 'ack' | 'deliveries'
+  | 'notifSettings' | 'preferences' | 'deviceReq' | 'inbox' | 'ack' | 'deliveries'
   | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes'
   | 'dayIndex' | 'dayArchive'
-  | 'accessList' | 'accessReq' | 'accessRes' | 'activateRes';
+  | 'accessList' | 'accessReq' | 'accessRes' | 'activateRes' | 'tgGroups' | 'tgGroupLink';
 
 export interface Endpoint {
   id: string;
@@ -137,8 +137,7 @@ export const SCHEMAS: Schema[] = [
     desc: 'Saved decision and outbox summary; provider status is read through the deliveries endpoint.',
     fields: [
       { name: '…Decision', type: '—', req: true, desc: 'All Decision fields.' },
-      { name: 'telegram', type: 'null', req: true, desc: 'Compatibility field; no inline send.' },
-      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_recipients', recipients: number, jobs: number} | null", req: true, desc: 'Saved outbox, not proof of delivery. fanout_pending = the decision is saved but recipients are not all queued yet; the backend sweep resumes it. The subscriber count never fails a decision.' },
+      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_recipients', recipients: number, groups: number, jobs: number} | null", req: true, desc: 'Saved outbox, not proof of delivery. groups = linked Telegram groups that get one message each. fanout_pending = the decision is saved but recipients are not all queued yet; the backend sweep resumes it. The subscriber count never fails a decision.' },
       { name: 'queue', type: "{state: 'accepted'|'awaiting_recovery', count: number}", req: false, desc: 'Enqueue result for publish; Scheduler recovers enqueue failures.' },
     ],
   },
@@ -171,7 +170,7 @@ export const SCHEMAS: Schema[] = [
     desc: 'One account\'s subscription: regions, channels and consent. Stored per verified Google account.',
     fields: [
       { name: 'provinces', type: `(${PROV_T})[]`, req: true, desc: 'Max 15, no duplicates. At least one is required when consent = true.' },
-      { name: 'channels', type: "('telegram' | 'fcm' | 'web_push' | 'whatsapp' | 'sms' | 'gmail' | 'lora' | 'bluetooth_mesh')[]", req: true, desc: 'Chosen channels, no duplicates. Channels not implemented yet are stored but never sent to.' },
+      { name: 'channels', type: "('fcm' | 'web_push' | 'whatsapp' | 'sms' | 'gmail' | 'lora' | 'bluetooth_mesh')[]", req: true, desc: 'Chosen personal channels, no duplicates. Channels not implemented yet are stored but never sent to. Telegram is not a personal channel: alerts go to the linked Telegram group.' },
       { name: 'consent', type: 'boolean', req: true, desc: 'Consent to receive alerts. false = no inbox entries or jobs for this account.' },
       { name: 'exercises', type: 'boolean', req: false, desc: 'Also receive exercise messages (alerts from replay data). Default false.' },
     ],
@@ -180,7 +179,7 @@ export const SCHEMAS: Schema[] = [
     name: 'NotificationSettings', origin: 'backend',
     desc: 'Content of the /notifications page: the account\'s preferences and what each channel can do on the server.',
     fields: [
-      { name: 'preferences', type: 'Preferences & {telegram_linked: boolean, device_registered: boolean}', req: true, desc: 'No chat_id or device token; only whether one is linked.' },
+      { name: 'preferences', type: 'Preferences & {device_registered: boolean}', req: true, desc: 'No device token; only whether one is registered.' },
       { name: 'channels[]', type: "{channel, implemented: boolean, enabled: boolean, restriction: 'NON_EMERGENCY_ONLY' | 'HARDWARE_REQUIRED' | 'ADAPTER_PENDING' | null}", req: true, desc: 'enabled = actually sends (live mode and channel switched on). FCM/Web Push are for exercises only, never emergencies.' },
       { name: 'mode', type: "'dry_run' | 'live'", req: true, desc: 'dry_run = no provider is contacted; delivery status becomes simulated.' },
     ],
@@ -212,14 +211,6 @@ export const SCHEMAS: Schema[] = [
       { name: 'attempts', type: 'number', req: true, desc: 'Number of send attempts.' },
       { name: 'created_at · started_at · finished_at', type: `${ISO} | null`, req: true, desc: 'Job timestamps.' },
       { name: 'acknowledged_at', type: `${ISO} | null`, req: true, desc: 'From the recipient\'s inbox.' },
-    ],
-  },
-  {
-    name: 'TelegramLink', origin: 'backend',
-    desc: 'One-time deep link to the bot.',
-    fields: [
-      { name: 'url', type: 'string', req: true, desc: '`https://t.me/{bot}?start={code}`.' },
-      { name: 'expires_in_seconds', type: '600', req: true, desc: 'The code expires after 10 min.' },
     ],
   },
   {
@@ -469,6 +460,31 @@ export const ENDPOINTS: Endpoint[] = [
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION', 'NOT_FOUND', 'CANNOT_REMOVE_SELF'],
   },
   {
+    id: 'tg-groups', method: 'GET', path: '/operator/telegram-groups', auth: 'operator',
+    title: 'Linked Telegram groups',
+    purpose: 'Groups that receive every published alert. The title only; the chat id stays on the server.',
+    usedBy: 'Regions map → Telegram groups panel.',
+    responses: [{ code: 200, schema: '{ id, title, linked_by, linked_at }[]', example: 'tgGroups' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'tg-group-link', method: 'POST', path: '/operator/telegram-groups/link', auth: 'operator',
+    title: 'Link a Telegram group',
+    purpose: 'A one-time t.me/<bot>?startgroup=<code> link, valid 10 minutes. Telegram asks which group, adds the bot and posts /start@<bot> <code> there; the webhook then links that group.',
+    usedBy: 'Regions map → Telegram groups panel → Add the bot to a group.',
+    responses: [{ code: 200, schema: '{ url: string, expires_in_seconds: 600 }', example: 'tgGroupLink' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'TELEGRAM_NOT_CONFIGURED'],
+  },
+  {
+    id: 'tg-group-unlink', method: 'DELETE', path: '/operator/telegram-groups/{id}', auth: 'operator',
+    title: 'Unlink a Telegram group',
+    purpose: 'Stops alerts to the group; queued messages to it are cancelled. The bot stays in the group until someone removes it.',
+    usedBy: 'Regions map → Telegram groups panel → Unlink.',
+    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Group id from the list (64 hex characters).' }],
+    responses: [{ code: 200, schema: '{ unlinked: true }' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND'],
+  },
+  {
     id: 'access-activate', method: 'POST', path: '/access/activate', auth: 'user',
     title: 'Activate operator access at sign-in',
     purpose: 'Called by the web app after sign-in when the account is not an operator yet. An allowlisted address gets role=operator; the app then refreshes the ID token. Anyone else is unchanged.',
@@ -479,7 +495,7 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'alerts', method: 'GET', path: '/operator/alerts', auth: 'operator',
     title: 'Alert list',
-    purpose: 'Published alerts + Telegram send status.',
+    purpose: 'Published alerts + their delivery status.',
     usedBy: null,
     params: [
       { name: 'status', type: "query · 'active' | 'closed'", req: false, origin: 'backend', desc: 'Omitted = all.' },
@@ -520,16 +536,8 @@ export const ENDPOINTS: Endpoint[] = [
     purpose: 'Replace the account\'s whole preference set. consent = false stops every new message for this account.',
     usedBy: '/notifications → Save and Unsubscribe buttons.',
     body: { schema: 'Preferences', example: 'preferences' },
-    responses: [{ code: 200, schema: 'Preferences', note: 'Plus telegram_linked and device_registered.' }],
+    responses: [{ code: 200, schema: 'Preferences', note: 'Plus device_registered.' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
-  },
-  {
-    id: 'notif-telegram', method: 'POST', path: '/notifications/telegram-link', auth: 'user',
-    title: 'Telegram bot link',
-    purpose: 'One-time /start deep link, valid for 10 min. The account is linked once the user presses Start in a private chat with the bot.',
-    usedBy: '/notifications → Connect Telegram button.',
-    responses: [{ code: 200, schema: 'TelegramLink', example: 'telegramLink' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'TELEGRAM_NOT_CONFIGURED'],
   },
   {
     id: 'notif-device', method: 'POST', path: '/notifications/device', auth: 'user',
@@ -569,7 +577,7 @@ export const ENDPOINTS: Endpoint[] = [
 
 /** Internal endpoints (asapify-agent and asapify-notify) — not for the UI; listed so the BE team knows the boundary. */
 export const INTERNAL: { method: string; path: string; desc: string }[] = [
-  { method: 'POST', path: '/api/v1/notifications/telegram-webhook', desc: 'Called by Telegram; requires the X-Telegram-Bot-Api-Secret-Token header. Only links private chats through /start; never replies.' },
+  { method: 'POST', path: '/api/v1/notifications/telegram-webhook', desc: 'Called by Telegram; requires the X-Telegram-Bot-Api-Secret-Token header. Links a group from the one-time /start code an operator created; ignores private chats; never replies.' },
   { method: 'POST', path: '/_internal/notifications/dispatch', desc: 'asapify-notify. OIDC asapify-task from Cloud Tasks. Body {job_id}. Claims one job, then sends it.' },
   { method: 'POST', path: '/_internal/engine/geo-tick', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every 10 minutes (minute 5, 15, … 55), ?budget=240. Newest Himawari-9 + GK2A slot for all 65 regions: fusion, rules, state machine, agent requests and waiting agent runs.' },
   { method: 'POST', path: '/_internal/engine/tick', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every 15 minutes, ?batch=20&budget=240. NASA POWER support only: one probe, then new hours per region. Sets no status.' },
@@ -649,6 +657,8 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   accessReq: { email: 'judge@example.org' },
   accessRes: { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
   activateRes: { role: 'operator', changed: true },
+  tgGroups: [{ id: '9c1f…4be2', title: 'Siaga Karhutla Kalteng', linked_by: 'operator@example.org', linked_at: '2026-10-15T03:20:00Z' }],
+  tgGroupLink: { url: 'https://t.me/asapify_alert_bot?startgroup=Qm9…x7Ze', expires_in_seconds: 600 },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },
   alerts: [{
     id: 'A-R2.00S113.750E-20230923T165500Z', region_id: 'R2.00S113.750E', verification_id: '20230923T165500Z', province: '62',
@@ -666,17 +676,15 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
     notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
   },
   notifSettings: {
-    preferences: { provinces: ['62'], channels: ['telegram'], consent: true, exercises: true, telegram_linked: true, device_registered: false },
+    preferences: { provinces: ['62'], channels: ['web_push'], consent: true, exercises: true, device_registered: false },
     channels: [
-      { channel: 'telegram', implemented: true, enabled: false, restriction: null },
       { channel: 'web_push', implemented: true, enabled: false, restriction: 'NON_EMERGENCY_ONLY' },
       { channel: 'sms', implemented: false, enabled: false, restriction: 'ADAPTER_PENDING' },
     ],
     mode: 'dry_run',
   },
-  preferences: { provinces: ['62', '63'], channels: ['telegram', 'web_push'], consent: true, exercises: true },
+  preferences: { provinces: ['62', '63'], channels: ['web_push'], consent: true, exercises: true },
   deviceReq: { token: 'fcm-token-from-browser:APA91b…' },
-  telegramLink: { url: 'https://t.me/asapify_bot?start=Zq3…', expires_in_seconds: 600 },
   inbox: [{
     id: '3f9c…e21a', alert_id: 'A-0924-001', province: '62', purpose: 'exercise', status: 'active',
     text: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.21, 113.92 · 4 pixels\n…',
@@ -684,7 +692,7 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   }],
   ack: { acknowledged_at: '2023-09-24T15:33:12Z' },
   deliveries: [{
-    id: '7b1d…09cf', channel: 'telegram', stage: 'initial', status: 'accepted', error: null, attempts: 1,
+    id: '7b1d…09cf', channel: 'telegram_group', stage: 'initial', status: 'accepted', error: null, attempts: 1,
     created_at: '2023-09-24T15:30:00Z', started_at: '2023-09-24T15:30:02Z', finished_at: '2023-09-24T15:30:03Z',
     acknowledged_at: '2023-09-24T15:33:12Z',
   }],

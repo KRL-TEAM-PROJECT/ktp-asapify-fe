@@ -11,7 +11,6 @@ import { IconCheck } from '../components/icons';
 import '../notifications.css';
 
 const EMPTY: Preferences = { provinces: [], channels: [], consent: false, exercises: false };
-const PUSH: Channel[] = ['fcm', 'web_push'];
 
 function plain(value: string) {
   // React renders text; stripping markup here only improves captions inherited from Telegram.
@@ -32,7 +31,6 @@ export function NotificationsPage() {
   // Errors and messages are stored as objects/keys and worded at render time through errorText/t.
   const [error, setError] = useState<unknown>(null);
   const [message, setMessage] = useState('');
-  const [telegramUrl, setTelegramUrl] = useState('');
   const [loaded, setLoaded] = useState(false);
 
   async function refresh() {
@@ -130,6 +128,7 @@ export function NotificationsPage() {
       </section>
       <section className="card" aria-labelledby="pref-h">
         <h2 id="pref-h">{t('notif.prefs')}</h2>
+        <p className="muted small">{t('notif.tg_group')}</p>
         <fieldset disabled={busy || !settings}>
           <legend className="lbl">{t('notif.provinces')}</legend>
           <div className="notify-regions">{PROVINCE_CODES.map(code => <label className="opt check" key={code}>
@@ -141,20 +140,16 @@ export function NotificationsPage() {
           <legend className="lbl">{t('notif.channels')}</legend>
           <div className="notify-channels">{settings?.channels.map(c => <label className="opt check notify-channel" key={c.channel}>
             <input type="checkbox" checked={form.channels.includes(c.channel)} onChange={() => toggleChannel(c.channel)} />
-            <span>{t(`notif.ch.${c.channel}`)}<small>{t(!c.implemented ? 'notif.ch_planned' : PUSH.includes(c.channel) ? 'notif.ch_push' : 'notif.ch_text')}</small></span>
+            <span>{t(`notif.ch.${c.channel}`)}<small>{t(c.implemented ? 'notif.ch_push' : 'notif.ch_planned')}</small></span>
             <span className="notify-tag">{t(c.enabled ? 'notif.tag_on' : c.implemented ? 'notif.tag_setup' : 'notif.tag_planned')}</span>
           </label>)}</div>
         </fieldset>
         <div className="btns">
           <button className="btn" disabled={busy || API_MODE === 'mock'} onClick={() => void act(async () => {
-            const result = await notifications.telegram(); setTelegramUrl(result.url);
-          })}>{t(settings?.preferences.telegram_linked ? 'notif.tg_relink' : 'notif.tg_link')}</button>
-          <button className="btn" disabled={busy || API_MODE === 'mock'} onClick={() => void act(async () => {
             await (await import('../notification-push')).enableBrowserPush();
             setMessage('notif.push_done');
           })}>{t('notif.push_register')}</button>
         </div>
-        {telegramUrl && <a href={telegramUrl} target="_blank" rel="noreferrer">{t('notif.tg_open')}</a>}
         <label className="opt switch">
           <span>{t('notif.exercises')}</span>
           <input type="checkbox" role="switch" disabled={busy || !settings} checked={form.exercises} onChange={e => setForm({ ...form, exercises: e.target.checked })} />

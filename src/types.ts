@@ -10,14 +10,13 @@ export type ProvinceCode =
 
 export interface Decision {
   /** fanout_pending: the decision is saved, recipients are still being queued (the backend sweep resumes it). */
-  notifications?: { state: 'fanout_pending' | 'outbox_saved' | 'no_recipients'; recipients: number; jobs: number } | null;
+  notifications?: { state: 'fanout_pending' | 'outbox_saved' | 'no_recipients'; recipients: number; groups?: number; jobs: number } | null;
   action: 'publish' | 'reject';
   by: string;
   at: string;
   reason: string | null;
   alert_id: string | null;
   /** Present in live API; absent in mock mode. A saved decision is not proof of delivery. */
-  telegram?: { status: 'pending' | 'sent' | 'failed' | 'unknown'; message_id: number | null; error?: string | null } | null;
 }
 
 export interface DecisionRequest {
@@ -234,6 +233,14 @@ export interface OperatorAccess {
   activated_at: string | null;
 }
 
+/** A Telegram group that receives every published alert; its chat id stays on the server. */
+export interface TelegramGroup {
+  id: string;
+  title: string;
+  linked_by: string | null;
+  linked_at: string | null;
+}
+
 // ---------- day archive (backend asapify_engine/geo.py, engine_days) ----------
 
 /** Calendar mark of one archived WIB day. */
@@ -278,6 +285,9 @@ export interface Api {
   operatorAccess(): Promise<OperatorAccess[]>;
   grantOperator(email: string): Promise<OperatorAccess>;
   revokeOperator(email: string): Promise<void>;
+  telegramGroups(): Promise<TelegramGroup[]>;
+  linkTelegramGroup(): Promise<{ url: string; expires_in_seconds: number }>;
+  unlinkTelegramGroup(id: string): Promise<void>;
 }
 
 export class ApiError extends Error {

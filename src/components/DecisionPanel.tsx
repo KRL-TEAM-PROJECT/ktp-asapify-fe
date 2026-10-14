@@ -13,9 +13,6 @@ import { DeliveryStatus } from './DeliveryStatus';
 export function DecisionState({ decision }: { decision: Decision | null }) {
   const { t } = useI18n();
   if (!decision) return <span className="dec-state"><IconClock size={12} />{t('decision.pending')}</span>;
-  if (decision.action === 'publish' && decision.telegram && decision.telegram.status !== 'sent') {
-    return <span className="dec-state"><IconClock size={12} />{t('dec.delivery_unconfirmed')}</span>;
-  }
   return decision.action === 'publish'
     ? <span className="dec-state"><IconSend size={12} />{t('decision.published')}</span>
     : <span className="dec-state"><IconX size={12} />{t('decision.rejected')}</span>;
@@ -57,13 +54,11 @@ export function DecisionPanel({ decision: d, province, summary, caption: initial
           {t(d.action === 'publish' ? 'dec.published_by' : 'dec.rejected_by', { by: d.by, when: fmtSlot(d.at) })}
         </p>
         {d.alert_id && <p className="muted">{t('dec.alert', { id: d.alert_id })}</p>}
-        {d.action === 'publish' && d.telegram && d.telegram.status !== 'sent' && (
-          <p className="error" role="alert">{t('dec.delivery_warning')}</p>
-        )}
         {d.notifications && <p className="muted" role="status">{
           d.notifications.state === 'fanout_pending' ? t('dec.outbox_pending')
             : d.notifications.state === 'no_recipients' ? t('dec.outbox_none')
-              : t('dec.outbox', { r: d.notifications.recipients, j: d.notifications.jobs })}</p>}
+              : t(d.notifications.groups ? 'dec.outbox_groups' : 'dec.outbox',
+                { r: d.notifications.recipients, g: d.notifications.groups ?? 0, j: d.notifications.jobs })}</p>}
         {d.alert_id && d.notifications && <DeliveryStatus alertId={d.alert_id} since={d.at} />}
         {d.reason && <blockquote>{d.reason}</blockquote>}
       </m.section>

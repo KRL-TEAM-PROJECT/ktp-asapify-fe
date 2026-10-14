@@ -1,7 +1,7 @@
 import {
   ApiError,
   type AgentInfo, type Api, type DayArchive, type DayIndex, type Decision, type OperatorAccess, type PeatRegions,
-  type ProvinceBoundary, type RegionDetail, type RegionSummary, type Verification,
+  type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification,
 } from './types';
 import { getOperatorToken } from './auth';
 
@@ -63,6 +63,11 @@ const liveApi: Api = {
   revokeOperator: async (email) => {
     await req('/operator/access/revoke', { method: 'POST', body: JSON.stringify({ email }) });
   },
+  telegramGroups: () => req<TelegramGroup[]>('/operator/telegram-groups'),
+  linkTelegramGroup: () => req<{ url: string; expires_in_seconds: number }>('/operator/telegram-groups/link', { method: 'POST' }),
+  unlinkTelegramGroup: async (id) => {
+    await req(`/operator/telegram-groups/${enc(id)}`, { method: 'DELETE' });
+  },
 };
 
 // Mock mode loads lazily: its code + fictional data stay out of the main chunk.
@@ -81,6 +86,9 @@ const mockApi: Api = {
   operatorAccess: () => mockAccess().then((m) => m.list()),
   grantOperator: (email) => mockAccess().then((m) => m.grant(email)),
   revokeOperator: (email) => mockAccess().then((m) => m.revoke(email)),
+  telegramGroups: () => mockAccess().then((m) => m.groups()),
+  linkTelegramGroup: () => mockAccess().then((m) => m.linkGroup()),
+  unlinkTelegramGroup: (id) => mockAccess().then((m) => m.unlinkGroup(id)),
 };
 
 export const api: Api = API_MODE === 'live' ? liveApi : mockApi;

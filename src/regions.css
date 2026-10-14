@@ -88,7 +88,10 @@
 .rg-access-act { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
 .rg-access-act .link-btn { padding: 0 8px 0 0; }
 .rg-access-act .link-btn.danger { color: var(--ember-ink); }
-.tg-steps { margin: 6px 0; padding-left: 20px; display: grid; gap: 6px; }
+.tg-link { display: grid; gap: 8px; margin: 6px 0; }
+.tg-cmd { display: flex; gap: 8px; align-items: stretch; }
+.tg-cmd code { flex: 1; min-width: 0; display: flex; align-items: center; padding: 8px 10px; user-select: all;
+  overflow-wrap: anywhere; font-size: var(--fs-sm); }
 @media (prefers-reduced-motion: reduce) {
   .rg-access-row input { transition: none; }
 }

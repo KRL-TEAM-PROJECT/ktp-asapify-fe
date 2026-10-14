@@ -7,10 +7,16 @@ import { fmtSlot } from '../lib/format';
 import { INVITE } from '../lib/telegram';
 
 /**
- * Telegram groups that receive every published alert (backend notification_store.py). Linking is a one-time
- * t.me/<bot>?startgroup= link: Telegram asks which group, adds the bot and hands the code back to the backend.
- * The link is fetched first and then opened by the operator's own click, so no popup blocker gets in the way.
+ * Telegram groups that receive every published alert (backend notification_store.py). The backend gives a one-time
+ * t.me/<bot>?startgroup=<code> link; the group is linked when the bot sees `/start@<bot> <code>` in it. Telegram does
+ * not always send that message when it adds the bot (never when the bot is already in the group), so the panel shows
+ * the message to send by hand, with the link as the way to add the bot first.
  */
+function linkCommand(url: string): string {
+  const u = new URL(url);
+  return `/start@${u.pathname.slice(1)} ${u.searchParams.get('startgroup') ?? ''}`;
+}
+
 export function TelegramGroups() {
   const { t } = useI18n();
   const [rows, setRows] = useState<TelegramGroup[] | null>(null);
@@ -19,6 +25,7 @@ export function TelegramGroups() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [invites, setInvites] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState(false);
 
   async function load() {
     setError(null);
@@ -26,6 +33,7 @@ export function TelegramGroups() {
   }
   async function create() {
     setBusy(true); setError(null);
+    setCopied(false);
     try { setLink((await api.linkTelegramGroup()).url); } catch (e) { setError(errorText(e, t)); } finally { setBusy(false); }
   }
   async function saveInvite(e: FormEvent, g: TelegramGroup) {
@@ -45,10 +53,19 @@ export function TelegramGroups() {
       <summary>{t('tg.title')}</summary>
       <p className="muted small">{t('tg.lede')}</p>
       {link ? (
-        <ol className="tg-steps small">
-          <li><a href={link} target="_blank" rel="noopener noreferrer">{t('tg.open')}</a> {t('tg.step_pick')}</li>
-          <li>{t('tg.step_back')} <button className="link-btn" disabled={busy} onClick={() => { setLink(null); void load(); }}>{t('tg.refresh')}</button></li>
-        </ol>
+        <div className="tg-link small">
+          <p>{t('tg.step_send')}</p>
+          <div className="tg-cmd">
+            <code>{linkCommand(link)}</code>
+            <button className="btn" type="button" onClick={() => {
+              void navigator.clipboard?.writeText(linkCommand(link)).then(() => setCopied(true), () => setCopied(false));
+            }}>{t(copied ? 'tg.copied' : 'tg.copy')}</button>
+          </div>
+          <p className="muted">
+            {t('tg.step_add')} <a href={link} target="_blank" rel="noopener noreferrer">{t('tg.open')}</a>
+          </p>
+          <button className="btn primary" type="button" disabled={busy} onClick={() => { setLink(null); void load(); }}>{t('tg.refresh')}</button>
+        </div>
       ) : (
         <button className="btn primary" disabled={busy} onClick={() => { void create(); }}>{t('tg.add')}</button>
       )}

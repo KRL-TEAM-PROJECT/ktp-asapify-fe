@@ -69,7 +69,7 @@ export class RegionMapController {
     this.lite = o.lite;
     this.map = new MlMap({
       container,
-      style: styleFor(o.lite ? 'plain' : 'streets', o.dark, []),
+      style: styleFor(o.lite ? 'plain' : 'streets', o.dark),
       bounds: REGION as LngLatBoundsLike,
       fitBoundsOptions: { padding: 24 },
       attributionControl: false,
@@ -188,7 +188,7 @@ export class RegionMapController {
     if (dark === this.dark) return;
     this.dark = dark;
     this.ready = false;
-    this.map.setStyle(styleFor(this.lite ? 'plain' : 'streets', dark, []), { diff: false });
+    this.map.setStyle(styleFor(this.lite ? 'plain' : 'streets', dark), { diff: false });
   }
 
   fitBounds(b: LngLatBoundsLike, maxZoom = 9) {

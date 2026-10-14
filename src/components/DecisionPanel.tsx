@@ -37,7 +37,7 @@ const slide = {
   initial: { opacity: 0, y: -8 }, animate: { opacity: 1, y: 0, transition: spring }, exit: { opacity: 0, transition: exitFast },
 };
 
-/** Two buttons only: Publish (caption editable) or Reject (reason required). Used for clusters and regions. */
+/** Two buttons only: Publish (caption editable) or Reject (reason required). Used for region verifications. */
 export function DecisionPanel({ decision: d, province, summary, caption: initialCaption, submit: send, onDecided, publishBlocked }: Props) {
   const { t } = useI18n();
   const [caption, setCaption] = useState(initialCaption);

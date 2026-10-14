@@ -51,8 +51,5 @@ export function fmtSigned(n: number, digits: number): string {
   return `${n < 0 && Number(s.replace(/,/g, '')) !== 0 ? '−' : '+'}${s}`;
 }
 
-/** Plain number with a real minus sign (U+2212) for coordinates and tooltip values. */
-export const fmtNumM = (n: number, digits: number) => fmtNum(n, digits).replace('-', '−');
-
 /** Brightness temperature K → "38.4 °C". */
 export const fmtC = (k: number) => `${fmtNum(k - 273.15, 1)} °C`;

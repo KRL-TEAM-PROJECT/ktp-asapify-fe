@@ -1,7 +1,6 @@
 import {
   ApiError,
-  type AgentInfo, type Api, type Basemap, type ClusterDetail, type ClusterSummary, type Decision, type GridCompact,
-  type Meta, type NightCompact, type NightSummary, type OperatorAccess, type PeatBoundary, type PeatRegions, type PixelIndex,
+  type AgentInfo, type Api, type Decision, type OperatorAccess, type PeatRegions,
   type ProvinceBoundary, type RegionDetail, type RegionSummary, type Verification,
 } from './types';
 import { getOperatorToken } from './auth';
@@ -46,18 +45,6 @@ const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 const peatRegions = () => file<PeatRegions>(`${import.meta.env.BASE_URL}regions.geojson`, EMPTY_FC);
 
 const liveApi: Api = {
-  meta: () => req<Meta>('/meta'),
-  pixels: () => req<PixelIndex>('/operator/pixels'),
-  gridCompact: (asOf) => req<GridCompact>(`/operator/grid?format=compact${asOf ? `&as_of=${enc(asOf)}` : ''}`),
-  night: (night) => req<NightCompact>(`/operator/grid/night?night=${enc(night)}`),
-  nights: (month) => req<NightSummary[]>(`/operator/nights?month=${enc(month)}`),
-  basemaps: () => req<Basemap[]>('/operator/basemaps'),
-  clusters: (night) => req<ClusterSummary[]>(night ? `/operator/clusters?night=${enc(night)}` : '/operator/clusters?state=active'),
-  cluster: (id) => req<ClusterDetail>(`/operator/clusters/${enc(id)}`),
-  decide: async (id, body) => {
-    await req(`/operator/clusters/${enc(id)}/decision`, { method: 'POST', body: JSON.stringify(body) });
-  },
-  peatBoundary: () => file<PeatBoundary>(import.meta.env.VITE_PEAT_LAYER_URL, EMPTY_FC),
   provinces: () => file<ProvinceBoundary>(import.meta.env.VITE_PROVINCES_LAYER_URL, EMPTY_FC),
   regions: () => req<RegionSummary[]>('/operator/regions'),
   // 6 slot records per hour are read per request (24 h = 144 reads), so ask only for what the page shows
@@ -75,21 +62,10 @@ const liveApi: Api = {
 };
 
 // Mock mode loads lazily: its code + fictional data stay out of the main chunk.
-const mock = () => import('./mock/fixtures').then((m) => m.mockApi);
 const mockRegions = () => import('./mock/regions').then((m) => m.mockRegionApi);
 const mockAccess = () => import('./mock/access').then((m) => m.mockAccessApi);
 const mockApi: Api = {
-  meta: () => mock().then((m) => m.meta()),
-  pixels: () => mock().then((m) => m.pixels()),
-  gridCompact: (asOf) => mock().then((m) => m.gridCompact(asOf)),
-  night: (night) => mock().then((m) => m.night(night)),
-  nights: (month) => mock().then((m) => m.nights(month)),
-  basemaps: () => mock().then((m) => m.basemaps()),
-  clusters: (night) => mock().then((m) => m.clusters(night)),
-  cluster: (id) => mock().then((m) => m.cluster(id)),
-  decide: (id, body) => mock().then((m) => m.decide(id, body)),
-  peatBoundary: () => mock().then((m) => m.peatBoundary()),
-  provinces: () => mock().then((m) => m.provinces()),
+  provinces: () => file<ProvinceBoundary>(`${import.meta.env.BASE_URL}mock/provinces.geojson`, EMPTY_FC),
   regions: () => mockRegions().then((m) => m.regions()),
   region: (id, hours) => mockRegions().then((m) => m.region(id, hours)),
   peatRegions,

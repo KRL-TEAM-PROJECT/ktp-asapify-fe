@@ -1,6 +1,5 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useI18n } from '../i18n';
-import { contractExamples } from '../mock/fixtures';
 import {
   CONVENTIONS, ENDPOINTS, ERRORS, INTERNAL, SCHEMAS, STATIC_EXAMPLES,
   type Endpoint, type ExampleKey, type Field, type Origin, type Schema,
@@ -32,8 +31,7 @@ function trim(v: unknown, note: (n: number) => string): unknown {
     return v.length > 4 ? [...head, note(v.length - 3)] : v.map((x) => trim(x, note));
   }
   if (v && typeof v === 'object') {
-    const keep = new Set(['coordinates', 'tiles', 'url']); // URLs and coordinates stay whole, except data: URIs (mock images)
-    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, keep.has(k) && !(typeof x === 'string' && x.startsWith('data:')) ? x : trim(x, note)]));
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k === 'url' ? x : trim(x, note)])); // URLs stay whole
   }
   return v;
 }
@@ -131,7 +129,6 @@ function EndpointCard({ ep, examples }: { ep: Endpoint; examples: Record<string,
           {r.example && <JsonBlock value={ex(r.example)} label={`${t('api.example')} · ${r.code}`} />}
         </div>
       ))}
-      {ep.id === 'grid' && <p className="muted small">{t('api.grid_count', { n: String(examples.gridCount) })}</p>}
 
       {ep.errors.length > 0 && (
         <p className="ep-errors">
@@ -155,10 +152,6 @@ function SchemaCard({ s }: { s: Schema }) {
 
 export function ApiContractPage() {
   const { t } = useI18n();
-  const examples = useMemo(() => {
-    const fx = contractExamples();
-    return { ...STATIC_EXAMPLES, ...fx } as Record<string, unknown>;
-  }, []);
 
   // A direct link to #ep-… opens before React renders, so the browser cannot scroll there by itself.
   useEffect(() => {
@@ -222,13 +215,12 @@ export function ApiContractPage() {
 
           <section aria-labelledby="ep-h">
             <h2 id="ep-h">{t('api.endpoints')}</h2>
-            {ENDPOINTS.map((e) => <EndpointCard key={e.id} ep={e} examples={examples} />)}
+            {ENDPOINTS.map((e) => <EndpointCard key={e.id} ep={e} examples={STATIC_EXAMPLES} />)}
           </section>
 
           <section aria-labelledby="sc-h">
             <h2 id="sc-h">{t('api.schemas')}</h2>
             {SCHEMAS.map((s) => <SchemaCard key={s.name} s={s} />)}
-            <JsonBlock value={trim(examples.peat, (n) => `… +${n}`)} label={`${t('api.example')} · PeatBoundary`} />
           </section>
 
           <section id="internal" aria-labelledby="int-h">

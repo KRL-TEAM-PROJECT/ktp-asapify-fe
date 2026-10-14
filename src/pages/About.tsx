@@ -82,7 +82,7 @@ export function AboutPage() {
       <div className="grid-2">
         <m.section className="card" aria-labelledby="lim-h" {...reveal(0)}>
           <h2 id="lim-h">{t('about.limits_title')}</h2>
-          <ul>{[1, 2, 3, 4, 5, 6].map((n) => <li key={n}>{t(`about.limit${n}`)}</li>)}</ul>
+          <ul>{[1, 2, 3, 4, 5].map((n) => <li key={n}>{t(`about.limit${n}`)}</li>)}</ul>
         </m.section>
         <m.section className="card" aria-labelledby="data-h" {...reveal(1)}>
           <h2 id="data-h">{t('about.data_title')}</h2>

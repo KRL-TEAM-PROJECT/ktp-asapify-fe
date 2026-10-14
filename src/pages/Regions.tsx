@@ -218,7 +218,6 @@ export function RegionsPage({ dark }: { dark: boolean }) {
             <p className="muted small">{t('rg.sources')}</p>
           </details>
           <OperatorAccess />
-          <p className="muted small"><Link to="/pixels">{t('rg.pixels_link')}</Link></p>
         </Sheet>
 
         <div className="map-wrap">

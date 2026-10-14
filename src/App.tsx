@@ -5,17 +5,14 @@ import { MotionProvider, m, spring, springSoft } from './motion';
 import { signOut, useAuthState, useUser } from './auth';
 import { useTheme } from './lib/theme';
 import { API_MODE } from './api';
-import { currentScenario } from './mock/scenario';
 import { BrandLockup } from './components/BrandMark';
 import { LoginPage } from './pages/Login';
 import { AboutPage } from './pages/About';
 
-// MapLibre (±230 KB gzip), the detail pages (charts, imagery, parameter tables) and the contract text load only
-// on their own routes. "/" is the risk engine's region map; the earlier pixel map stays at /pixels.
+// MapLibre (±230 KB gzip), the region detail page (charts, parameter tables) and the contract text load only
+// on their own routes. "/" is the risk engine's region map.
 const RegionsPage = lazy(() => import('./pages/Regions').then((m) => ({ default: m.RegionsPage })));
 const RegionPage = lazy(() => import('./pages/RegionPage').then((m) => ({ default: m.RegionPage })));
-const OperatorMapPage = lazy(() => import('./pages/OperatorMap').then((m) => ({ default: m.OperatorMapPage })));
-const ClusterPage = lazy(() => import('./pages/ClusterPage').then((m) => ({ default: m.ClusterPage })));
 const NotificationsPage = lazy(() => import('./pages/Notifications').then((m) => ({ default: m.NotificationsPage })));
 const ApiContractPage = lazy(() => import('./pages/ApiContract').then((m) => ({ default: m.ApiContractPage })));
 
@@ -58,7 +55,7 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
           <small>{t('app.role')}</small>
         </Link>
         {API_MODE === 'mock' && (
-          <span className="mock-badge" title={t('mock.title', { sc: currentScenario() })}>{t('mock.badge')}</span>
+          <span className="mock-badge" title={t('mock.title')}>{t('mock.badge')}</span>
         )}
         <nav className="navlinks" aria-label={t('nav.label')}>
           {user?.role === 'operator' && <NavItem to="/" end>{t('nav.regions')}</NavItem>}
@@ -85,7 +82,7 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
 
 function Shell({ theme }: { theme: ReturnType<typeof useTheme> }) {
   const loc = useLocation();
-  const isMap = loc.pathname === '/' || loc.pathname === '/pixels';
+  const isMap = loc.pathname === '/';
   return (
     <>
       <TopBar theme={theme} />
@@ -115,8 +112,6 @@ function Root() {
         <Route path="/notifications" element={<RequireAuth operator={false}><NotificationsPage /></RequireAuth>} />
         <Route path="/" element={<RequireAuth><RegionsPage dark={theme.dark} /></RequireAuth>} />
         <Route path="/regions/:id" element={<RequireAuth><RegionPage /></RequireAuth>} />
-        <Route path="/pixels" element={<RequireAuth><OperatorMapPage dark={theme.dark} /></RequireAuth>} />
-        <Route path="/clusters/:id" element={<RequireAuth><ClusterPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

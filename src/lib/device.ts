@@ -1,4 +1,4 @@
-import { load, save } from './storage';
+import { load } from './storage';
 
 export type LiteReason = 'save_data' | 'memory' | 'cpu' | 'motion';
 
@@ -22,4 +22,3 @@ export function loadLitePref(): boolean | null {
   const v = load(KEY);
   return v === '1' ? true : v === '0' ? false : null;
 }
-export function saveLitePref(v: boolean | null) { save(KEY, v == null ? null : v ? '1' : '0'); }

@@ -1,4 +1,4 @@
-import type { HourRecord, RatedStatus } from '../types';
+import type { RatedStatus, SlotRecord } from '../types';
 import { useI18n } from '../i18n';
 import { fmtNum } from '../lib/format';
 import { m, springSoft } from '../motion';
@@ -6,9 +6,10 @@ import { StatusBadge } from './StatusBadge';
 
 const ORDER: RatedStatus[] = ['ALERT', 'WARNING', 'SAFE'];
 const MEMBERSHIPS = ['delta_t_high', 'delta_t_medium', 'delta_t_low', 'humidity_low', 'humidity_high'];
+const SUPPORT = ['viirs_support', 'power_support']; // shown only when they took part
 
-/** Fuzzy MAUT result of one hour: utility per status, the memberships behind it and the rule that picked the status. */
-export function RegionUtilities({ record }: { record: HourRecord }) {
+/** Fuzzy MAUT result of one slot: utility per status, the memberships behind it and the rule that picked the status. */
+export function RegionUtilities({ record }: { record: SlotRecord }) {
   const { t } = useI18n();
   if (record.status === 'NO_OBSERVABLE') {
     return (
@@ -18,6 +19,7 @@ export function RegionUtilities({ record }: { record: HourRecord }) {
       </div>
     );
   }
+  const keys = [...MEMBERSHIPS, ...SUPPORT.filter((k) => k in record.memberships)];
   return (
     <div className="rg-util">
       <div className="rg-util-bars">
@@ -39,8 +41,8 @@ export function RegionUtilities({ record }: { record: HourRecord }) {
       </div>
       <p className="small"><span className="lbl">{t('rgu.rule')}</span> {record.reason}</p>
       <dl className="rg-memb">
-        {MEMBERSHIPS.map((k) => (
-          <div key={k}><dt>{t(`rgu.m.${k}`)}</dt><dd className="mono">{fmtNum(record.memberships[k] ?? 0, 2)}</dd></div>
+        {keys.map((k) => (
+          <div key={k}><dt>{t(`rgu.m.${k}`)}</dt><dd className="mono">{k in record.memberships ? fmtNum(record.memberships[k], 2) : '–'}</dd></div>
         ))}
       </dl>
       <p className="muted small">{t('rgu.note')}</p>

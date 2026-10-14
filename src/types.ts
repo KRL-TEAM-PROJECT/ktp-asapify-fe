@@ -237,31 +237,74 @@ export type ProvinceBoundary = FeatureCollection<MultiPolygon, { code: ProvinceC
 export type RatedStatus = 'SAFE' | 'WARNING' | 'ALERT';
 export type Quality = 'ACCEPTED' | 'DEGRADED' | 'REJECTED' | 'MISSING';
 export type ValidationStatus = 'CONFIRMED' | 'REJECTED' | 'NEEDS_MANUAL_REVIEW';
+export type SatelliteName = 'himawari9' | 'gk2a';
 
-export interface RegionInputs {
-  skin_temperature_k: number | null;
-  baseline_k: number | null; // mean skin temperature, same UTC hour ±15 days, 2021–2025
-  baseline_std_k: number | null;
-  baseline_samples: number;
-  baseline: string; // how the baseline was built, e.g. "UTC hour 06, ±15 days of 10-10, years 2021-2025"
-  delta_t_k: number | null; // skin temperature − baseline
-  relative_humidity_pct: number | null;
-  cloud_cover_pct: number | null;
+/** What one geostationary satellite saw in a region cell during one 10-minute slot. */
+export interface SatelliteView {
+  n_pixels: number; // pixels whose centre is in the cell
+  n_clear: number;
+  cloud_fraction: number; // 0–1 of the cell
+  n_peat: number; // pixels whose centre is on KHG peat
+  n_peat_clear: number;
+  background_k: number | null; // median ΔBT (3.9 − 10.4 µm) of the clear pixels
+  background_mad_k: number | null;
+  max_anomaly_k: number | null; // strongest fire-like pixel above that background; 0 = none; null = no verdict
+  max_z: number | null;
+  n_hot: number; // hot pixels: ΔBT ≥ 3 K above the background and the 3.9 µm channel risen too
+  n_hot_peat: number;
+  hot_on_peat: boolean | null; // the strongest fire-like pixel lies on peat
+  hot_lat: number | null;
+  hot_lon: number | null;
+  mwir_k: number | null; // 3.9 µm brightness temperature at that pixel
+  lwir_k: number | null; // 10.4 µm
 }
 
-export interface HourQuality { skin_temperature: Quality; relative_humidity: Quality; cloud_cover: Quality }
+export interface RegionInputs {
+  delta_t_k: number | null; // brightness-temperature anomaly the satellites confirm, K; null = not observable
+  cloud_cover_pct: number | null; // share of the cell under cloud in the clearest view
+  relative_humidity_pct: number | null; // Open-Meteo model value for the slot's hour
+  hot_lat: number | null; // where the strongest anomaly is (the cell centre when there is none)
+  hot_lon: number | null;
+}
 
-/** One assessed hour: the audit record the rules engine keeps. */
-export interface HourRecord {
-  observed_at: string;
+export interface SlotQuality { thermal: Quality; relative_humidity: Quality }
+
+/** One 10-minute satellite slot: the audit record the rules engine keeps. */
+export interface SlotRecord {
+  observed_at: string; // scan start of the slot, UTC
+  night: boolean; // sun below −6°: only then can the status reach ALERT
+  sun_elevation_deg: number;
+  views: Record<SatelliteName, SatelliteView | null>; // null = no data from that satellite
   inputs: RegionInputs;
-  quality: HourQuality;
-  flags: string[]; // e.g. reanalysis_estimate, model_estimate, missing_value
-  sources: { skin_temperature: string; relative_humidity: string; cloud_cover: string };
+  support: { viirs_support?: number; power_support?: number }; // only at a possible hotspot, 0–1
+  quality: SlotQuality;
+  flags: string[]; // e.g. two_satellites_agree, satellites_disagree, single_satellite:gk2a, daytime, no_data:gk2a
+  sources: Record<string, string>;
   status: Status;
   utilities: Partial<Record<RatedStatus, number>>; // empty when NO_OBSERVABLE
   memberships: Record<string, number>;
   reason: string;
+}
+
+/** Latest NASA POWER hour of a region: supporting data, about 2–3 days behind. */
+export interface PowerSupport {
+  observed_at: string;
+  skin_temperature_k: number | null;
+  baseline_k: number | null; // mean skin temperature, same UTC hour ±15 days, 2021–2025
+  baseline_std_k: number | null;
+  baseline_samples: number;
+  baseline: string;
+  delta_t_k: number | null; // skin temperature − baseline
+  relative_humidity_pct: number | null;
+  updated_at: string;
+}
+
+/** One NASA POWER hour (support only: no status). */
+export interface PowerHour {
+  observed_at: string;
+  inputs: Omit<PowerSupport, 'observed_at' | 'updated_at'>;
+  quality: { skin_temperature: Quality; relative_humidity: Quality };
+  flags: string[];
 }
 
 export interface TransitionRecord {
@@ -303,7 +346,7 @@ export interface Verification {
   trigger: 'auto' | 'manual';
   requested_by: string | null;
   at: string;
-  observed_at: string; // the hour under review
+  observed_at: string; // the slot under review
   region_status: Status;
   validation_status: ValidationStatus; // after the backend checks
   agent_validation_status: ValidationStatus | null; // what the agent answered
@@ -347,15 +390,19 @@ export interface RegionSummary {
   agent_requested_at: string | null;
   last_agent_at: string | null;
   verification: VerificationBrief | null;
-  inputs: RegionInputs | null;
-  quality: HourQuality | null;
+  inputs: RegionInputs | null; // from the latest slot
+  quality: SlotQuality | null;
   reason: string | null;
+  flags: string[] | null;
+  night: boolean | null;
 }
 
-export interface RegionDetail extends Omit<RegionSummary, 'inputs' | 'quality' | 'reason'> {
+export interface RegionDetail extends Omit<RegionSummary, 'inputs' | 'quality' | 'reason' | 'flags' | 'night'> {
   last_error: string | null;
-  latest?: HourRecord;
-  hours: HourRecord[]; // oldest first
+  latest?: SlotRecord;
+  slots: SlotRecord[]; // oldest first, 6 per hour
+  hours: PowerHour[]; // NASA POWER support, oldest first
+  power?: PowerSupport | null;
   transitions: TransitionRecord[]; // newest first
   verifications: Verification[]; // newest first
 }

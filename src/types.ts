@@ -53,7 +53,13 @@ export interface SatelliteView {
   hot_lon: number | null;
   mwir_k: number | null; // 3.9 µm brightness temperature at that pixel
   lwir_k: number | null; // 10.4 µm
+  hot_pixels?: HotPixel[]; // up to 5 hot pixels, strongest first (absent in records older than the day archive)
 }
+
+export interface HotPixel { lat: number; lon: number; anomaly_k: number }
+
+/** A VIIRS detection within the support's limits (10 km, 12 h) of a hot pixel: map evidence. */
+export interface ViirsNear { lat: number; lon: number; acquired_at: string; confidence: string; distance_km: number }
 
 export interface RegionInputs {
   delta_t_k: number | null; // brightness-temperature anomaly the satellites confirm, K; null = not observable
@@ -73,6 +79,7 @@ export interface SlotRecord {
   views: Record<SatelliteName, SatelliteView | null>; // null = no data from that satellite
   inputs: RegionInputs;
   support: { viirs_support?: number; power_support?: number }; // only at a possible hotspot, 0–1
+  viirs?: ViirsNear[]; // nearest first, at most 5; only at a possible hotspot
   quality: SlotQuality;
   flags: string[]; // e.g. two_satellites_agree, satellites_disagree, single_satellite:gk2a, daytime, no_data:gk2a
   sources: Record<string, string>;
@@ -227,10 +234,43 @@ export interface OperatorAccess {
   activated_at: string | null;
 }
 
+// ---------- day archive (backend asapify_engine/geo.py, engine_days) ----------
+
+/** Calendar mark of one archived WIB day. */
+export interface DayMark { date: string; alert: boolean; warning: boolean }
+
+export interface DayIndex {
+  first: string | null; // first and last archived day, YYYY-MM-DD (UTC+7); null = nothing archived yet
+  last: string | null;
+  days: DayMark[]; // the requested month, in date order
+}
+
+/** One region's evidence in one slot, as compact arrays. */
+export interface DayHot {
+  himawari9: [number, number, number][]; // [lat, lon, ΔBT K], strongest first
+  gk2a: [number, number, number][];
+  viirs: [number, number, number][]; // [lat, lon, minutes from the slot]
+  view: string | null; // fusion flag: two_satellites_agree, satellites_disagree, single_satellite:<name>, …
+}
+
+export interface DaySlot {
+  key: string; // HHMM, UTC+7
+  at: string; // scan start, UTC
+  satellites: SatelliteName[]; // read in this slot
+  status: string; // one code per region in DayArchive.regions order: S, W, A, N; - = not assessed
+  delta_t: (number | null)[]; // same order
+  hot: Record<string, DayHot>; // regions where a satellite saw a hot pixel
+  trimmed?: boolean; // some detail was left out to keep the day under 1 MiB
+}
+
+export interface DayArchive { date: string; regions: string[]; slots: DaySlot[] }
+
 export interface Api {
   provinces(): Promise<ProvinceBoundary>;
   regions(): Promise<RegionSummary[]>;
-  region(id: string, hours?: number): Promise<RegionDetail>;
+  region(id: string, hours?: number, date?: string): Promise<RegionDetail>; // date = one WIB day instead of hours
+  days(month: string): Promise<DayIndex>; // month = YYYY-MM
+  day(date: string): Promise<DayArchive>;
   peatRegions(): Promise<PeatRegions>;
   agent(): Promise<AgentInfo>;
   verifyRegion(id: string): Promise<Verification>;

@@ -4,13 +4,13 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { FeatureCollection, MultiPolygon, Point, Polygon } from 'geojson';
-import type { Hotspot, PeatRegions, ProvinceBoundary, RegionSummary } from '../types';
+import type { DayHot, PeatRegions, ProvinceBoundary, RegionSummary, SatelliteName } from '../types';
 import { REGION } from '../lib/provinces';
 import { localizeBasemap, styleFor, updateSource } from './layers';
 
 // Peat regions of the risk engine: one NASA POWER cell each (outline), the KHG peat inside it (fill by status),
-// and the FIRMS hotspots of a verification. Statuses change at most every 15 minutes, so they live in the
-// GeoJSON properties; no feature-state bookkeeping.
+// the hot pixels both geostationary satellites saw in the open slot and the VIIRS detections beside them.
+// Statuses change at most every 10 minutes, so they live in the GeoJSON properties; no feature-state bookkeeping.
 setWorkerUrl(`${import.meta.env.BASE_URL}maplibre/maplibre-gl-worker.mjs`);
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
@@ -46,10 +46,25 @@ function peatWithStatus(peat: PeatRegions, regions: RegionSummary[]): FeatureCol
   };
 }
 
-function hotspotPoints(list: Hotspot[]): FeatureCollection<Point, { frp: number }> {
+const SATS: SatelliteName[] = ['himawari9', 'gk2a'];
+
+/** Hot pixels of both satellites in one slot (archive arrays: [lat, lon, ΔBT K]). */
+function pixelPoints(hot: Record<string, DayHot>): FeatureCollection<Point, { sat: SatelliteName; k: number }> {
   return {
     type: 'FeatureCollection',
-    features: list.map((h) => ({ type: 'Feature', properties: { frp: h.frp_mw ?? 1 }, geometry: { type: 'Point', coordinates: [h.lon, h.lat] } })),
+    features: Object.values(hot).flatMap((h) => SATS.flatMap((sat) => h[sat].map(([lat, lon, k]) => ({
+      type: 'Feature' as const, properties: { sat, k }, geometry: { type: 'Point' as const, coordinates: [lon, lat] },
+    })))),
+  };
+}
+
+/** VIIRS detections near those pixels (archive arrays: [lat, lon, minutes from the slot]). */
+function viirsPoints(hot: Record<string, DayHot>): FeatureCollection<Point, { min: number }> {
+  return {
+    type: 'FeatureCollection',
+    features: Object.values(hot).flatMap((h) => h.viirs.map(([lat, lon, min]) => ({
+      type: 'Feature' as const, properties: { min }, geometry: { type: 'Point' as const, coordinates: [lon, lat] },
+    }))),
   };
 }
 
@@ -60,7 +75,7 @@ export class RegionMapController {
   private regions: RegionSummary[] = [];
   private peat: PeatRegions = EMPTY;
   private provinces: ProvinceBoundary = EMPTY;
-  private hotspots: Hotspot[] = [];
+  private hot: Record<string, DayHot> = {};
   private selected: string | null = null;
   private ready = false;
 
@@ -120,7 +135,8 @@ export class RegionMapController {
     this.map.addSource('rg-provinces', { type: 'geojson', data: this.provinces });
     this.map.addSource('rg-cells', { type: 'geojson', data: cells(this.regions) });
     this.map.addSource('rg-peat', { type: 'geojson', data: peatWithStatus(this.peat, this.regions) });
-    this.map.addSource('rg-hotspots', { type: 'geojson', data: hotspotPoints(this.hotspots) });
+    this.map.addSource('rg-pixels', { type: 'geojson', data: pixelPoints(this.hot) });
+    this.map.addSource('rg-viirs', { type: 'geojson', data: viirsPoints(this.hot) });
 
     this.map.addLayer({ id: 'rg-provinces', type: 'line', source: 'rg-provinces', paint: { 'line-color': c.ink, 'line-width': 1, 'line-opacity': 0.35 } });
     this.map.addLayer({
@@ -143,11 +159,26 @@ export class RegionMapController {
       id: 'cell-selected', type: 'line', source: 'rg-cells', filter: ['==', ['get', 'id'], this.selected ?? ''],
       paint: { 'line-color': c.sel, 'line-width': 3.5 },
     });
+    // GK2A as a ring under Himawari-9's dot: where both satellites agree the two read as one target
     this.map.addLayer({
-      id: 'rg-hotspots', type: 'circle', source: 'rg-hotspots',
+      id: 'px-gk2a', type: 'circle', source: 'rg-pixels', filter: ['==', ['get', 'sat'], 'gk2a'],
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['get', 'frp'], 0, 3, 50, 7],
-        'circle-color': c.hot, 'circle-stroke-color': c.halo, 'circle-stroke-width': 1.2, 'circle-opacity': 0.9,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4.5, 10, 9], 'circle-opacity': 0,
+        'circle-stroke-color': c.sel, 'circle-stroke-width': 2,
+      },
+    });
+    this.map.addLayer({
+      id: 'px-himawari9', type: 'circle', source: 'rg-pixels', filter: ['==', ['get', 'sat'], 'himawari9'],
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.8, 10, 6],
+        'circle-color': c.hot, 'circle-stroke-color': c.halo, 'circle-stroke-width': 1,
+      },
+    });
+    this.map.addLayer({
+      id: 'px-viirs', type: 'circle', source: 'rg-viirs',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 1.8, 10, 3.5],
+        'circle-color': c.ink, 'circle-stroke-color': c.halo, 'circle-stroke-width': 0.8,
       },
     });
     this.map.addLayer({
@@ -174,9 +205,12 @@ export class RegionMapController {
     if (this.ready) updateSource(this.map, 'rg-provinces', fc);
   }
 
-  setHotspots(list: Hotspot[]) {
-    this.hotspots = list;
-    if (this.ready) updateSource(this.map, 'rg-hotspots', hotspotPoints(list));
+  /** Hot pixels and VIIRS of the open slot, per region. */
+  setPixels(hot: Record<string, DayHot>) {
+    this.hot = hot;
+    if (!this.ready) return;
+    updateSource(this.map, 'rg-pixels', pixelPoints(hot));
+    updateSource(this.map, 'rg-viirs', viirsPoints(hot));
   }
 
   setSelected(id: string | null) {

@@ -22,6 +22,7 @@ export type ExampleKey =
   | 'health' | 'alerts' | 'closeReq' | 'closeRes'
   | 'notifSettings' | 'preferences' | 'deviceReq' | 'telegramLink' | 'inbox' | 'ack' | 'deliveries'
   | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes'
+  | 'dayIndex' | 'dayArchive'
   | 'accessList' | 'accessReq' | 'accessRes' | 'activateRes';
 
 export interface Endpoint {
@@ -279,7 +280,7 @@ export const SCHEMAS: Schema[] = [
     desc: 'RegionSummary fields (without inputs/quality/reason/flags/night) plus the history of one region.',
     fields: [
       { name: 'latest', type: 'SlotRecord', req: false, desc: 'Latest assessed slot.' },
-      { name: 'slots', type: 'SlotRecord[]', req: true, desc: 'Oldest first, 6 per hour; `hours` query parameter, default 24 (144 slots).' },
+      { name: 'slots', type: 'SlotRecord[]', req: true, desc: 'Oldest first, 6 per hour; `hours` query parameter, default 24 (144 slots), or one WIB day with `date`.' },
       { name: 'hours', type: 'object[]', req: true, desc: 'NASA POWER support per hour, oldest first: observed_at, inputs (skin_temperature_k, baseline_k, delta_t_k, relative_humidity_pct, …), quality, flags. No status.' },
       { name: 'power', type: 'PowerSupport | null', req: false, desc: 'Latest POWER hour: observed_at, skin_temperature_k, baseline_k, delta_t_k, relative_humidity_pct, updated_at. About 2–3 days behind.' },
       { name: 'transitions', type: 'object[]', req: true, desc: 'Last 20 status changes, newest first: observed_at, previous, current, utilities, reason.' },
@@ -293,12 +294,35 @@ export const SCHEMAS: Schema[] = [
     fields: [
       { name: 'observed_at', type: ISO, req: true, desc: 'Scan start of the slot (UTC), not the ingestion time.' },
       { name: 'night, sun_elevation_deg', type: 'boolean, number', req: true, desc: 'Night = sun below −6° at the cell centre. Only night slots can reach ALERT.' },
-      { name: 'views', type: '{ himawari9, gk2a: SatelliteView | null }', req: true, desc: 'Per satellite: n_pixels, n_clear, cloud_fraction, n_peat, n_peat_clear, background_k, background_mad_k, max_anomaly_k (0 = no fire-like pixel, null = too few clear pixels), max_z, n_hot, n_hot_peat, hot_on_peat, hot_lat, hot_lon, mwir_k, lwir_k. null = no data for this slot.' },
+      { name: 'views', type: '{ himawari9, gk2a: SatelliteView | null }', req: true, desc: 'Per satellite: n_pixels, n_clear, cloud_fraction, n_peat, n_peat_clear, background_k, background_mad_k, max_anomaly_k (0 = no fire-like pixel, null = too few clear pixels), max_z, n_hot, n_hot_peat, hot_on_peat, hot_lat, hot_lon, mwir_k, lwir_k, hot_pixels (up to 5 `{ lat, lon, anomaly_k }`, strongest first). null = no data for this slot.' },
       { name: 'inputs', type: 'RegionInputs', req: true, desc: 'delta_t_k (the anomaly both satellites confirm; null = not observable), cloud_cover_pct (clearest view), relative_humidity_pct (Open-Meteo), hot_lat, hot_lon.' },
       { name: 'support', type: '{ viirs_support?, power_support?: number }', req: true, desc: 'Only at a possible hotspot; can only raise ALERT.' },
+      { name: 'viirs', type: '{ lat, lon, acquired_at, confidence, distance_km }[]', req: false, desc: 'VIIRS detections within 10 km and 12 h of any hot pixel, nearest first, at most 5. Map evidence only; the support value comes from the strongest pixel.' },
       { name: 'quality', type: "{ thermal, relative_humidity: 'ACCEPTED' | 'DEGRADED' | 'REJECTED' | 'MISSING' }", req: true, desc: 'thermal ACCEPTED = night and both satellites agree; DEGRADED (day, one satellite, disagreement) is capped at WARNING; REJECTED = no clear view.' },
       { name: 'flags', type: 'string[]', req: true, desc: 'two_satellites_agree, two_satellites_quiet, satellites_disagree, single_satellite:<name>, no_data:<name>, no_clear_view, daytime, model_estimate.' },
       { name: 'status, utilities, memberships, reason', type: 'Status, object, object, string', req: true, desc: 'Rules-engine output for that slot; the reason says when the cap applied.' },
+    ],
+  },
+  {
+    name: 'DayIndex', origin: 'backend',
+    desc: 'What the date picker needs for one month. Days are WIB calendar days (UTC+7).',
+    fields: [
+      { name: 'first, last', type: 'YYYY-MM-DD | null', req: true, desc: 'First and last archived day; null before the first slot is archived.' },
+      { name: 'days', type: '{ date, alert, warning }[]', req: true, desc: 'The requested month\'s archived days in date order; `alert` / `warning` = some region reached that status that day.' },
+    ],
+  },
+  {
+    name: 'DayArchive', origin: 'backend',
+    desc: 'Every archived 10-minute slot of one WIB day (Firestore `engine_days/{date}`, one read, under 1 MiB, kept without TTL).',
+    fields: [
+      { name: 'date', type: 'YYYY-MM-DD', req: true, desc: 'The WIB day.' },
+      { name: 'regions', type: 'string[]', req: true, desc: 'Region ids; `status` and `delta_t` of each slot follow this order.' },
+      { name: 'slots[].key, slots[].at', type: `'HHMM' (UTC+7), ${ISO}`, req: true, desc: 'Slot time; oldest first.' },
+      { name: 'slots[].satellites', type: "('himawari9' | 'gk2a')[]", req: true, desc: 'Satellites read in that slot.' },
+      { name: 'slots[].status', type: 'string', req: true, desc: 'One code per region: S, W, A, N; `-` = not assessed in that slot.' },
+      { name: 'slots[].delta_t', type: '(number | null)[]', req: true, desc: 'ΔT per region, K, one decimal.' },
+      { name: 'slots[].hot', type: '{ [region]: { himawari9, gk2a, viirs, view } }', req: true, desc: 'Regions with a hot pixel: pixels `[lat, lon, ΔBT K]` (≤ 5 per satellite), VIIRS `[lat, lon, minutes from the slot]` (≤ 5), the fusion flag.' },
+      { name: 'slots[].trimmed', type: 'boolean', req: false, desc: 'True when pixel detail was cut to keep the slot under 7,000 characters; statuses are never cut.' },
     ],
   },
   {
@@ -376,9 +400,28 @@ export const ENDPOINTS: Endpoint[] = [
     params: [
       { name: 'id', type: 'path · string', req: true, desc: 'Region id, e.g. R2.50S113.750E.' },
       { name: 'hours', type: 'query · integer 1–72', req: false, desc: 'Default 24 (144 slots).' },
+      { name: 'date', type: 'query · YYYY-MM-DD', req: false, desc: 'One WIB day (00:00–23:50 UTC+7) instead of `hours`, at most 144 reads; slot records are kept 30 days.' },
     ],
     responses: [{ code: 200, schema: 'RegionDetail', example: 'region' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION', 'DATA_NOT_READY'],
+  },
+  {
+    id: 'days', method: 'GET', path: '/operator/days', auth: 'operator',
+    title: 'Archived days of a month',
+    purpose: 'Calendar marks for the day player: which days have archived slots and whether a region reached ALERT or WARNING. At most 33 reads.',
+    usedBy: 'Regions map → day player bounds and its calendar.',
+    params: [{ name: 'month', type: 'query · YYYY-MM', req: true, desc: 'Month shown by the calendar.' }],
+    responses: [{ code: 200, schema: 'DayIndex', example: 'dayIndex' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
+  },
+  {
+    id: 'day', method: 'GET', path: '/operator/days/{date}', auth: 'operator',
+    title: 'One archived day',
+    purpose: 'Every slot of one WIB day in one read: region statuses and ΔT, hot pixels of both satellites and the VIIRS detections beside them.',
+    usedBy: 'Regions map → day player ribbon, map colours, hot-pixel and VIIRS markers, list of an earlier slot.',
+    params: [{ name: 'date', type: 'path · YYYY-MM-DD', req: true, desc: 'WIB day.' }],
+    responses: [{ code: 200, schema: 'DayArchive', example: 'dayArchive' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION'],
   },
   {
     id: 'agent', method: 'GET', path: '/operator/agent', auth: 'operator',
@@ -561,11 +604,12 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
     slots: [{
       observed_at: '2026-10-11T18:10:00Z', night: true, sun_elevation_deg: -66.2,
       views: {
-        himawari9: { n_pixels: 686, n_clear: 686, cloud_fraction: 0, n_peat: 14, n_peat_clear: 14, background_k: 0.083, background_mad_k: 0.658, max_anomaly_k: 39.396, max_z: 59.92, n_hot: 18, n_hot_peat: 0, hot_on_peat: false, hot_lat: -3.577, hot_lon: 105.723, mwir_k: 342.45, lwir_k: 302.97 },
-        gk2a: { n_pixels: 825, n_clear: 825, cloud_fraction: 0, n_peat: 12, n_peat_clear: 12, background_k: -0.118, background_mad_k: 0.551, max_anomaly_k: 42.252, max_z: 76.68, n_hot: 19, n_hot_peat: 0, hot_on_peat: false, hot_lat: -3.566, hot_lon: 105.734, mwir_k: 348.04, lwir_k: 305.91 },
+        himawari9: { n_pixels: 686, n_clear: 686, cloud_fraction: 0, n_peat: 14, n_peat_clear: 14, background_k: 0.083, background_mad_k: 0.658, max_anomaly_k: 39.396, max_z: 59.92, n_hot: 18, n_hot_peat: 0, hot_on_peat: false, hot_lat: -3.577, hot_lon: 105.723, mwir_k: 342.45, lwir_k: 302.97, hot_pixels: [{ lat: -3.577, lon: 105.723, anomaly_k: 39.4 }, { lat: -3.561, lon: 105.741, anomaly_k: 31.2 }] },
+        gk2a: { n_pixels: 825, n_clear: 825, cloud_fraction: 0, n_peat: 12, n_peat_clear: 12, background_k: -0.118, background_mad_k: 0.551, max_anomaly_k: 42.252, max_z: 76.68, n_hot: 19, n_hot_peat: 0, hot_on_peat: false, hot_lat: -3.566, hot_lon: 105.734, mwir_k: 348.04, lwir_k: 305.91, hot_pixels: [{ lat: -3.566, lon: 105.734, anomaly_k: 42.25 }] },
       },
       inputs: { delta_t_k: 39.396, cloud_cover_pct: 0, relative_humidity_pct: null, hot_lat: -3.5658, hot_lon: 105.7343 },
-      support: { viirs_support: 1 }, quality: { thermal: 'ACCEPTED', relative_humidity: 'MISSING' }, flags: ['two_satellites_agree'],
+      support: { viirs_support: 1 }, viirs: [{ lat: -3.569, lon: 105.729, acquired_at: '2026-10-11T17:46:00Z', confidence: 'n', distance_km: 0.9 }],
+      quality: { thermal: 'ACCEPTED', relative_humidity: 'MISSING' }, flags: ['two_satellites_agree'],
       sources: { thermal: 'Himawari-9 AHI B07-B13 and GK2A AMI SW038-IR105 brightness temperatures (NOAA open data on AWS)', relative_humidity: 'open_meteo', viirs_support: 'nasa_firms', power_support: 'nasa_power' },
       status: 'ALERT', utilities: { SAFE: 0, WARNING: 0, ALERT: 1 }, memberships: { delta_t_low: 0, delta_t_medium: 0, delta_t_high: 1, viirs_support: 1 },
       reason: 'ALERT has the highest utility (1.000); humidity unavailable, thermal input only',
@@ -573,6 +617,23 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
     hours: [], power: null,
     transitions: [{ observed_at: '2026-10-11T18:10:00Z', previous: null, current: 'ALERT', utilities: { SAFE: 0, WARNING: 0, ALERT: 1 }, reason: 'ALERT has the highest utility (1.000); humidity unavailable, thermal input only' }],
     verifications: [],
+  },
+  dayIndex: {
+    first: '2026-10-12', last: '2026-10-14',
+    days: [{ date: '2026-10-12', alert: true, warning: true }, { date: '2026-10-13', alert: false, warning: true }, { date: '2026-10-14', alert: false, warning: true }],
+  },
+  dayArchive: {
+    date: '2026-10-12', regions: ['R3.50S105.625E', 'R2.50S113.750E', 'R0.50S101.875E'],
+    slots: [{
+      key: '0110', at: '2026-10-11T18:10:00Z', satellites: ['himawari9', 'gk2a'], status: 'ASW', delta_t: [39.4, 0.2, 9.1],
+      hot: {
+        'R3.50S105.625E': {
+          himawari9: [[-3.577, 105.723, 39.4], [-3.561, 105.741, 31.2]], gk2a: [[-3.566, 105.734, 42.3]],
+          viirs: [[-3.569, 105.729, -24], [-3.574, 105.738, -24]], view: 'two_satellites_agree',
+        },
+        'R0.50S101.875E': { himawari9: [[-0.412, 101.963, 9.1]], gk2a: [], viirs: [], view: 'satellites_disagree' },
+      },
+    }],
   },
   agentInfo: { configured: true, model: 'gemini-3.5-flash', daily_quota: 20, used_today: 3, remaining: 17, max_tool_calls: 3 },
   regionVerifyRes: {

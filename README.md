@@ -4,9 +4,10 @@
 the operator custom claim and the Cloud Run API. Live mode sends the Firebase token; mock mode stays available.
 
 ASAPify operator web app (Google Cloud AI Builder Cup 2026): a map of 65 peat regions that the backend's risk engine
-rates hour by hour (SAFE < WARNING < ALERT, plus NO_OBSERVABLE), a region page (ΔT, humidity and cloud timeline,
-Fuzzy MAUT utilities, status changes), the Gemini agent's NASA FIRMS verification with a Re-verify button, and the
-publish/reject decision.
+rates every 10 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE), with each slot's hot
+pixels and the VIIRS detections beside them, and a day player that opens any archived day; a region page (ΔT,
+humidity and cloud timeline, Fuzzy MAUT utilities, status changes), the Gemini agent's NASA FIRMS verification with
+a Re-verify button, and the publish/reject decision.
 
 - UI specification: `../asapify/ui.html` · API contract: `../asapify/backend.html` sections 03–05
 - System concept and rules: `../ASAPify_Pitch_Google_AI_Builder_2026/WORKLOG.md` sections 7–10
@@ -44,9 +45,10 @@ Vercel is only for mock-mode previews: import the repository in Vercel; settings
 ## Mock mode
 
 Regions (`/`): the real 65 regions and peat shapes from `public/regions.geojson` (built by the backend's
-`tools/build_regions.py`; copy it here when the region list changes), with generated hourly inputs up to
-11 Oct 2026 13:00 UTC+7, rated by a copy of the backend rules so every status appears. Re-verify returns a sample
-result after about 1.5 s. Decisions live in memory and disappear on reload. The login is a stand-in (no Firebase).
+`tools/build_regions.py`; copy it here when the region list changes), with generated 10-minute slots up to
+12 Oct 2026 01:10 UTC+7 and a day archive from 5 Oct, rated by a copy of the backend rules so every status appears.
+Re-verify returns a sample result after about 1.5 s. Decisions live in memory and disappear on reload. The login is a
+stand-in (no Firebase).
 
 ## API contract for the BE team
 

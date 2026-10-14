@@ -208,7 +208,6 @@ button { font: inherit; color: inherit; }
 .legend li { display: flex; align-items: center; gap: 8px; }
 .lg-line { width: 26px; border-top: 2px solid var(--ink); display: inline-block; }
 .lg-line.thin { border-top: 1px solid var(--ink-dim); }
-.lg-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sat); display: inline-block; margin: 0 8px; }
 
 @media (max-width: 1023px) {
   .map-page { display: block; position: relative; overflow: hidden; }

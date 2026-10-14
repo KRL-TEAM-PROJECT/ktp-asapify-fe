@@ -1,10 +1,10 @@
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiError, type PowerSupport, type Quality, type RegionDetail, type SatelliteName, type SlotRecord, type Verification } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
-import { fmtCoord, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { fmtCoord, fmtDay, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
 import { agreement, SATELLITE_NAMES } from '../lib/satellites';
 import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
 import { RegionTimeline } from '../components/RegionTimeline';
@@ -82,6 +82,16 @@ function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | 
           <dt>{t('rgi.support')}</dt>
           <dd>{support.length ? support.map(([k, v]) => <span key={k} className="pill grey">{t(`rgu.m.${k}`)} {fmtNum(v, 2)}</span>) : <span className="small">{t('rgi.no_support')}</span>}</dd>
         </div>
+        {s.viirs && (
+          <div>
+            <dt>{t('rgi.viirs')}</dt>
+            <dd>
+              {s.viirs.length
+                ? <span className="mono">{t('rgi.viirs_n', { n: s.viirs.length, km: fmtNum(s.viirs[0].distance_km, 1), when: fmtSlot(s.viirs[0].acquired_at) })}</span>
+                : <span className="small">{t('rgi.no_viirs')}</span>}
+            </dd>
+          </div>
+        )}
         <div>
           <dt>{t('rgi.power')}</dt>
           <dd>
@@ -110,8 +120,11 @@ function caption(r: RegionDetail, v: Verification, prov: string, t: (k: string, 
 
 export function RegionPage() {
   const { id = '' } = useParams();
+  const [params] = useSearchParams();
   const { t } = useI18n();
-  const q = useLoad(() => api.region(id, 24), [id]);
+  // ?date=YYYY-MM-DD (from the map's day player): that WIB day's slots instead of the last 24 hours
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date') : null;
+  const q = useLoad(() => api.region(id, 24, date ?? undefined), [id, date]);
   const agent = useLoad(() => api.agent().catch(() => null), [id]);
   const r = q.data;
 
@@ -142,7 +155,7 @@ export function RegionPage() {
 
   // until the first satellite slot lands, `latest` can still be an hourly NASA POWER record without `views`
   const slots = r.slots ?? [];
-  const latest = r.latest && 'views' in r.latest ? r.latest : slots[slots.length - 1];
+  const latest = !date && r.latest && 'views' in r.latest ? r.latest : slots[slots.length - 1];
   const v = r.verifications[0] ?? null;
   const prov = t(`prov.${r.province}`);
   const reload = () => { q.reload(); agent.reload(); };
@@ -160,6 +173,11 @@ export function RegionPage() {
           {prov} · {fmtCoord(r.lon, r.lat)} · {t('rg.peat', { km2: fmtNum(r.peat_km2, 0) })}
           {r.since && <> · {t('rg.since', { status: r.status ? t(STATUS_KEY[r.status]) : '', when: fmtSlot(r.since) })}</>}
         </p>
+        {date && (
+          <p className="rg-archive small" role="status">
+            {t('rg.day_banner', { date: fmtDay(date) })} <Link className="link-btn" to={`/regions/${r.id}`}>{t('rg.back_live')}</Link>
+          </p>
+        )}
         {latest && (
           <dl className="facts">
             <div className={latest.status === 'ALERT' ? 'hot' : ''}><dt>ΔT</dt><dd>{latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}</dd></div>
@@ -178,7 +196,7 @@ export function RegionPage() {
         <div className="col">
           <m.section className="card" aria-labelledby="tl-h" {...reveal(1)}>
             <div className="card-head">
-              <h2 id="tl-h">{t('rg.timeline')}</h2>
+              <h2 id="tl-h">{date ? t('rg.timeline_day', { date: fmtDay(date) }) : t('rg.timeline')}</h2>
               <button className="link-btn" onClick={reload}>{t('notif.refresh')}</button>
             </div>
             <RegionTimeline slots={slots} />

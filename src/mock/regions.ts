@@ -1,8 +1,9 @@
 import {
   ApiError,
-  type AgentInfo, type Decision, type Hotspot, type PeatRegions, type PowerSupport, type ProvinceCode, type Quality,
-  type RatedStatus, type RegionDecisionRequest, type RegionDetail, type RegionSummary, type SatelliteName,
-  type SatelliteView, type SlotRecord, type Status, type TransitionRecord, type Verification,
+  type AgentInfo, type DayArchive, type DayHot, type DayIndex, type DayMark, type DaySlot, type Decision, type HotPixel,
+  type Hotspot, type PeatRegions, type PowerSupport, type ProvinceCode, type Quality, type RatedStatus,
+  type RegionDecisionRequest, type RegionDetail, type RegionSummary, type SatelliteName, type SatelliteView,
+  type SlotRecord, type Status, type TransitionRecord, type Verification, type ViirsNear,
 } from '../types';
 import { rand } from './rand';
 
@@ -14,6 +15,7 @@ const LATEST = Date.parse('2026-10-11T18:10:00Z'); // 01:10 UTC+7, a night slot
 const NOW = '2026-10-11T18:40:00Z'; // slots reach the backend 20–30 minutes after the scan
 const SLOT = 600_000;
 const SLOTS = 144; // 24 hours
+const DAY_FIRST = '2026-10-05'; // the fictional day archive starts here
 const GK2A_GAP = 37; // one slot GK2A never published, to show the single-satellite case
 const CELL = { lat: 0.5, lon: 0.625 };
 const QUOTA = 20;
@@ -127,19 +129,36 @@ function view(b: Base, sat: SatelliteName, k: number, cloud: number, anomaly: nu
   const nPeat = Math.max(4, Math.round(b.peat_km2 / (h ? 5 : 4)));
   const clear = Math.round(n * (1 - cloud));
   const counts = { n_pixels: n, n_clear: clear, cloud_fraction: round(cloud, 4), n_peat: nPeat, n_peat_clear: Math.round(nPeat * (1 - cloud)) };
-  const none = { max_z: null, n_hot: 0, n_hot_peat: 0, hot_on_peat: null, hot_lat: null, hot_lon: null, mwir_k: null, lwir_k: null };
+  const none = { max_z: null, n_hot: 0, n_hot_peat: 0, hot_on_peat: null, hot_lat: null, hot_lon: null, mwir_k: null, lwir_k: null, hot_pixels: [] };
   if (clear < 30) return { ...counts, background_k: null, background_mad_k: null, max_anomaly_k: null, ...none };
   const bg = round(0.5 + 3 * rand(b.seed, k, h ? 31 : 32), 3), mad = round(0.4 + 0.8 * rand(b.seed, k, h ? 33 : 34), 3);
   if (anomaly < 1.5) return { ...counts, background_k: bg, background_mad_k: mad, max_anomaly_k: 0, ...none, max_z: 0 };
   const hot = anomaly >= 3 ? Math.max(1, Math.round(anomaly / 3)) : 0;
   const onPeat = rand(b.seed, 23) < 0.6;
   const shift = h ? 0 : 0.012; // the other viewing angle puts GK2A's hottest pixel 1–2 km away
+  const lat = round(b.lat + (rand(b.seed, 21) - 0.5) * 0.3 + shift, 4), lon = round(b.lon + (rand(b.seed, 22) - 0.5) * 0.4 + shift, 4);
+  // up to 5 hot pixels: the strongest, then weaker ones a few kilometres around it that stay put from slot to slot
+  const pixels: HotPixel[] = Array.from({ length: Math.min(5, hot) }, (_, j) => ({
+    lat: round(lat + (j ? (rand(b.seed, 40 + j) - 0.5) * 0.08 : 0), 4),
+    lon: round(lon + (j ? (rand(b.seed, 50 + j) - 0.5) * 0.08 : 0), 4),
+    anomaly_k: round(anomaly * (1 - 0.15 * j), 2),
+  }));
   return {
     ...counts, background_k: bg, background_mad_k: mad, max_anomaly_k: round(anomaly, 3), max_z: round(anomaly / mad, 2),
-    n_hot: hot, n_hot_peat: onPeat ? Math.ceil(hot / 2) : 0, hot_on_peat: onPeat,
-    hot_lat: round(b.lat + (rand(b.seed, 21) - 0.5) * 0.3 + shift, 4), hot_lon: round(b.lon + (rand(b.seed, 22) - 0.5) * 0.4 + shift, 4),
-    mwir_k: round(296 + bg + anomaly, 2), lwir_k: round(295 + 0.25 * anomaly, 2),
+    n_hot: hot, n_hot_peat: onPeat ? Math.ceil(hot / 2) : 0, hot_on_peat: onPeat, hot_lat: lat, hot_lon: lon,
+    mwir_k: round(296 + bg + anomaly, 2), lwir_k: round(295 + 0.25 * anomaly, 2), hot_pixels: pixels,
   };
+}
+
+/** VIIRS detections a polar pass made beside the strongest pixel, nearest first. */
+function viirsNear(b: Base, t: number, lat: number, lon: number): ViirsNear[] {
+  return Array.from({ length: 1 + Math.floor(3 * rand(b.seed, 61)) }, (_, j) => {
+    const vLat = round(lat + (rand(b.seed, 62 + j) - 0.5) * 0.05, 4), vLon = round(lon + (rand(b.seed, 66 + j) - 0.5) * 0.05, 4);
+    return {
+      lat: vLat, lon: vLon, acquired_at: iso(t - Math.round(30 + 300 * rand(b.seed, 70 + j)) * 60_000),
+      confidence: j ? 'n' : 'h', distance_km: round(km(lat, lon, vLat, vLon), 1),
+    };
+  }).sort((a, z) => a.distance_km - z.distance_km);
 }
 
 function powerOf(b: Base): PowerSupport {
@@ -151,45 +170,50 @@ function powerOf(b: Base): PowerSupport {
   };
 }
 
-function slots(b: Base): SlotRecord[] {
-  const out: SlotRecord[] = [];
+/** The slot record of one region at time `t` (any slot up to LATEST). */
+function slotAt(b: Base, t: number): SlotRecord {
   const power = powerOf(b);
   const powerSupport = power.delta_t_k != null && power.delta_t_k > 1 ? round(Math.min(1, (power.delta_t_k - 1) / 2), 3) : null;
   const viirs = b.heat > 0.6 ? 1 : b.heat > 0.45 ? 0.5 : null;
   const loner = b.seed % 17 === 5; // a region only Himawari sees burning, as on 11 October in Riau
-  for (let k = SLOTS - 1; k >= 0; k--) {
-    const t = LATEST - k * SLOT;
-    const d = new Date(t);
-    const solar = (((d.getUTCHours() + d.getUTCMinutes() / 60 + b.lon / 15) % 24) + 24) % 24;
-    const elevation = round(90 * Math.sin(((solar - 6) / 12) * Math.PI), 1);
-    const night = elevation < -6;
-    const ramp = 1 - k / SLOTS; // the fire grows towards the latest slot
-    const fire = b.heat > 0.6 ? b.heat * (4 + 34 * ramp) : b.heat > 0.3 && night ? 1 + 6 * b.heat * ramp : 0;
-    const signal = (night ? 1 : 0.6) * fire; // daylight in the 3.9 um channel hides part of the signal
-    const cloudy = rand(b.seed, Math.floor(k / 9), 4) < 0.22 + 0.25 * (1 - b.heat);
-    const cloudH = cloudy ? 0.62 + 0.38 * rand(b.seed, k, 5) : 0.35 * rand(b.seed, k, 6);
-    const cloudG = Math.min(1, Math.max(0, cloudH + (rand(b.seed, k, 8) - 0.5) * 0.12));
-    const views: Record<SatelliteName, SatelliteView | null> = {
-      himawari9: view(b, 'himawari9', k, cloudH, loner && night ? 8.9 : signal),
-      gk2a: k === GK2A_GAP ? null : view(b, 'gk2a', k, cloudG, loner ? 0 : signal * (0.9 + 0.2 * rand(b.seed, k, 9))),
-    };
-    const rh = round(Math.min(98, Math.max(18, 92 - Math.max(0, Math.sin(((solar - 6) / 12) * Math.PI)) * (30 + 35 * b.heat * ramp) + 6 * rand(b.seed, Math.floor(k / 6), 2))), 1);
-    const f = fuse(views, night, [b.lat, b.lon], viirs, powerSupport);
-    const cap = f.quality === 'DEGRADED'
-      ? [...(night ? [] : ['daytime']), ...f.flags.filter((x) => x.startsWith('single_satellite') || x === 'satellites_disagree').map((x) => x.replace(/[_:]/g, ' '))].join(', ')
-      : null;
-    const a = f.delta == null
-      ? { status: 'NO_OBSERVABLE' as Status, utilities: {}, memberships: {}, reason: f.cloud > 60 ? `not observable: cloud cover ${f.cloud.toFixed(0)}% > 60%` : 'not observable: too few clear pixels in the region' }
-      : assess(f.delta, rh, f.cloud, f.support, cap);
-    out.push({
-      observed_at: iso(t), night, sun_elevation_deg: elevation, views,
-      inputs: { delta_t_k: f.delta, cloud_cover_pct: f.cloud, relative_humidity_pct: rh, hot_lat: f.lat, hot_lon: f.lon },
-      support: f.support, quality: { thermal: f.quality, relative_humidity: 'ACCEPTED' }, flags: [...f.flags, 'model_estimate'],
-      sources: { thermal: THERMAL, relative_humidity: 'open_meteo', viirs_support: 'nasa_firms', power_support: 'nasa_power' },
-      ...a,
-    });
-  }
-  return out;
+  const k = Math.round((LATEST - t) / SLOT); // slots before LATEST
+  const d = new Date(t);
+  const solar = (((d.getUTCHours() + d.getUTCMinutes() / 60 + b.lon / 15) % 24) + 24) % 24;
+  const elevation = round(90 * Math.sin(((solar - 6) / 12) * Math.PI), 1);
+  const night = elevation < -6;
+  // the fire grows towards the latest slot; each older day burns at a strength of its own
+  const ramp = k < SLOTS ? 1 - k / SLOTS : 0.6 * rand(b.seed, Math.floor(k / SLOTS), 41);
+  const fire = b.heat > 0.6 ? b.heat * (4 + 34 * ramp) : b.heat > 0.3 && night ? 1 + 6 * b.heat * ramp : 0;
+  const signal = (night ? 1 : 0.6) * fire; // daylight in the 3.9 um channel hides part of the signal
+  const cloudy = rand(b.seed, Math.floor(k / 9), 4) < 0.22 + 0.25 * (1 - b.heat);
+  const cloudH = cloudy ? 0.62 + 0.38 * rand(b.seed, k, 5) : 0.35 * rand(b.seed, k, 6);
+  const cloudG = Math.min(1, Math.max(0, cloudH + (rand(b.seed, k, 8) - 0.5) * 0.12));
+  const views: Record<SatelliteName, SatelliteView | null> = {
+    himawari9: view(b, 'himawari9', k, cloudH, loner && night ? 8.9 : signal),
+    gk2a: k === GK2A_GAP ? null : view(b, 'gk2a', k, cloudG, loner ? 0 : signal * (0.9 + 0.2 * rand(b.seed, k, 9))),
+  };
+  const rh = round(Math.min(98, Math.max(18, 92 - Math.max(0, Math.sin(((solar - 6) / 12) * Math.PI)) * (30 + 35 * b.heat * ramp) + 6 * rand(b.seed, Math.floor(k / 6), 2))), 1);
+  const f = fuse(views, night, [b.lat, b.lon], viirs, powerSupport);
+  const cap = f.quality === 'DEGRADED'
+    ? [...(night ? [] : ['daytime']), ...f.flags.filter((x) => x.startsWith('single_satellite') || x === 'satellites_disagree').map((x) => x.replace(/[_:]/g, ' '))].join(', ')
+    : null;
+  const a = f.delta == null
+    ? { status: 'NO_OBSERVABLE' as Status, utilities: {}, memberships: {}, reason: f.cloud > 60 ? `not observable: cloud cover ${f.cloud.toFixed(0)}% > 60%` : 'not observable: too few clear pixels in the region' }
+    : assess(f.delta, rh, f.cloud, f.support, cap);
+  const record: SlotRecord = {
+    observed_at: iso(t), night, sun_elevation_deg: elevation, views,
+    inputs: { delta_t_k: f.delta, cloud_cover_pct: f.cloud, relative_humidity_pct: rh, hot_lat: f.lat, hot_lon: f.lon },
+    support: f.support, quality: { thermal: f.quality, relative_humidity: 'ACCEPTED' }, flags: [...f.flags, 'model_estimate'],
+    sources: { thermal: THERMAL, relative_humidity: 'open_meteo', viirs_support: 'nasa_firms', power_support: 'nasa_power' },
+    ...a,
+  };
+  if (record.support.viirs_support && f.lat != null) record.viirs = viirsNear(b, t, f.lat, f.lon!);
+  return record;
+}
+
+/** The last 24 hours of one region, oldest first. */
+function slots(b: Base): SlotRecord[] {
+  return Array.from({ length: SLOTS }, (_, i) => slotAt(b, LATEST - (SLOTS - 1 - i) * SLOT));
 }
 
 function transitions(ss: SlotRecord[]): TransitionRecord[] {
@@ -263,19 +287,83 @@ function summary(b: Base): RegionSummary {
   };
 }
 
+// ---------- day archive (same shape as the backend's engine_days) ----------
+const WIB = 7 * 3_600_000;
+const wibDay = (ms: number) => new Date(ms + WIB).toISOString().slice(0, 10);
+const pad2 = (n: number) => String(n).padStart(2, '0');
+const CODE: Record<Status, string> = { SAFE: 'S', WARNING: 'W', ALERT: 'A', NO_OBSERVABLE: 'N' };
+const VIEW_FLAGS = ['two_satellites_agree', 'satellites_disagree', 'two_satellites_quiet'];
+const archives = new Map<string, DayArchive>();
+
+/** Slot times of one WIB day that the fictional archive holds (none before DAY_FIRST or after LATEST). */
+function dayTimes(day: string): number[] {
+  if (day < DAY_FIRST || day > wibDay(LATEST)) return [];
+  const start = Date.parse(`${day}T00:00:00+07:00`);
+  return Array.from({ length: SLOTS }, (_, i) => start + i * SLOT).filter((t) => t <= LATEST);
+}
+
+function hotEntry(r: SlotRecord, t: number): DayHot | null {
+  const px = (s: SatelliteName) => (r.views[s]?.hot_pixels ?? []).map((p) => [round(p.lat, 3), round(p.lon, 3), round(p.anomaly_k, 1)] as [number, number, number]);
+  const himawari9 = px('himawari9'), gk2a = px('gk2a');
+  if (!himawari9.length && !gk2a.length) return null;
+  return {
+    himawari9, gk2a,
+    viirs: (r.viirs ?? []).map((v) => [round(v.lat, 3), round(v.lon, 3), Math.round((Date.parse(v.acquired_at) - t) / 60_000)] as [number, number, number]),
+    view: r.flags.find((f) => VIEW_FLAGS.includes(f) || f.startsWith('single_satellite:')) ?? null,
+  };
+}
+
+function dayArchive(all: Base[], day: string): DayArchive | null {
+  const times = dayTimes(day);
+  if (!times.length) return null;
+  const hit = archives.get(day);
+  if (hit) return hit;
+  const slotsOfDay: DaySlot[] = times.map((t) => {
+    const recs = all.map((b) => slotAt(b, t));
+    const hot: Record<string, DayHot> = {};
+    recs.forEach((r, j) => { const e = hotEntry(r, t); if (e) hot[all[j].id] = e; });
+    const local = new Date(t + WIB);
+    return {
+      key: `${pad2(local.getUTCHours())}${pad2(local.getUTCMinutes())}`, at: iso(t),
+      satellites: SATS.filter((s) => recs.some((r) => r.views[s])),
+      status: recs.map((r) => CODE[r.status]).join(''),
+      delta_t: recs.map((r) => (r.inputs.delta_t_k == null ? null : round(r.inputs.delta_t_k, 1))), hot,
+    };
+  });
+  const a: DayArchive = { date: day, regions: all.map((b) => b.id), slots: slotsOfDay };
+  archives.set(day, a);
+  return a;
+}
+
 export const mockRegionApi = {
   regions: async () => wait((await loadBases()).map(summary), 250),
-  region: async (id: string, hours = 24): Promise<RegionDetail> => {
+  region: async (id: string, hours = 24, date?: string): Promise<RegionDetail> => {
     const b = await find(id);
     const ss = slots(b);
+    const shown = date ? dayTimes(date).map((t) => slotAt(b, t)) : ss.slice(-hours * 6);
     const s = summary(b);
     return wait({
       id: s.id, province: s.province, lat: s.lat, lon: s.lon, bounds: s.bounds, peat_km2: s.peat_km2, status: s.status,
       since: s.since, observed_at: s.observed_at, utilities: s.utilities, updated_at: s.updated_at,
       agent_requested_at: null, last_agent_at: s.last_agent_at, verification: s.verification, last_error: null,
-      latest: ss[ss.length - 1], slots: ss.slice(-hours * 6), hours: [], power: powerOf(b),
-      transitions: transitions(ss).slice(0, 20), verifications: verifications.get(b.id) ?? [],
+      latest: ss[ss.length - 1], slots: shown, hours: [], power: powerOf(b),
+      transitions: transitions(date ? shown : ss).slice(0, 20), verifications: verifications.get(b.id) ?? [],
     }, 300);
+  },
+  days: async (month: string): Promise<DayIndex> => {
+    const all = await loadBases();
+    const [y, mo] = month.split('-').map(Number);
+    const days: DayMark[] = [];
+    for (let d = 1; d <= new Date(Date.UTC(y, mo, 0)).getUTCDate(); d++) {
+      const a = dayArchive(all, `${month}-${pad2(d)}`);
+      if (a) days.push({ date: a.date, alert: a.slots.some((s) => s.status.includes('A')), warning: a.slots.some((s) => s.status.includes('W')) });
+    }
+    return wait({ first: DAY_FIRST, last: wibDay(LATEST), days }, 200);
+  },
+  day: async (date: string): Promise<DayArchive> => {
+    const a = dayArchive(await loadBases(), date);
+    if (!a) throw new ApiError(404, 'NOT_FOUND', 'Nothing was archived on this day.');
+    return wait(a, 250);
   },
   agent: async (): Promise<AgentInfo> => wait({ configured: true, model: 'gemini-3.5-flash', daily_quota: QUOTA, used_today: used, remaining: QUOTA - used, max_tool_calls: 3 }, 120),
   verifyRegion: async (id: string): Promise<Verification> => {

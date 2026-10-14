@@ -1,6 +1,6 @@
 import {
   ApiError,
-  type AgentInfo, type Api, type Decision, type OperatorAccess, type PeatRegions,
+  type AgentInfo, type Api, type DayArchive, type DayIndex, type Decision, type OperatorAccess, type PeatRegions,
   type ProvinceBoundary, type RegionDetail, type RegionSummary, type Verification,
 } from './types';
 import { getOperatorToken } from './auth';
@@ -48,7 +48,11 @@ const liveApi: Api = {
   provinces: () => file<ProvinceBoundary>(import.meta.env.VITE_PROVINCES_LAYER_URL, EMPTY_FC),
   regions: () => req<RegionSummary[]>('/operator/regions'),
   // 6 slot records per hour are read per request (24 h = 144 reads), so ask only for what the page shows
-  region: (id, hours = 24) => req<RegionDetail>(`/operator/regions/${enc(id)}?hours=${hours}`),
+  region: (id, hours = 24, date) =>
+    req<RegionDetail>(`/operator/regions/${enc(id)}?${date ? `date=${enc(date)}` : `hours=${hours}`}`),
+  // the day archive: one read per day, up to 33 per calendar month
+  days: (month) => req<DayIndex>(`/operator/days?month=${enc(month)}`),
+  day: (date) => req<DayArchive>(`/operator/days/${enc(date)}`),
   peatRegions,
   agent: () => req<AgentInfo>('/operator/agent'),
   verifyRegion: (id) => req<Verification>(`/operator/regions/${enc(id)}/verify`, { method: 'POST' }),
@@ -67,7 +71,9 @@ const mockAccess = () => import('./mock/access').then((m) => m.mockAccessApi);
 const mockApi: Api = {
   provinces: () => file<ProvinceBoundary>(`${import.meta.env.BASE_URL}mock/provinces.geojson`, EMPTY_FC),
   regions: () => mockRegions().then((m) => m.regions()),
-  region: (id, hours) => mockRegions().then((m) => m.region(id, hours)),
+  region: (id, hours, date) => mockRegions().then((m) => m.region(id, hours, date)),
+  days: (month) => mockRegions().then((m) => m.days(month)),
+  day: (date) => mockRegions().then((m) => m.day(date)),
   peatRegions,
   agent: () => mockRegions().then((m) => m.agent()),
   verifyRegion: (id) => mockRegions().then((m) => m.verifyRegion(id)),

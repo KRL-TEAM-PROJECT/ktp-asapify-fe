@@ -3,14 +3,14 @@ import { getUserToken } from '../auth';
 import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
 
-type Row = { channel: string; status: string; error: string | null; acknowledged_at: string | null };
+type Row = { group: string | null; status: string; error: string | null }; // group = its title; null once unlinked
 const OPEN = new Set(['pending', 'sending']);
 const WINDOW_MS = 3_600_000; // v1 delivery window: one hour after publishing (expires_at in the backend)
-// Each poll reads every job of the alert + its inbox entry in Firestore; slow down once no job is running.
+// Each poll reads every job of the alert and its group in Firestore; slow down once no job is running.
 const POLL_OPEN_MS = 15_000;
 const POLL_IDLE_MS = 60_000;
 
-/** Delivery status per channel. Every 15 s while a job is running, then every 60 s (waiting for confirmations) until the window ends. */
+/** Delivery status per Telegram group. Every 15 s while a job is running, then every 60 s until the window ends. */
 export function DeliveryStatus({ alertId, since }: { alertId: string; since: string }) {
   const { t } = useI18n();
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -41,7 +41,7 @@ export function DeliveryStatus({ alertId, since }: { alertId: string; since: str
   if (!rows) return <p className="muted">{t('dlv.loading')}</p>;
   const counts = new Map<string, number>();
   rows.forEach(row => {
-    const label = `${t(`notif.ch.${row.channel}`)} · ${row.acknowledged_at ? t('dlv.acked') : t(`dlv.st.${row.status}`)}${row.error ? ` (${row.error})` : ''}`;
+    const label = `${row.group ?? t('dlv.unlinked')} · ${t(`dlv.st.${row.status}`)}${row.error ? ` (${row.error})` : ''}`;
     counts.set(label, (counts.get(label) ?? 0) + 1);
   });
   return <div aria-live="polite"><p className="muted small">{t('dlv.note')}</p>

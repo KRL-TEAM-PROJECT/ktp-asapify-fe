@@ -56,9 +56,8 @@ export function DecisionPanel({ decision: d, province, summary, caption: initial
         {d.alert_id && <p className="muted">{t('dec.alert', { id: d.alert_id })}</p>}
         {d.notifications && <p className="muted" role="status">{
           d.notifications.state === 'fanout_pending' ? t('dec.outbox_pending')
-            : d.notifications.state === 'no_recipients' ? t('dec.outbox_none')
-              : t(d.notifications.groups ? 'dec.outbox_groups' : 'dec.outbox',
-                { r: d.notifications.recipients, g: d.notifications.groups ?? 0, j: d.notifications.jobs })}</p>}
+            : d.notifications.state === 'no_groups' ? t('dec.outbox_none')
+              : t('dec.outbox_groups', { g: d.notifications.groups })}</p>}
         {d.alert_id && d.notifications && <DeliveryStatus alertId={d.alert_id} since={d.at} />}
         {d.reason && <blockquote>{d.reason}</blockquote>}
       </m.section>

@@ -1,4 +1,5 @@
-import { ApiError, type OperatorAccess, type TelegramGroup } from '../types';
+import { INVITE } from '../lib/telegram';
+import { ApiError, type JoinLink, type OperatorAccess, type TelegramGroup } from '../types';
 
 // FICTIONAL operator list for the demo without a backend (the top bar says SAMPLE DATA). The rules mirror the
 // backend (asapify_api/access_routes.py); demo addresses never have an account yet, so they stay "pending".
@@ -7,7 +8,7 @@ const SELF = 'operator@example.org'; // the demo sign-in in auth.ts
 const EMAIL = /^[^@\s/]+@[^@\s/]+\.[^@\s/]+$/;
 let rows: OperatorAccess[] = [{ email: SELF, state: 'active', added_by: null, added_at: null, activated_at: null }];
 let groups: TelegramGroup[] = [
-  { id: 'a1b2'.repeat(16), title: 'Siaga Karhutla Kalteng (demo)', linked_by: SELF, linked_at: '2026-10-15T03:20:00Z' },
+  { id: 'a1b2'.repeat(16), title: 'ASAPify Notified (demo)', invite_url: 'https://t.me/+ASAPifyDemoOnly', linked_by: SELF, linked_at: '2026-10-15T03:20:00Z' },
 ];
 
 const wait = <T>(v: T, ms = 250): Promise<T> => new Promise((res) => setTimeout(() => res(structuredClone(v)), ms + Math.random() * 150));
@@ -42,4 +43,13 @@ export const mockAccessApi = {
     groups = groups.filter((g) => g.id !== id);
     return wait(undefined);
   },
+  setInvite: async (id: string, inviteUrl: string | null): Promise<TelegramGroup> => {
+    const group = groups.find((g) => g.id === id);
+    if (!group) throw new ApiError(404, 'NOT_FOUND', 'Telegram group not found.');
+    if (inviteUrl !== null && !INVITE.test(inviteUrl)) throw new ApiError(400, 'VALIDATION', 'Not a Telegram invite link.');
+    group.invite_url = inviteUrl;
+    return wait(group);
+  },
+  joinLinks: async (): Promise<JoinLink[]> =>
+    wait(groups.filter((g) => g.invite_url).map((g) => ({ title: g.title, invite_url: g.invite_url! }))),
 };

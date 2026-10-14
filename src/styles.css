@@ -270,6 +270,16 @@ button { font: inherit; color: inherit; }
 .login-card { display: grid; gap: 16px; padding-top: 24px; border-top: 1px solid var(--line-strong); }
 .login-card h1 { font-size: var(--fs-lg); }
 
+/* ---------- join (public) ---------- */
+.join { max-width: 720px; gap: 24px; }
+.join-head { display: grid; gap: 10px; }
+.join-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.join-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); }
+.join-name { font-weight: 700; overflow-wrap: anywhere; }
+.join-list .btn { min-height: 44px; }
+.join-notes { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
 /* ---------- about ---------- */
 .about { gap: 32px; }
 .about-head { display: grid; gap: 12px; max-width: 68ch; }

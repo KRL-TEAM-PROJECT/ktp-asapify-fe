@@ -389,7 +389,7 @@ export const mockRegionApi = {
     v.decision = {
       action: body.action, by: 'operator@example.org', at: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
       reason: publish ? null : body.reason!.trim(), alert_id: publish ? `A-${id}-${v.id}` : null,
-      notifications: publish ? { state: 'outbox_saved', recipients: 2, jobs: 2 } : null,
+      notifications: publish ? { state: 'outbox_saved', groups: 1, jobs: 1 } : null,
     };
     return wait(v.decision, 500);
   },

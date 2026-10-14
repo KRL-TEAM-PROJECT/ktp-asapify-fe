@@ -54,8 +54,8 @@ from the BE repository; the user signs out and in again. No team email is allowe
 - Without pipeline data, the "data not available" message appears; never read it as safe data.
 - The region detail page and its `/regions/:id` deep link work; the MapLibre worker is served as JavaScript.
 
-Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, saving preferences and the inbox
-in Firestore, and refusal of access without sign-in. Not tested yet: the operator flow with real data, publishing and
+Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run and refusal of access without
+sign-in. Not tested yet: the operator flow with real data, publishing and
 the alert in the Telegram group. The MapLibre chunk size warning predates this work; it stays lazily loaded.
 
 ## Deploy
@@ -75,24 +75,15 @@ If a release misbehaves, roll it back in the Firebase console (Hosting → relea
 References: https://firebase.google.com/docs/hosting/cloud-run and
 https://firebase.google.com/docs/auth/admin/custom-claims.
 
-## Notification Engine v1
+## Alerts in Telegram
 
-The `/notifications` page is open to every verified Google account. The map and decisions stay operator-only.
-Use the Notification Engine v1 backend from the BE repository; follow its `docs/NOTIFICATIONS.md` for the worker and indexes.
-Fill `VITE_FIREBASE_MESSAGING_SENDER_ID` and `VITE_FIREBASE_VAPID_KEY` before building.
-FCM/Web Push are exercise/non-emergency only; WhatsApp/SMS/Gmail/LoRa/Bluetooth are planned, not active senders.
+Alerts go to the team's Telegram group, nowhere else. An operator adds the bot to the group and pastes its invite
+link on the Regions page (Telegram groups panel); the ASAPify bot then posts every published alert there. The public
+**Get alerts** page (`/join`, no sign-in) shows a Join button for each group that has an invite link. Only operators
+sign in; any other account lands on `/join`. The backend side is in the BE repository's `docs/NOTIFICATIONS.md`.
 
-Telegram is the alert group, not a personal channel: an operator adds the bot to the group from the Regions page
-(Telegram groups panel), and every published alert is posted there. Push must be
-registered from a browser that allows it. Offline use is turned on by a user checkbox; only the public shell
-and inboxes that were loaded are stored. Tokens and API responses never enter the service-worker cache. The local
-inbox is deleted on sign-out. Confirmation needs the server; the UI never fakes a confirmation while offline.
-
-`notification-sw.js` is built as a module service worker and served no-cache by Firebase Hosting.
-Test it with `npm run build && npm run preview`; the Vite dev server does not serve the built worker name.
+`notification-sw.js` is the retired service worker of the old /notifications page (offline inbox and push). It now
+deletes its caches, unregisters itself and reloads open tabs, so no browser keeps an old cached build. Firebase
+Hosting serves it no-cache. Delete it, its build entry and the Hosting header once no browser can still hold it.
 
 Project: `hack2skill-510921` (number `950889990251`). The Firebase Web App is registered; its configuration is in the deploy workflow.
-`VITE_FIREBASE_VAPID_KEY` is not set yet, so browser push cannot be registered on the live site. The deploy workflow
-reads it from a repository variable: create the key pair in the Firebase console (Project settings → Cloud Messaging →
-Web Push certificates), then `gh variable set VITE_FIREBASE_VAPID_KEY --repo KRL-TEAM-PROJECT/ktp-asapify-fe --body '<public key>'`
-and run the workflow again. It is a public key, not a secret.

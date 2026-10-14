@@ -1,7 +1,7 @@
 import {
   ApiError,
   type AgentInfo, type Api, type DayArchive, type DayIndex, type Decision, type OperatorAccess, type PeatRegions,
-  type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification,
+  type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification, type JoinLink,
 } from './types';
 import { getOperatorToken } from './auth';
 
@@ -68,6 +68,9 @@ const liveApi: Api = {
   unlinkTelegramGroup: async (id) => {
     await req(`/operator/telegram-groups/${enc(id)}`, { method: 'DELETE' });
   },
+  setTelegramInvite: (id, inviteUrl) =>
+    req<TelegramGroup>(`/operator/telegram-groups/${enc(id)}`, { method: 'PUT', body: JSON.stringify({ invite_url: inviteUrl }) }),
+  joinLinks: () => req<JoinLink[]>('/telegram/join'),
 };
 
 // Mock mode loads lazily: its code + fictional data stay out of the main chunk.
@@ -89,6 +92,8 @@ const mockApi: Api = {
   telegramGroups: () => mockAccess().then((m) => m.groups()),
   linkTelegramGroup: () => mockAccess().then((m) => m.linkGroup()),
   unlinkTelegramGroup: (id) => mockAccess().then((m) => m.unlinkGroup(id)),
+  setTelegramInvite: (id, inviteUrl) => mockAccess().then((m) => m.setInvite(id, inviteUrl)),
+  joinLinks: () => mockAccess().then((m) => m.joinLinks()),
 };
 
 export const api: Api = API_MODE === 'live' ? liveApi : mockApi;

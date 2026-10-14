@@ -197,7 +197,7 @@ export function RegionPage() {
           <m.section className="card" aria-labelledby="tl-h" {...reveal(1)}>
             <div className="card-head">
               <h2 id="tl-h">{date ? t('rg.timeline_day', { date: fmtDay(date) }) : t('rg.timeline')}</h2>
-              <button className="link-btn" onClick={reload}>{t('notif.refresh')}</button>
+              <button className="link-btn" onClick={reload}>{t('rg.refresh')}</button>
             </div>
             <RegionTimeline slots={slots} />
           </m.section>

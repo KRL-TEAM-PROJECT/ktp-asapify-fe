@@ -20,7 +20,7 @@ export interface Schema {
 
 export type ExampleKey =
   | 'health' | 'alerts' | 'closeReq' | 'closeRes'
-  | 'notifSettings' | 'preferences' | 'deviceReq' | 'inbox' | 'ack' | 'deliveries'
+  | 'deliveries' | 'joinLinks' | 'tgInviteReq'
   | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes'
   | 'dayIndex' | 'dayArchive'
   | 'accessList' | 'accessReq' | 'accessRes' | 'activateRes' | 'tgGroups' | 'tgGroupLink';
@@ -83,7 +83,6 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'ALREADY_CLOSED', http: 409, when: 'Alert already closed' },
   { code: 'REASON_REQUIRED', http: 422, when: 'Reject without `reason`' },
   { code: 'CAPTION_INVALID', http: 422, when: 'Publish with an empty caption or > 1,024 characters' },
-  { code: 'DEVICE_ALREADY_LINKED', http: 409, when: 'The push token is already registered to another account' },
   { code: 'TELEGRAM_NOT_CONFIGURED', http: 503, when: 'The Telegram bot is not set up in the backend' },
   { code: 'DATA_NOT_READY', http: 503, when: 'No data yet: storage not configured, or the region has not been assessed' },
   { code: 'INTEGRATION_NOT_READY', http: 503, when: 'The verification agent is not configured (FIRMS key or project missing)' },
@@ -116,7 +115,7 @@ export const SCHEMAS: Schema[] = [
     name: 'Decision', origin: 'backend',
     desc: 'Operator decision on one verification (once per verification).',
     fields: [
-      { name: 'action', type: "'publish' | 'reject'", req: true, desc: 'Publish to that province\'s subscribers or reject.' },
+      { name: 'action', type: "'publish' | 'reject'", req: true, desc: 'Publish to the linked Telegram groups, or reject.' },
       { name: 'by', type: 'string (email)', req: true, desc: 'Operator email.' },
       { name: 'at', type: ISO, req: true, desc: 'Decision time.' },
       { name: 'reason', type: 'string | null', req: true, desc: 'Required for reject; null for publish.' },
@@ -137,25 +136,25 @@ export const SCHEMAS: Schema[] = [
     desc: 'Saved decision and outbox summary; provider status is read through the deliveries endpoint.',
     fields: [
       { name: '…Decision', type: '—', req: true, desc: 'All Decision fields.' },
-      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_recipients', recipients: number, groups: number, jobs: number} | null", req: true, desc: 'Saved outbox, not proof of delivery. groups = linked Telegram groups that get one message each. fanout_pending = the decision is saved but recipients are not all queued yet; the backend sweep resumes it. The subscriber count never fails a decision.' },
+      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_groups', groups: number, jobs: number} | null", req: true, desc: 'Saved outbox, not proof of delivery: one job per linked Telegram group. fanout_pending = the decision is saved but the jobs are not all queued yet; the backend sweep resumes it. no_groups = no group is linked.' },
       { name: 'queue', type: "{state: 'accepted'|'awaiting_recovery', count: number}", req: false, desc: 'Enqueue result for publish; Scheduler recovers enqueue failures.' },
     ],
   },
   {
     name: 'Alert', origin: 'backend',
-    desc: 'Alert published to subscribers.',
+    desc: 'Alert published to the linked Telegram groups.',
     fields: [
       { name: 'id', type: 'string', req: true, desc: '`A-{region id}-{verification id}`.' },
       { name: 'region_id', type: 'string', req: true, desc: 'Source region.' },
       { name: 'verification_id', type: 'string', req: true, desc: 'The agent verification the operator published.' },
-      { name: 'province', type: PROV_T, req: true, desc: 'Target province; its subscribers receive the message.' },
+      { name: 'province', type: PROV_T, req: true, desc: 'Province of the region; named in the Telegram message.' },
       { name: 'caption', type: 'string', req: true, desc: 'Caption sent (or last edited).' },
       { name: 'published_by', type: 'string (email)', req: true, desc: 'Publishing operator.' },
       { name: 'published_at', type: ISO, req: true, desc: 'Publish time.' },
-      { name: 'status', type: "'active' | 'closed'", req: true, desc: 'closed = inbox entries labelled RESOLVED, unsent jobs cancelled.' },
+      { name: 'status', type: "'active' | 'closed'", req: true, desc: 'closed = unsent Telegram jobs cancelled.' },
       { name: 'closed_at', type: `${ISO} | null`, req: true, desc: 'Close time.' },
       { name: 'closed_by', type: "string | 'system' | null", req: true, desc: "Operator email, or 'system' when the alert closed automatically." },
-      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_recipients', recipients: number, jobs: number}", req: true, desc: 'Queue summary; per-channel status comes from /operator/alerts/{id}/deliveries.' },
+      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_groups', groups: number, jobs: number}", req: true, desc: 'Queue summary; per-channel status comes from /operator/alerts/{id}/deliveries.' },
     ],
   },
   {
@@ -166,72 +165,16 @@ export const SCHEMAS: Schema[] = [
     ],
   },
   {
-    name: 'Preferences', origin: 'backend',
-    desc: 'One account\'s subscription: regions, channels and consent. Stored per verified Google account.',
-    fields: [
-      { name: 'provinces', type: `(${PROV_T})[]`, req: true, desc: 'Max 15, no duplicates. At least one is required when consent = true.' },
-      { name: 'channels', type: "('fcm' | 'web_push' | 'whatsapp' | 'sms' | 'gmail' | 'lora' | 'bluetooth_mesh')[]", req: true, desc: 'Chosen personal channels, no duplicates. Channels not implemented yet are stored but never sent to. Telegram is not a personal channel: alerts go to the linked Telegram group.' },
-      { name: 'consent', type: 'boolean', req: true, desc: 'Consent to receive alerts. false = no inbox entries or jobs for this account.' },
-      { name: 'exercises', type: 'boolean', req: false, desc: 'Also receive exercise messages (alerts from replay data). Default false.' },
-    ],
-  },
-  {
-    name: 'NotificationSettings', origin: 'backend',
-    desc: 'Content of the /notifications page: the account\'s preferences and what each channel can do on the server.',
-    fields: [
-      { name: 'preferences', type: 'Preferences & {device_registered: boolean}', req: true, desc: 'No device token; only whether one is registered.' },
-      { name: 'channels[]', type: "{channel, implemented: boolean, enabled: boolean, restriction: 'NON_EMERGENCY_ONLY' | 'HARDWARE_REQUIRED' | 'ADAPTER_PENDING' | null}", req: true, desc: 'enabled = actually sends (live mode and channel switched on). FCM/Web Push are for exercises only, never emergencies.' },
-      { name: 'mode', type: "'dry_run' | 'live'", req: true, desc: 'dry_run = no provider is contacted; delivery status becomes simulated.' },
-    ],
-  },
-  {
-    name: 'Notice', origin: 'backend',
-    desc: 'One message in a subscriber\'s web inbox. The inbox is filled even when every channel is off.',
-    fields: [
-      { name: 'id', type: 'string (64 hex)', req: true, desc: 'Inbox id, deterministic per alert × account (deduplication).' },
-      { name: 'alert_id', type: 'string', req: true, desc: 'Source alert.' },
-      { name: 'province', type: PROV_T, req: true, desc: 'Alert province.' },
-      { name: 'text', type: 'string', req: true, desc: 'Caption published by the operator.' },
-      { name: 'purpose', type: "'emergency' | 'exercise'", req: true, desc: 'exercise = alert from replay data; only for accounts with exercises = true.' },
-      { name: 'published_at', type: ISO, req: true, desc: 'Publish time.' },
-      { name: 'expires_at', type: ISO, req: true, desc: 'Publish + 1 h; jobs still unsent after that are cancelled.' },
-      { name: 'acknowledged_at', type: `${ISO} | null`, req: true, desc: 'When the subscriber pressed confirm.' },
-      { name: 'status', type: 'string', req: true, desc: 'Alert status when the message was created.' },
-    ],
-  },
-  {
     name: 'Delivery', origin: 'backend',
     desc: 'One send job for one channel and one recipient. No recipient address or chat_id.',
     fields: [
       { name: 'id', type: 'string (64 hex)', req: true, desc: 'Job id, deterministic (deduplication).' },
-      { name: 'channel', type: 'string', req: true, desc: 'Channel of this job.' },
-      { name: 'stage', type: "'initial' | 'escalation'", req: true, desc: 'escalation = WhatsApp/SMS for exercise messages, delayed 2 min and skipped once confirmed.' },
+      { name: 'channel', type: "'telegram_group'", req: true, desc: 'Every job posts in one linked Telegram group.' },
+      { name: 'group', type: 'string | null', req: true, desc: 'The group\'s title; null once it was unlinked. Never the chat id.' },
       { name: 'status', type: "'pending' | 'sending' | 'accepted' | 'failed' | 'unknown' | 'blocked' | 'cancelled' | 'simulated'", req: true, desc: 'accepted = the provider took it, not proof it was read. unknown = outcome uncertain, never resent automatically.' },
       { name: 'error', type: 'string | null', req: true, desc: 'Provider error code, if any.' },
       { name: 'attempts', type: 'number', req: true, desc: 'Number of send attempts.' },
       { name: 'created_at · started_at · finished_at', type: `${ISO} | null`, req: true, desc: 'Job timestamps.' },
-      { name: 'acknowledged_at', type: `${ISO} | null`, req: true, desc: 'From the recipient\'s inbox.' },
-    ],
-  },
-  {
-    name: 'DeviceRequest', origin: 'backend',
-    desc: 'Push token from Firebase Messaging in the browser.',
-    fields: [
-      { name: 'token', type: 'string (20–4096, [A-Za-z0-9_:-.])', req: true, desc: 'One token per account.' },
-    ],
-  },
-  {
-    name: 'DeviceState', origin: 'backend',
-    desc: 'Result of registering/removing a device.',
-    fields: [
-      { name: 'registered', type: 'boolean', req: true, desc: 'true after POST, false after DELETE.' },
-    ],
-  },
-  {
-    name: 'Ack', origin: 'backend',
-    desc: 'Result of confirming a message.',
-    fields: [
-      { name: 'acknowledged_at', type: ISO, req: true, desc: 'Time of the first confirmation.' },
     ],
   },
   {
@@ -340,7 +283,7 @@ export const SCHEMAS: Schema[] = [
     name: 'RegionDecisionRequest', origin: 'backend',
     desc: 'DecisionRequest plus the verification it decides on.',
     fields: [
-      { name: 'action', type: "'publish' | 'reject'", req: true, desc: 'Publish fans out to subscribers of the province (purpose = emergency).' },
+      { name: 'action', type: "'publish' | 'reject'", req: true, desc: 'Publish posts the alert in every linked Telegram group (purpose = emergency).' },
       { name: 'caption', type: 'string | null', req: false, desc: 'Required for publish; ≤ 1,024 characters.' },
       { name: 'reason', type: 'string | null', req: false, desc: 'Required for reject.' },
       { name: 'verification_id', type: 'string', req: true, desc: 'Verification.id; a second decision on it → 409 ALREADY_DECIDED.' },
@@ -426,7 +369,7 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'region-decision', method: 'POST', path: '/operator/regions/{id}/decision', auth: 'operator',
     title: 'Publish / reject a verification',
-    purpose: 'Once per verification, audited (audit_log). Publish needs a caption: the decision is saved, then inbox entries and a queue are written for that province\'s subscribers; the subscriber count never fails a decision. Reject needs a reason. A REJECTED verification can only be rejected.',
+    purpose: 'Once per verification, audited (audit_log). Publish needs a caption: the decision is saved, then one queued message per linked Telegram group; having no group never fails a decision. Reject needs a reason. A REJECTED verification can only be rejected.',
     usedBy: 'Region detail → DecisionPanel.',
     params: [{ name: 'id', type: 'path · string', req: true, desc: 'Region id.' }],
     body: { schema: 'RegionDecisionRequest', example: 'regionDecisionReq' },
@@ -464,7 +407,7 @@ export const ENDPOINTS: Endpoint[] = [
     title: 'Linked Telegram groups',
     purpose: 'Groups that receive every published alert. The title only; the chat id stays on the server.',
     usedBy: 'Regions map → Telegram groups panel.',
-    responses: [{ code: 200, schema: '{ id, title, linked_by, linked_at }[]', example: 'tgGroups' }],
+    responses: [{ code: 200, schema: '{ id, title, invite_url, linked_by, linked_at }[]', example: 'tgGroups' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
   },
   {
@@ -474,6 +417,24 @@ export const ENDPOINTS: Endpoint[] = [
     usedBy: 'Regions map → Telegram groups panel → Add the bot to a group.',
     responses: [{ code: 200, schema: '{ url: string, expires_in_seconds: 600 }', example: 'tgGroupLink' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'TELEGRAM_NOT_CONFIGURED'],
+  },
+  {
+    id: 'tg-group-invite', method: 'PUT', path: '/operator/telegram-groups/{id}', auth: 'operator',
+    title: 'Set a group\'s invite link',
+    purpose: 'The link the public Get alerts page shows for this group. Only Telegram links: t.me/+code, t.me/joinchat/code or a public t.me/<name>. null removes the group from the page.',
+    usedBy: 'Regions map → Telegram groups panel → Save link.',
+    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Group id from the list (64 hex characters).' }],
+    body: { schema: '{ invite_url: string | null }', example: 'tgInviteReq' },
+    responses: [{ code: 200, schema: '{ id, title, invite_url, linked_by, linked_at }' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION'],
+  },
+  {
+    id: 'join-links', method: 'GET', path: '/telegram/join', auth: 'public',
+    title: 'Telegram groups to join',
+    purpose: 'Title and invite link of every linked group that has one. Public: no sign-in, nothing else about the group.',
+    usedBy: 'Get alerts page (/join).',
+    responses: [{ code: 200, schema: '{ title, invite_url }[]', example: 'joinLinks' }],
+    errors: [],
   },
   {
     id: 'tg-group-unlink', method: 'DELETE', path: '/operator/telegram-groups/{id}', auth: 'operator',
@@ -506,7 +467,7 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'close', method: 'POST', path: '/operator/alerts/{id}/close', auth: 'operator',
     title: 'Close alert',
-    purpose: 'Early close by an operator: inbox entries get the RESOLVED label and unsent jobs are cancelled. Not implemented in the backend yet.',
+    purpose: 'Early close by an operator: unsent Telegram jobs are cancelled. Not implemented in the backend yet.',
     usedBy: null,
     params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Alert id, e.g. A-R2.00S113.750E-20230923T165500Z.' }],
     body: { schema: 'CloseRequest', example: 'closeReq' },
@@ -515,63 +476,12 @@ export const ENDPOINTS: Endpoint[] = [
   },
   {
     id: 'deliveries', method: 'GET', path: '/operator/alerts/{id}/deliveries', auth: 'operator',
-    title: 'Delivery status per channel',
-    purpose: 'Every send job of one alert with the recipient\'s confirmation time. No recipient address or chat_id.',
+    title: 'Delivery status per Telegram group',
+    purpose: 'Every send job of one alert: the group\'s title, status and timestamps. Never a chat id.',
     usedBy: 'Region detail → DeliveryStatus under the decision. Polls every 15 s while a job is running, then every 60 s until 1 h after publishing.',
     params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Alert id, e.g. A-R2.00S113.750E-20230923T165500Z.' }],
     responses: [{ code: 200, schema: 'Delivery', example: 'deliveries', note: 'Delivery[].' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
-  },
-  {
-    id: 'notif-settings', method: 'GET', path: '/notifications/settings', auth: 'user',
-    title: 'Notification settings',
-    purpose: 'The signed-in account\'s preferences and what each channel can do on the server.',
-    usedBy: '/notifications on open.',
-    responses: [{ code: 200, schema: 'NotificationSettings', example: 'notifSettings' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
-  },
-  {
-    id: 'notif-preferences', method: 'PUT', path: '/notifications/preferences', auth: 'user',
-    title: 'Save preferences',
-    purpose: 'Replace the account\'s whole preference set. consent = false stops every new message for this account.',
-    usedBy: '/notifications → Save and Unsubscribe buttons.',
-    body: { schema: 'Preferences', example: 'preferences' },
-    responses: [{ code: 200, schema: 'Preferences', note: 'Plus device_registered.' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
-  },
-  {
-    id: 'notif-device', method: 'POST', path: '/notifications/device', auth: 'user',
-    title: 'Register push device',
-    purpose: 'Store one FCM/Web Push token for the account. Push is for exercise messages only, never emergencies.',
-    usedBy: '/notifications → Register browser push.',
-    body: { schema: 'DeviceRequest', example: 'deviceReq' },
-    responses: [{ code: 200, schema: 'DeviceState' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION', 'DEVICE_ALREADY_LINKED'],
-  },
-  {
-    id: 'notif-device-delete', method: 'DELETE', path: '/notifications/device', auth: 'user',
-    title: 'Remove push device',
-    purpose: 'Delete this account\'s push token.',
-    usedBy: null,
-    responses: [{ code: 200, schema: 'DeviceState' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
-  },
-  {
-    id: 'notif-inbox', method: 'GET', path: '/notifications/inbox', auth: 'user',
-    title: 'Inbox',
-    purpose: 'The 50 latest messages of the signed-in account.',
-    usedBy: '/notifications → inbox list; kept for offline use when the user turns it on.',
-    responses: [{ code: 200, schema: 'Notice', example: 'inbox', note: 'Notice[], newest first.' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
-  },
-  {
-    id: 'notif-ack', method: 'POST', path: '/notifications/inbox/{id}/ack', auth: 'user',
-    title: 'Confirm receipt',
-    purpose: 'Record the confirmation time. Idempotent: a second confirmation returns the first time. Follow-up jobs not yet run are skipped.',
-    usedBy: '/notifications → Confirm button on each message.',
-    params: [{ name: 'id', type: 'path · string (64 hex)', req: true, origin: 'backend', desc: 'Inbox id. Another account\'s id → 404.' }],
-    responses: [{ code: 200, schema: 'Ack', example: 'ack' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION'],
   },
 ];
 
@@ -648,7 +558,7 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   regionDecisionReq: { action: 'publish', caption: 'Thermal indication in South Sumatra\n\nNASA FIRMS shows many hotspots near peat region R3.50S105.625E. Verify in the field.', reason: null, verification_id: '20261013T121908Z' },
   regionDecisionRes: {
     action: 'publish', by: 'operator@example.org', at: '2026-10-13T12:25:00Z', reason: null, alert_id: 'A-R3.50S105.625E-20261013T121908Z',
-    notifications: { state: 'outbox_saved', recipients: 2, jobs: 2 }, queue: { state: 'accepted', count: 2 },
+    notifications: { state: 'outbox_saved', groups: 1, jobs: 1 }, queue: { state: 'accepted', count: 2 },
   },
   accessList: [
     { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
@@ -657,7 +567,9 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   accessReq: { email: 'judge@example.org' },
   accessRes: { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
   activateRes: { role: 'operator', changed: true },
-  tgGroups: [{ id: '9c1f…4be2', title: 'Siaga Karhutla Kalteng', linked_by: 'operator@example.org', linked_at: '2026-10-15T03:20:00Z' }],
+  tgGroups: [{ id: '9c1f…4be2', title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456', linked_by: 'operator@example.org', linked_at: '2026-10-15T03:20:00Z' }],
+  joinLinks: [{ title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456' }],
+  tgInviteReq: { invite_url: 'https://t.me/+AbCdEf123456' },
   tgGroupLink: { url: 'https://t.me/asapify_alert_bot?startgroup=Qm9…x7Ze', expires_in_seconds: 600 },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },
   alerts: [{
@@ -665,7 +577,7 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
     caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
     published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
     status: 'active', closed_at: null, closed_by: null,
-    notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
+    notifications: { state: 'outbox_saved', groups: 1, jobs: 1 },
   }],
   closeReq: { reason: 'Fire out according to the Central Kalimantan disaster agency (BPBD)' },
   closeRes: {
@@ -673,27 +585,10 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
     caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
     published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
     status: 'closed', closed_at: '2023-09-26T02:00:00Z', closed_by: 'operator@example.org',
-    notifications: { state: 'outbox_saved', recipients: 3, jobs: 5 },
+    notifications: { state: 'outbox_saved', groups: 1, jobs: 1 },
   },
-  notifSettings: {
-    preferences: { provinces: ['62'], channels: ['web_push'], consent: true, exercises: true, device_registered: false },
-    channels: [
-      { channel: 'web_push', implemented: true, enabled: false, restriction: 'NON_EMERGENCY_ONLY' },
-      { channel: 'sms', implemented: false, enabled: false, restriction: 'ADAPTER_PENDING' },
-    ],
-    mode: 'dry_run',
-  },
-  preferences: { provinces: ['62', '63'], channels: ['web_push'], consent: true, exercises: true },
-  deviceReq: { token: 'fcm-token-from-browser:APA91b…' },
-  inbox: [{
-    id: '3f9c…e21a', alert_id: 'A-0924-001', province: '62', purpose: 'exercise', status: 'active',
-    text: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.21, 113.92 · 4 pixels\n…',
-    published_at: '2023-09-24T15:30:00Z', expires_at: '2023-09-24T16:30:00Z', acknowledged_at: '2023-09-24T15:33:12Z',
-  }],
-  ack: { acknowledged_at: '2023-09-24T15:33:12Z' },
   deliveries: [{
-    id: '7b1d…09cf', channel: 'telegram_group', stage: 'initial', status: 'accepted', error: null, attempts: 1,
+    id: '7b1d…09cf', channel: 'telegram_group', group: 'ASAPify Notified', status: 'accepted', error: null, attempts: 1,
     created_at: '2023-09-24T15:30:00Z', started_at: '2023-09-24T15:30:02Z', finished_at: '2023-09-24T15:30:03Z',
-    acknowledged_at: '2023-09-24T15:33:12Z',
   }],
 };

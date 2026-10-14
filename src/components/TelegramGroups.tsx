@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import type { TelegramGroup } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
 import { errorText } from '../lib/errors';
 import { fmtSlot } from '../lib/format';
+import { INVITE } from '../lib/telegram';
 
 /**
  * Telegram groups that receive every published alert (backend notification_store.py). Linking is a one-time
@@ -17,6 +18,7 @@ export function TelegramGroups() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [invites, setInvites] = useState<Record<string, string>>({});
 
   async function load() {
     setError(null);
@@ -25,6 +27,13 @@ export function TelegramGroups() {
   async function create() {
     setBusy(true); setError(null);
     try { setLink((await api.linkTelegramGroup()).url); } catch (e) { setError(errorText(e, t)); } finally { setBusy(false); }
+  }
+  async function saveInvite(e: FormEvent, g: TelegramGroup) {
+    e.preventDefault();
+    const value = (invites[g.id] ?? g.invite_url ?? '').trim();
+    if (value && !INVITE.test(value)) { setError(t('tg.invite_invalid')); return; }
+    setBusy(true); setError(null);
+    try { await api.setTelegramInvite(g.id, value || null); await load(); } catch (err) { setError(errorText(err, t)); } finally { setBusy(false); }
   }
   async function unlink(id: string) {
     setConfirm(null); setBusy(true); setError(null);
@@ -54,6 +63,18 @@ export function TelegramGroups() {
               {g.linked_by && g.linked_at && (
                 <span className="muted small">{t('tg.linked_by', { who: g.linked_by, when: fmtSlot(g.linked_at) })}</span>
               )}
+              <form className="rg-access-form" onSubmit={(e) => { void saveInvite(e, g); }}>
+                <label className="lbl" htmlFor={`invite-${g.id}`}>{t('tg.invite')}</label>
+                <div className="rg-access-row">
+                  <input
+                    id={`invite-${g.id}`} type="url" inputMode="url" autoComplete="off" spellCheck={false}
+                    placeholder="https://t.me/+…" value={invites[g.id] ?? g.invite_url ?? ''} disabled={busy}
+                    onChange={(e) => setInvites((v) => ({ ...v, [g.id]: e.target.value }))}
+                  />
+                  <button className="btn" type="submit" disabled={busy}>{t('tg.invite_save')}</button>
+                </div>
+                <span className="muted small">{t(g.invite_url ? 'tg.invite_listed' : 'tg.invite_hint')}</span>
+              </form>
               <span className="rg-access-act">
                 {confirm === g.id ? (
                   <>

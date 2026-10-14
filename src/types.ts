@@ -9,8 +9,8 @@ export type ProvinceCode =
   | '61' | '62' | '63' | '64' | '65';
 
 export interface Decision {
-  /** fanout_pending: the decision is saved, recipients are still being queued (the backend sweep resumes it). */
-  notifications?: { state: 'fanout_pending' | 'outbox_saved' | 'no_recipients'; recipients: number; groups?: number; jobs: number } | null;
+  /** One job per linked Telegram group. fanout_pending: the decision is saved, the jobs are still being queued (the backend sweep resumes it). */
+  notifications?: { state: 'fanout_pending' | 'outbox_saved' | 'no_groups'; groups: number; jobs: number } | null;
   action: 'publish' | 'reject';
   by: string;
   at: string;
@@ -237,9 +237,13 @@ export interface OperatorAccess {
 export interface TelegramGroup {
   id: string;
   title: string;
+  invite_url: string | null; // shown on the public join page; null = not listed there
   linked_by: string | null;
   linked_at: string | null;
 }
+
+/** One group on the public join page. */
+export interface JoinLink { title: string; invite_url: string }
 
 // ---------- day archive (backend asapify_engine/geo.py, engine_days) ----------
 
@@ -288,6 +292,8 @@ export interface Api {
   telegramGroups(): Promise<TelegramGroup[]>;
   linkTelegramGroup(): Promise<{ url: string; expires_in_seconds: number }>;
   unlinkTelegramGroup(id: string): Promise<void>;
+  setTelegramInvite(id: string, inviteUrl: string | null): Promise<TelegramGroup>;
+  joinLinks(): Promise<JoinLink[]>; // public, no sign-in
 }
 
 export class ApiError extends Error {

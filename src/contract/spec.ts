@@ -23,7 +23,8 @@ export type ExampleKey =
   | 'decisionRes' | 'decisionErr' | 'alerts' | 'closeReq' | 'closeRes' | 'peat'
   | 'pixels' | 'gridCompact' | 'night' | 'nights' | 'basemaps'
   | 'notifSettings' | 'preferences' | 'deviceReq' | 'telegramLink' | 'inbox' | 'ack' | 'deliveries'
-  | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes';
+  | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes'
+  | 'accessList' | 'accessReq' | 'accessRes' | 'activateRes';
 
 export interface Endpoint {
   id: string;
@@ -95,6 +96,7 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'AGENT_QUOTA_EXHAUSTED', http: 429, when: 'The daily agent quota is used up; resets at 00:00 UTC' },
   { code: 'VERIFIED_RECENTLY', http: 409, when: 'The region was verified less than 5 minutes ago' },
   { code: 'VERIFICATION_REJECTED', http: 409, when: 'Publish on a verification the agent rejected' },
+  { code: 'CANNOT_REMOVE_SELF', http: 409, when: 'An operator tried to remove their own operator access' },
 ];
 
 const AS_OF_PARAM: Field = {
@@ -614,6 +616,16 @@ export const SCHEMAS: Schema[] = [
       { name: 'verification_id', type: 'string', req: true, desc: 'Verification.id; a second decision on it → 409 ALREADY_DECIDED.' },
     ],
   },
+  {
+    name: 'OperatorAccess', origin: 'backend',
+    desc: 'An address with operator access, or one waiting for its first sign-in. Stored in operator_access/{email}.',
+    fields: [
+      { name: 'email', type: 'string', req: true, desc: 'Lower case; the Google account address.' },
+      { name: 'state', type: "'active' | 'pending'", req: true, desc: 'active = the account holds role=operator; pending = no verified account yet, granted at its first sign-in.' },
+      { name: 'added_by, added_at', type: `string | null, ${ISO} | null`, req: true, desc: 'Who added the address and when; null when granted by hand with tools/set_operator.py.' },
+      { name: 'activated_at', type: `${ISO} | null`, req: true, desc: 'When the account became an operator through this list.' },
+    ],
+  },
 ];
 
 export const ENDPOINTS: Endpoint[] = [
@@ -680,6 +692,40 @@ export const ENDPOINTS: Endpoint[] = [
     body: { schema: 'RegionDecisionRequest', example: 'regionDecisionReq' },
     responses: [{ code: 201, schema: 'DecisionResponse', example: 'regionDecisionRes' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ALREADY_DECIDED', 'VERIFICATION_REJECTED', 'REASON_REQUIRED', 'CAPTION_INVALID'],
+  },
+  {
+    id: 'operator-access', method: 'GET', path: '/operator/access', auth: 'operator',
+    title: 'Operator access list',
+    purpose: 'Every account holding role=operator plus the addresses waiting for their first sign-in. Asks Firebase for all operator accounts, so the UI loads it only when the panel opens.',
+    usedBy: 'Regions map → Operator access panel.',
+    responses: [{ code: 200, schema: 'OperatorAccess[]', example: 'accessList' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'operator-access-grant', method: 'POST', path: '/operator/access', auth: 'operator',
+    title: 'Add an operator',
+    purpose: 'Any operator may add an address. An existing, verified Google account becomes an operator at once (it signs in again to refresh its token); any other address waits until its first sign-in. Recorded in audit_log.',
+    usedBy: 'Regions map → Operator access panel → Add operator.',
+    body: { schema: '{ email: string }', example: 'accessReq' },
+    responses: [{ code: 201, schema: 'OperatorAccess', example: 'accessRes' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
+  },
+  {
+    id: 'operator-access-revoke', method: 'POST', path: '/operator/access/revoke', auth: 'operator',
+    title: 'Remove an operator',
+    purpose: 'Drops the claim and revokes the account\'s sessions, so access ends with its next request; deletes the allowlist entry. Nobody can remove their own access. The address travels in the body, never in the URL. Recorded in audit_log.',
+    usedBy: 'Regions map → Operator access panel → Remove.',
+    body: { schema: '{ email: string }', example: 'accessReq' },
+    responses: [{ code: 200, schema: "{ email, state: 'removed' }" }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION', 'NOT_FOUND', 'CANNOT_REMOVE_SELF'],
+  },
+  {
+    id: 'access-activate', method: 'POST', path: '/access/activate', auth: 'user',
+    title: 'Activate operator access at sign-in',
+    purpose: 'Called by the web app after sign-in when the account is not an operator yet. An allowlisted address gets role=operator; the app then refreshes the ID token. Anyone else is unchanged.',
+    usedBy: 'Sign-in (auth.ts), once per account and page load.',
+    responses: [{ code: 200, schema: "{ role: 'operator' | null, changed: boolean }", example: 'activateRes' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
   },
   {
     id: 'pixels', method: 'GET', path: '/operator/pixels', auth: 'operator',
@@ -936,6 +982,13 @@ export const STATIC_EXAMPLES: Partial<Record<ExampleKey, unknown>> = {
     action: 'publish', by: 'operator@example.org', at: '2026-10-13T12:25:00Z', reason: null, alert_id: 'A-R3.50S105.625E-20261013T121908Z',
     notifications: { state: 'outbox_saved', recipients: 2, jobs: 2 }, queue: { state: 'accepted', count: 2 },
   },
+  accessList: [
+    { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
+    { email: 'operator@example.org', state: 'active', added_by: null, added_at: null, activated_at: null },
+  ],
+  accessReq: { email: 'judge@example.org' },
+  accessRes: { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
+  activateRes: { role: 'operator', changed: true },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },
   verifyReq: { force: false },
   verifyRes: { verification_id: 'V-0924-002-1510', cluster_id: 'C-0924-002', status: 'queued' },

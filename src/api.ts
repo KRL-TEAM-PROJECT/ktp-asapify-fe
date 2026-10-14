@@ -1,7 +1,7 @@
 import {
   ApiError,
   type AgentInfo, type Api, type Basemap, type ClusterDetail, type ClusterSummary, type Decision, type GridCompact,
-  type Meta, type NightCompact, type NightSummary, type PeatBoundary, type PeatRegions, type PixelIndex,
+  type Meta, type NightCompact, type NightSummary, type OperatorAccess, type PeatBoundary, type PeatRegions, type PixelIndex,
   type ProvinceBoundary, type RegionDetail, type RegionSummary, type Verification,
 } from './types';
 import { getOperatorToken } from './auth';
@@ -66,11 +66,18 @@ const liveApi: Api = {
   agent: () => req<AgentInfo>('/operator/agent'),
   verifyRegion: (id) => req<Verification>(`/operator/regions/${enc(id)}/verify`, { method: 'POST' }),
   decideRegion: (id, body) => req<Decision>(`/operator/regions/${enc(id)}/decision`, { method: 'POST', body: JSON.stringify(body) }),
+  // addresses go in the body, never in the URL, so they stay out of request logs
+  operatorAccess: () => req<OperatorAccess[]>('/operator/access'),
+  grantOperator: (email) => req<OperatorAccess>('/operator/access', { method: 'POST', body: JSON.stringify({ email }) }),
+  revokeOperator: async (email) => {
+    await req('/operator/access/revoke', { method: 'POST', body: JSON.stringify({ email }) });
+  },
 };
 
 // Mock mode loads lazily: its code + fictional data stay out of the main chunk.
 const mock = () => import('./mock/fixtures').then((m) => m.mockApi);
 const mockRegions = () => import('./mock/regions').then((m) => m.mockRegionApi);
+const mockAccess = () => import('./mock/access').then((m) => m.mockAccessApi);
 const mockApi: Api = {
   meta: () => mock().then((m) => m.meta()),
   pixels: () => mock().then((m) => m.pixels()),
@@ -89,6 +96,9 @@ const mockApi: Api = {
   agent: () => mockRegions().then((m) => m.agent()),
   verifyRegion: (id) => mockRegions().then((m) => m.verifyRegion(id)),
   decideRegion: (id, body) => mockRegions().then((m) => m.decideRegion(id, body)),
+  operatorAccess: () => mockAccess().then((m) => m.list()),
+  grantOperator: (email) => mockAccess().then((m) => m.grant(email)),
+  revokeOperator: (email) => mockAccess().then((m) => m.revoke(email)),
 };
 
 export const api: Api = API_MODE === 'live' ? liveApi : mockApi;

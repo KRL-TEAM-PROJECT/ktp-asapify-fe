@@ -96,8 +96,6 @@ export async function signIn(): Promise<User> {
 export async function signOut(): Promise<void> {
   await ready;
   if (LIVE && firebaseAuth) await (await import('firebase/auth')).signOut(firebaseAuth);
-  const uid = state.user?.uid;
-  if (uid) localStorage.removeItem('asapify.inbox.' + uid);
   activation = null; // the next sign-in on this page asks again
   ++sequence;
   set({ user: null, loading: false, error: null });

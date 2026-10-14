@@ -15,11 +15,11 @@ export function LoginPage() {
   const nav = useNavigate();
   const candidate = (useLocation().state as { from?: string } | null)?.from ?? '/';
   const from = candidate.startsWith('/') && !candidate.startsWith('//') ? candidate : '/';
-  if (user) return <Navigate to={user.role === 'operator' ? from : '/notifications'} replace />;
+  if (user) return <Navigate to={user.role === 'operator' ? from : '/join'} replace />;
 
   async function login() {
     setBusy(true); setError(null);
-    try { const u = await signIn(); nav(u.role === 'operator' ? from : '/notifications', { replace: true }); }
+    try { const u = await signIn(); nav(u.role === 'operator' ? from : '/join', { replace: true }); }
     catch (e) {
       const code = e instanceof Error ? e.message : '';
       setError(t(code === 'FORBIDDEN' ? 'err.FORBIDDEN' : code === 'AUTH_NOT_CONFIGURED' ? 'login.config_error' : 'login.failed'));

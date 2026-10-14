@@ -13,19 +13,19 @@ import { AboutPage } from './pages/About';
 // on their own routes. "/" is the risk engine's region map.
 const RegionsPage = lazy(() => import('./pages/Regions').then((m) => ({ default: m.RegionsPage })));
 const RegionPage = lazy(() => import('./pages/RegionPage').then((m) => ({ default: m.RegionPage })));
-const NotificationsPage = lazy(() => import('./pages/Notifications').then((m) => ({ default: m.NotificationsPage })));
+const JoinPage = lazy(() => import('./pages/Join').then((m) => ({ default: m.JoinPage })));
 const ApiContractPage = lazy(() => import('./pages/ApiContract').then((m) => ({ default: m.ApiContractPage })));
 
 function PageFallback() {
   return <div className="page-fallback" aria-busy="true"><div className="skel" /></div>;
 }
 
-function RequireAuth({ children, operator = true }: { children: ReactNode; operator?: boolean }) {
+function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuthState();
   const loc = useLocation();
   if (loading) return <PageFallback />;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname + loc.search }} />;
-  if (operator && user.role !== 'operator') return <Navigate to="/notifications" replace />;
+  if (user.role !== 'operator') return <Navigate to="/join" replace />;
   return children;
 }
 
@@ -59,7 +59,7 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
         )}
         <nav className="navlinks" aria-label={t('nav.label')}>
           {user?.role === 'operator' && <NavItem to="/" end>{t('nav.regions')}</NavItem>}
-          <NavItem to="/notifications">{t('nav.notifications')}</NavItem>
+          <NavItem to="/join">{t('nav.join')}</NavItem>
           <NavItem to="/about">{t('nav.about')}</NavItem>
           {user?.role === 'operator' && (
             <NavItem to="/api-contract">
@@ -111,7 +111,8 @@ function Root() {
       <Route element={<Shell theme={theme} />}>
         <Route path="/about" element={<AboutPage />} />
         <Route path="/api-contract" element={<RequireAuth><ApiContractPage /></RequireAuth>} />
-        <Route path="/notifications" element={<RequireAuth operator={false}><NotificationsPage /></RequireAuth>} />
+        <Route path="/join" element={<JoinPage />} />
+        <Route path="/notifications" element={<Navigate to="/join" replace />} />
         <Route path="/" element={<RequireAuth><RegionsPage dark={theme.dark} /></RequireAuth>} />
         <Route path="/regions/:id" element={<RequireAuth><RegionPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />

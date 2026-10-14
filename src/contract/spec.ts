@@ -57,10 +57,6 @@ export const CONVENTIONS: { title: string; body: string }[] = [
     body: 'All times are UTC, ISO 8601 with a `Z` suffix and second precision, e.g. `2023-09-24T15:10:00Z`. The server never sends local time; the UI converts to UTC+7.',
   },
   {
-    title: 'Reference time `as_of`',
-    body: 'Every operator GET accepts an optional `as_of` (UTC); omitted = now. Backtest replay and production run the same code (WORKLOG §10 rule 7).',
-  },
-  {
     title: 'Coordinates',
     body: 'GeoJSON is always `[lon, lat]`. Separate numeric fields are explicit (`lat`, `lon`). Province = BPS code (11–19, 21 Sumatra; 61–65 Kalimantan).',
   },
@@ -82,7 +78,7 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'UNAUTHENTICATED', http: 401, when: 'Token missing, expired or invalid' },
   { code: 'FORBIDDEN', http: 403, when: 'User is not an operator, or the Google email is not verified' },
   { code: 'NOT_FOUND', http: 404, when: 'Region or alert does not exist' },
-  { code: 'VALIDATION', http: 400, when: 'Malformed parameter/body (e.g. `as_of` is not ISO UTC)' },
+  { code: 'VALIDATION', http: 400, when: 'Malformed parameter/body (e.g. `date` is not YYYY-MM-DD)' },
   { code: 'ALREADY_DECIDED', http: 409, when: 'Verification already published/rejected by another operator' },
   { code: 'ALREADY_CLOSED', http: 409, when: 'Alert already closed' },
   { code: 'REASON_REQUIRED', http: 422, when: 'Reject without `reason`' },
@@ -96,11 +92,6 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'VERIFICATION_REJECTED', http: 409, when: 'Publish on a verification the agent rejected' },
   { code: 'CANNOT_REMOVE_SELF', http: 409, when: 'An operator tried to remove their own operator access' },
 ];
-
-const AS_OF_PARAM: Field = {
-  name: 'as_of', type: `query · ${ISO}`, req: false, origin: 'backend',
-  desc: 'Reference time; omitted = now.',
-};
 
 export const SCHEMAS: Schema[] = [
   {
@@ -155,15 +146,16 @@ export const SCHEMAS: Schema[] = [
     name: 'Alert', origin: 'backend',
     desc: 'Alert published to subscribers.',
     fields: [
-      { name: 'id', type: 'string', req: true, desc: '`A-{MMDD}-{nnn}`.' },
-      { name: 'cluster_id', type: 'string', req: true, desc: 'Source cluster.' },
+      { name: 'id', type: 'string', req: true, desc: '`A-{region id}-{verification id}`.' },
+      { name: 'region_id', type: 'string', req: true, desc: 'Source region.' },
+      { name: 'verification_id', type: 'string', req: true, desc: 'The agent verification the operator published.' },
       { name: 'province', type: PROV_T, req: true, desc: 'Target province; its subscribers receive the message.' },
       { name: 'caption', type: 'string', req: true, desc: 'Caption sent (or last edited).' },
       { name: 'published_by', type: 'string (email)', req: true, desc: 'Publishing operator.' },
       { name: 'published_at', type: ISO, req: true, desc: 'Publish time.' },
       { name: 'status', type: "'active' | 'closed'", req: true, desc: 'closed = inbox entries labelled RESOLVED, unsent jobs cancelled.' },
       { name: 'closed_at', type: `${ISO} | null`, req: true, desc: 'Close time.' },
-      { name: 'closed_by', type: "string | 'system' | null", req: true, desc: "Operator email, or 'system' when the cluster closed automatically." },
+      { name: 'closed_by', type: "string | 'system' | null", req: true, desc: "Operator email, or 'system' when the alert closed automatically." },
       { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_recipients', recipients: number, jobs: number}", req: true, desc: 'Queue summary; per-channel status comes from /operator/alerts/{id}/deliveries.' },
     ],
   },
@@ -491,7 +483,6 @@ export const ENDPOINTS: Endpoint[] = [
     usedBy: null,
     params: [
       { name: 'status', type: "query · 'active' | 'closed'", req: false, origin: 'backend', desc: 'Omitted = all.' },
-      AS_OF_PARAM,
     ],
     responses: [{ code: 200, schema: 'Alert', example: 'alerts', note: 'Alert[].' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
@@ -499,9 +490,9 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'close', method: 'POST', path: '/operator/alerts/{id}/close', auth: 'operator',
     title: 'Close alert',
-    purpose: 'Early close by an operator: inbox entries get the RESOLVED label and unsent jobs are cancelled. Automatic closing goes through agent /cluster-closed. Not implemented in the backend yet.',
+    purpose: 'Early close by an operator: inbox entries get the RESOLVED label and unsent jobs are cancelled. Not implemented in the backend yet.',
     usedBy: null,
-    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Alert id, e.g. A-0924-001.' }],
+    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Alert id, e.g. A-R2.00S113.750E-20230923T165500Z.' }],
     body: { schema: 'CloseRequest', example: 'closeReq' },
     responses: [{ code: 200, schema: 'Alert', example: 'closeRes' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ALREADY_CLOSED'],
@@ -511,7 +502,7 @@ export const ENDPOINTS: Endpoint[] = [
     title: 'Delivery status per channel',
     purpose: 'Every send job of one alert with the recipient\'s confirmation time. No recipient address or chat_id.',
     usedBy: 'Region detail → DeliveryStatus under the decision. Polls every 15 s while a job is running, then every 60 s until 1 h after publishing.',
-    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Alert id, e.g. A-0924-001.' }],
+    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Alert id, e.g. A-R2.00S113.750E-20230923T165500Z.' }],
     responses: [{ code: 200, schema: 'Delivery', example: 'deliveries', note: 'Delivery[].' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
   },
@@ -578,7 +569,6 @@ export const ENDPOINTS: Endpoint[] = [
 
 /** Internal endpoints (asapify-agent and asapify-notify) — not for the UI; listed so the BE team knows the boundary. */
 export const INTERNAL: { method: string; path: string; desc: string }[] = [
-  { method: 'POST', path: '/cluster-closed', desc: 'OIDC sa-jobs. Body {cluster_id}. If an alert was published: close it, label the inbox entries RESOLVED, cancel unsent jobs.' },
   { method: 'POST', path: '/api/v1/notifications/telegram-webhook', desc: 'Called by Telegram; requires the X-Telegram-Bot-Api-Secret-Token header. Only links private chats through /start; never replies.' },
   { method: 'POST', path: '/_internal/notifications/dispatch', desc: 'asapify-notify. OIDC asapify-task from Cloud Tasks. Body {job_id}. Claims one job, then sends it.' },
   { method: 'POST', path: '/_internal/engine/geo-tick', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every 10 minutes (minute 5, 15, … 55), ?budget=240. Newest Himawari-9 + GK2A slot for all 65 regions: fusion, rules, state machine, agent requests and waiting agent runs.' },
@@ -661,7 +651,7 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   activateRes: { role: 'operator', changed: true },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },
   alerts: [{
-    id: 'A-0923-001', cluster_id: 'C-0923-001', province: '62',
+    id: 'A-R2.00S113.750E-20230923T165500Z', region_id: 'R2.00S113.750E', verification_id: '20230923T165500Z', province: '62',
     caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
     published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
     status: 'active', closed_at: null, closed_by: null,
@@ -669,7 +659,7 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   }],
   closeReq: { reason: 'Fire out according to the Central Kalimantan disaster agency (BPBD)' },
   closeRes: {
-    id: 'A-0923-001', cluster_id: 'C-0923-001', province: '62',
+    id: 'A-R2.00S113.750E-20230923T165500Z', region_id: 'R2.00S113.750E', verification_id: '20230923T165500Z', province: '62',
     caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
     published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
     status: 'closed', closed_at: '2023-09-26T02:00:00Z', closed_by: 'operator@example.org',

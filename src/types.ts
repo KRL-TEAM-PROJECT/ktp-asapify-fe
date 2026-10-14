@@ -375,6 +375,15 @@ export interface RegionDecisionRequest extends DecisionRequest {
 
 export type PeatRegions = FeatureCollection<Polygon | MultiPolygon, { id: string; province: ProvinceCode }>;
 
+/** An address with operator access, or one waiting for its first sign-in (backend asapify_api/access_routes.py). */
+export interface OperatorAccess {
+  email: string;
+  state: 'active' | 'pending';
+  added_by: string | null; // null = granted by hand with the backend's tools/set_operator.py
+  added_at: string | null;
+  activated_at: string | null;
+}
+
 /** The earlier pixel/cluster design (/pixels, /clusters/:id). */
 export interface PixelApi {
   meta(): Promise<Meta>;
@@ -397,6 +406,9 @@ export interface Api extends PixelApi {
   agent(): Promise<AgentInfo>;
   verifyRegion(id: string): Promise<Verification>;
   decideRegion(id: string, body: RegionDecisionRequest): Promise<Decision>;
+  operatorAccess(): Promise<OperatorAccess[]>;
+  grantOperator(email: string): Promise<OperatorAccess>;
+  revokeOperator(email: string): Promise<void>;
 }
 
 export class ApiError extends Error {

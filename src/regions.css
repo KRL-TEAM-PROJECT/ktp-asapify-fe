@@ -59,3 +59,18 @@
   .rg-facts { grid-template-columns: minmax(0, 1fr); }
   .rg-util-row { grid-template-columns: 96px minmax(0, 1fr) 48px; }
 }
+
+/* ---------- operator access (region list panel) ---------- */
+.rg-access-form { display: grid; gap: 4px; margin: 6px 0; }
+.rg-access-row { display: flex; gap: 8px; }
+.rg-access-row input { flex: 1; min-width: 0; min-height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 0 10px; font: inherit; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+.rg-access-row input:hover:not(:disabled) { border-color: var(--ink-dim); }
+.rg-access-row input:focus-visible { outline: none; border-color: var(--sat); box-shadow: var(--ring); }
+.rg-access .rg-access-list li { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.rg-access-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.rg-access-act { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.rg-access-act .link-btn { padding: 0 6px 0 0; min-height: 32px; font-size: 13px; }
+.rg-access-act .link-btn.danger { color: var(--ember); }
+@media (prefers-reduced-motion: reduce) {
+  .rg-access-row input { transition: none; }
+}

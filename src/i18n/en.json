@@ -287,7 +287,7 @@
   "about.step5_d": "The operator publishes or rejects each verification. Only published alerts reach subscribers who chose that province, by Telegram DM and in the web inbox.",
   "about.ai_rule": "The status comes only from the data and the rules. The AI agent reads evidence for the operator and cannot change a status.",
   "about.status_title": "Region status",
-  "about.st_warning": "Medium anomaly (about 3–6 K), or an anomaly seen by day, by one satellite, or by only one of the two. Closer monitoring; no agent call.",
+  "about.st_warning": "Medium anomaly (about 3–6 K), or a stronger one seen by day or by only one of the two satellites. Closer monitoring; no agent call.",
   "about.st_noobs": "Cloud over more than 60 % of the cell in both views, or no satellite data. Never counted as safe.",
   "about.st_safe": "No fire-like anomaly that both satellites see.",
   "about.limits_title": "Limitations",

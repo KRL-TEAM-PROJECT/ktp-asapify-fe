@@ -33,10 +33,11 @@ function ViewText({ flags }: { flags: string[] }) {
 function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | undefined }) {
   const { t } = useI18n();
   const i = s.inputs;
-  const cell = (name: SatelliteName, show: (v: NonNullable<SlotRecord['views'][SatelliteName]>) => string) => {
+  // A missing view or verdict is said once, in the first row; the rows below show a dash.
+  const cell = (name: SatelliteName, show: (v: NonNullable<SlotRecord['views'][SatelliteName]>) => string, first = false) => {
     const v = s.views[name];
-    if (!v) return <td key={name} className="na">{t('rgi.no_data')}</td>;
-    if (v.max_anomaly_k == null) return <td key={name} className="na">{t('rgi.no_verdict')}</td>;
+    if (!v) return <td key={name} className="na">{first ? t('rgi.no_data') : '–'}</td>;
+    if (v.max_anomaly_k == null) return <td key={name} className="na">{first ? t('rgi.no_verdict') : '–'}</td>;
     return <td key={name} className="mono">{show(v)}</td>;
   };
   const support = Object.entries(s.support);
@@ -46,7 +47,7 @@ function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | 
         <table className="rg-table rg-sats">
           <thead><tr><th />{SATS.map((n) => <th key={n}>{SATELLITE_NAMES[n]}</th>)}</tr></thead>
           <tbody>
-            <tr><td>{t('rgi.anomaly')}</td>{SATS.map((n) => cell(n, (v) => `${fmtSigned(v.max_anomaly_k!, 1)} K${v.max_z ? ` · z ${fmtNum(v.max_z, 1)}` : ''}`))}</tr>
+            <tr><td>{t('rgi.anomaly')}</td>{SATS.map((n) => cell(n, (v) => `${fmtSigned(v.max_anomaly_k!, 1)} K${v.max_z ? ` · z ${fmtNum(v.max_z, 1)}` : ''}`, true))}</tr>
             <tr><td>{t('rgi.hot')}</td>{SATS.map((n) => cell(n, (v) => t('rgi.hot_n', { n: v.n_hot, peat: v.n_hot_peat })))}</tr>
             <tr><td>{t('rgi.bt')}</td>{SATS.map((n) => cell(n, (v) => v.mwir_k != null && v.lwir_k != null ? `${fmtNum(v.mwir_k, 1)} / ${fmtNum(v.lwir_k, 1)} K` : '–'))}</tr>
             <tr><td>{t('rgi.where')}</td>{SATS.map((n) => cell(n, (v) => v.hot_lat != null && v.hot_lon != null ? `${fmtCoord(v.hot_lon, v.hot_lat)}${v.hot_on_peat ? ` · ${t('rgi.on_peat')}` : ''}` : '–'))}</tr>
@@ -162,11 +163,11 @@ export function RegionPage() {
         {latest && (
           <dl className="facts">
             <div className={latest.status === 'ALERT' ? 'hot' : ''}><dt>ΔT</dt><dd>{latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}</dd></div>
-            <div><dt>{t('rg.f_view')}</dt><dd><ViewText flags={latest.flags} /> · {t(latest.night ? 'rgt.night' : 'rgt.day')}</dd></div>
+            <div className="rg-fact-text"><dt>{t('rg.f_view')}</dt><dd><ViewText flags={latest.flags} /> · {t(latest.night ? 'rgt.night' : 'rgt.day')}</dd></div>
             <div><dt>{t('rg.f_rh')}</dt><dd>{latest.inputs.relative_humidity_pct != null ? `${fmtNum(latest.inputs.relative_humidity_pct, 0)}%` : '–'}</dd></div>
             <div><dt>{t('rg.f_cloud')}</dt><dd>{latest.inputs.cloud_cover_pct != null ? `${fmtNum(latest.inputs.cloud_cover_pct, 0)}%` : '–'}</dd></div>
             <div><dt>{t('rg.f_slot')}</dt><dd>{fmtSlot(latest.observed_at)}</dd></div>
-            <div><dt>{t('cluster.f_dec')}</dt><dd><DecisionState decision={v?.decision ?? null} /></dd></div>
+            {v && <div><dt>{t('cluster.f_dec')}</dt><dd><DecisionState decision={v.decision} /></dd></div>}
           </dl>
         )}
         <p className="callout"><IconAlert size={14} /> {t('rg.lag_note')}</p>

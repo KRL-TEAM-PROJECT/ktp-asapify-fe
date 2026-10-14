@@ -14,10 +14,23 @@ import { localizeBasemap, styleFor, updateSource } from './layers';
 setWorkerUrl(`${import.meta.env.BASE_URL}maplibre/maplibre-gl-worker.mjs`);
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
+// brand manual: Canopy Emerald = SAFE, Warning Ochre = WARNING, Thermal Amber = ALERT and heat marks, Peat Charcoal = ink
 const PALETTE = {
-  light: { SAFE: '#3c6a4c', WARNING: '#e0a93e', ALERT: '#c2410c', NO_OBSERVABLE: '#7d887f', none: '#a7b0a9', ink: '#1b2520', halo: '#ffffff', sel: '#2c628c', hot: '#c2410c' },
-  dark: { SAFE: '#7fbf93', WARNING: '#f0b23e', ALERT: '#fb8a5c', NO_OBSERVABLE: '#7d8b83', none: '#56625b', ink: '#e4ebe5', halo: '#121815', sel: '#7fb3dc', hot: '#fb8a5c' },
+  light: { SAFE: '#1B4D3E', WARNING: '#D97706', ALERT: '#EA580C', NO_OBSERVABLE: '#94A3B8', none: '#CBD5E1', ink: '#1E293B', halo: '#FFFFFF', hot: '#EA580C' },
+  dark: { SAFE: '#5FA88A', WARNING: '#F59E0B', ALERT: '#FB8B55', NO_OBSERVABLE: '#64748B', none: '#334155', ink: '#F8FAFC', halo: '#0F172A', hot: '#FB8B55' },
 };
+
+/** A square marker at 2x for crisp edges: satellite pixels are drawn as what they are, square footprints. */
+function square(size: number, fill: string | null, stroke: string, width: number): ImageData {
+  const px = size * 2, w = width * 2;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = px;
+  const g = cv.getContext('2d')!;
+  if (fill) { g.fillStyle = fill; g.fillRect(w / 2, w / 2, px - w, px - w); }
+  g.strokeStyle = stroke; g.lineWidth = w;
+  g.strokeRect(w / 2, w / 2, px - w, px - w);
+  return g.getImageData(0, 0, px, px);
+}
 const S: ExpressionSpecification = ['coalesce', ['get', 'status'], 'none'];
 
 export interface RegionMapOptions {
@@ -78,6 +91,9 @@ export class RegionMapController {
   private hot: Record<string, DayHot> = {};
   private selected: string | null = null;
   private ready = false;
+  // phones: the day player and the sheet's peek cover the bottom of the map, so framing leaves room for them
+  private readonly narrow = window.matchMedia('(max-width: 1023px)').matches;
+  private readonly inset = this.narrow ? { top: 16, right: 56, bottom: 250, left: 16 } : null;
 
   constructor(container: HTMLElement, o: RegionMapOptions) {
     this.dark = o.dark;
@@ -86,7 +102,7 @@ export class RegionMapController {
       container,
       style: styleFor(o.lite ? 'plain' : 'streets', o.dark),
       bounds: REGION as LngLatBoundsLike,
-      fitBoundsOptions: { padding: 24 },
+      fitBoundsOptions: { padding: this.inset ?? 24 },
       attributionControl: false,
       pixelRatio: o.lite ? 1 : window.devicePixelRatio,
       fadeDuration: o.lite ? 0 : 200,
@@ -101,11 +117,12 @@ export class RegionMapController {
     this.map.keyboard.disableRotation();
     this.map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
     this.map.addControl(new FullscreenControl(), 'top-right');
-    this.map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-left');
+    // on phones the bottom of the map sits under the sheet, so the credits and the scale move to the top
+    this.map.addControl(new ScaleControl({ unit: 'metric' }), this.narrow ? 'top-left' : 'bottom-left');
     this.map.addControl(new AttributionControl({
       compact: true,
       customAttribution: '© OpenStreetMap contributors · KHG peat units (KLHK) · NASA POWER · Weather data by Open-Meteo.com (CC BY 4.0) · NASA FIRMS · geoBoundaries',
-    }), 'bottom-right');
+    }), this.narrow ? 'top-left' : 'bottom-right');
 
     this.map.on('style.load', () => {
       this.install();
@@ -132,6 +149,9 @@ export class RegionMapController {
       g.beginPath(); g.moveTo(-2, 10); g.lineTo(10, -2); g.moveTo(-2, 2); g.lineTo(2, -2); g.moveTo(6, 10); g.lineTo(10, 6); g.stroke();
       this.map.addImage('rg-hatch', g.getImageData(0, 0, 8, 8));
     }
+    // Himawari-9: a filled heat square; GK2A: an open square around it, so pixels both satellites saw read as one mark
+    if (!this.map.hasImage('px-h')) this.map.addImage('px-h', square(10, c.hot, c.ink, 1.5), { pixelRatio: 2 });
+    if (!this.map.hasImage('px-g')) this.map.addImage('px-g', square(16, null, c.ink, 1.5), { pixelRatio: 2 });
     this.map.addSource('rg-provinces', { type: 'geojson', data: this.provinces });
     this.map.addSource('rg-cells', { type: 'geojson', data: cells(this.regions) });
     this.map.addSource('rg-peat', { type: 'geojson', data: peatWithStatus(this.peat, this.regions) });
@@ -141,11 +161,12 @@ export class RegionMapController {
     this.map.addLayer({ id: 'rg-provinces', type: 'line', source: 'rg-provinces', paint: { 'line-color': c.ink, 'line-width': 1, 'line-opacity': 0.35 } });
     this.map.addLayer({
       id: 'cell-fill', type: 'fill', source: 'rg-cells',
-      paint: { 'fill-color': color, 'fill-opacity': ['match', S, 'ALERT', 0.18, 'WARNING', 0.14, 0.06] },
+      paint: { 'fill-color': color, 'fill-opacity': ['match', S, 'ALERT', 0.16, 'WARNING', 0.12, 0.05] },
     });
+    // areas are tinted, signals saturated: a quiet (SAFE) region recedes, a hot one stands out
     this.map.addLayer({
       id: 'peat-fill', type: 'fill', source: 'rg-peat',
-      paint: { 'fill-color': color, 'fill-opacity': ['match', S, 'ALERT', 0.88, 'WARNING', 0.8, 'SAFE', 0.5, 'NO_OBSERVABLE', 0.3, 0.25] },
+      paint: { 'fill-color': color, 'fill-opacity': ['match', S, 'ALERT', 0.85, 'WARNING', 0.7, 'SAFE', 0.35, 'NO_OBSERVABLE', 0.25, 0.2] },
     });
     this.map.addLayer({
       id: 'peat-hatch', type: 'fill', source: 'rg-peat', filter: ['==', S, 'NO_OBSERVABLE'],
@@ -157,28 +178,23 @@ export class RegionMapController {
     });
     this.map.addLayer({
       id: 'cell-selected', type: 'line', source: 'rg-cells', filter: ['==', ['get', 'id'], this.selected ?? ''],
-      paint: { 'line-color': c.sel, 'line-width': 3.5 },
+      paint: { 'line-color': c.ink, 'line-width': 3 },
     });
-    // GK2A as a ring under Himawari-9's dot: where both satellites agree the two read as one target
-    this.map.addLayer({
-      id: 'px-gk2a', type: 'circle', source: 'rg-pixels', filter: ['==', ['get', 'sat'], 'gk2a'],
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4.5, 10, 9], 'circle-opacity': 0,
-        'circle-stroke-color': c.sel, 'circle-stroke-width': 2,
+    const marker = (id: string, sat: SatelliteName, image: string) => this.map.addLayer({
+      id, type: 'symbol', source: 'rg-pixels', filter: ['==', ['get', 'sat'], sat],
+      layout: {
+        'icon-image': image, 'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.55, 10, 1.3],
+        'icon-allow-overlap': true, 'icon-ignore-placement': true,
       },
     });
-    this.map.addLayer({
-      id: 'px-himawari9', type: 'circle', source: 'rg-pixels', filter: ['==', ['get', 'sat'], 'himawari9'],
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.8, 10, 6],
-        'circle-color': c.hot, 'circle-stroke-color': c.halo, 'circle-stroke-width': 1,
-      },
-    });
+    marker('px-gk2a', 'gk2a', 'px-g');
+    marker('px-himawari9', 'himawari9', 'px-h');
+    // VIIRS (375 m) as small heat dots: a different shape from the 2-4 km geostationary squares
     this.map.addLayer({
       id: 'px-viirs', type: 'circle', source: 'rg-viirs',
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 1.8, 10, 3.5],
-        'circle-color': c.ink, 'circle-stroke-color': c.halo, 'circle-stroke-width': 0.8,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 10, 4],
+        'circle-color': c.hot, 'circle-stroke-color': c.halo, 'circle-stroke-width': 1.2,
       },
     });
     this.map.addLayer({
@@ -226,7 +242,7 @@ export class RegionMapController {
   }
 
   fitBounds(b: LngLatBoundsLike, maxZoom = 9) {
-    this.map.fitBounds(b, { padding: 48, duration: this.lite ? 0 : 700, maxZoom });
+    this.map.fitBounds(b, { padding: this.inset ?? 48, duration: this.lite ? 0 : 700, maxZoom });
   }
 
   resize() { this.map.resize(); }

@@ -49,7 +49,9 @@ export function RegionsPage({ dark }: { dark: boolean }) {
   const [province, setProvince] = useState<ProvinceCode | ''>('');
   const [sort, setSort] = useState<Sort>('severity');
   const [selected, setSelected] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(true);
+  // phones open on the map (mobile first: where is it hot?); the list is one tap or drag away
+  const [sheetOpen, setSheetOpen] = useState(() => !window.matchMedia('(max-width: 1023px)').matches);
+  const [peekPx, setPeekPx] = useState(64);
   const isSheet = useMediaQuery('(max-width: 1023px)');
   const [daySel, setDaySel] = useState<string | null>(null); // null = the day of the latest slot
   const [slotSel, setSlotSel] = useState<number | null>(null); // null = the last archived slot of the open day
@@ -174,8 +176,15 @@ export function RegionsPage({ dark }: { dark: boolean }) {
 
   return (
     <LiteMotion lite={lite}>
-      <div className={`map-page ${sheetOpen ? 'sheet-open' : ''} ${lite ? 'is-lite' : ''}`}>
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen} enabled={isSheet} label={t('rg.panel')}>
+      <div className={`map-page ${sheetOpen ? 'sheet-open' : ''} ${lite ? 'is-lite' : ''}`} style={{ ['--peek' as string]: `${peekPx}px` }}>
+        <Sheet
+          open={sheetOpen} onOpenChange={setSheetOpen} enabled={isSheet} label={t('rg.panel')} onPeekHeight={setPeekPx}
+          peek={<>
+            <span className="sw alert">{t('rg.peek_alert', { n: counts.ALERT })}</span>
+            <span className="sw warning">{t('rg.peek_warning', { n: counts.WARNING })}</span>
+            {(atLatest ? latestSlot : shownSlot?.at) && <span className="when">{fmtSlot((atLatest ? latestSlot : shownSlot?.at)!)}</span>}
+          </>}
+        >
           <div className="rg-head">
             <h1 className="rg-title">{t('rg.title')}</h1>
             <p className="muted small">{t('rg.lede')}</p>

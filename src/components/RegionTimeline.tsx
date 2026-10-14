@@ -5,7 +5,7 @@ import { fmtDate, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
 import { m } from '../motion';
 import { STATUS_KEY } from './StatusBadge';
 
-const W = 640, PL = 44, PR = 10;
+const W = 640, PL = 56, PR = 10;
 const STRIP = { y: 6, h: 12 };
 const DT = { y: 30, h: 92 };
 const RH = { y: 136, h: 58 };
@@ -13,7 +13,8 @@ const CLOUD = { y: 208, h: 50 };
 const H = CLOUD.y + CLOUD.h + 26;
 const STEP = 600_000; // one 10-minute slot
 const FILL: Record<Status, string> = { SAFE: 'var(--moss)', WARNING: 'var(--amber)', ALERT: 'var(--ember)', NO_OBSERVABLE: '' };
-const SAT: [SatelliteName, string, string][] = [['himawari9', 'H', 'var(--sat)'], ['gk2a', 'G', 'var(--ink-dim)']];
+// the map's colours: Himawari-9 in thermal amber, GK2A in ink
+const SAT: [SatelliteName, string, string][] = [['himawari9', 'H', 'var(--ember)'], ['gk2a', 'G', 'var(--ink-dim)']];
 
 /** Line through the slots that have a value; breaks where a value is missing. */
 function path(points: ({ x: number; y: number } | null)[]) {
@@ -154,7 +155,7 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
       </svg>
       <figcaption>
         {t('rgt.caption', { range: `${fmtSlot(slots[0].observed_at)} – ${fmtSlot(slots[slots.length - 1].observed_at)}` })}{' '}
-        <span className="rg-key"><i style={{ background: 'var(--sat)' }} />H Himawari-9 <i style={{ background: 'var(--ink-dim)' }} />G GK2A <i className="tick" />{t('rgt.viirs')}</span>
+        <span className="rg-key"><i style={{ background: 'var(--ember)' }} />H Himawari-9 <i style={{ background: 'var(--ink-dim)' }} />G GK2A <i className="tick" />{t('rgt.viirs')}</span>
       </figcaption>
     </figure>
   );

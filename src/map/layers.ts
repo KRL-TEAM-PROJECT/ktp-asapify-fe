@@ -15,11 +15,11 @@ export function styleFor(basemap: 'streets' | 'plain', dark: boolean): string | 
     version: 8,
     glyphs: GLYPHS,
     sources: {},
-    layers: [{ id: 'bg', type: 'background', paint: { 'background-color': dark ? '#121815' : '#eef1ec' } }],
+    layers: [{ id: 'bg', type: 'background', paint: { 'background-color': dark ? '#0F172A' : '#F1F5F9' } }],
   };
 }
 
-const OWN_SOURCES = new Set(['rg-provinces', 'rg-cells', 'rg-peat', 'rg-hotspots']);
+const OWN_SOURCES = new Set(['rg-provinces', 'rg-cells', 'rg-peat', 'rg-pixels', 'rg-viirs']);
 
 /**
  * Vector basemap labels (OpenFreeMap/OpenMapTiles) in English: name:en, falling back to the

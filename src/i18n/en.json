@@ -308,6 +308,8 @@
   "rg.legend.viirs": "VIIRS detection within 10 km and 12 h of a hot pixel",
   "rg.archive": "Showing {date}, {time} UTC+7: statuses, hot pixels and VIIRS of that slot.",
   "rg.to_latest": "Back to the latest slot",
+  "rg.peek_alert": "{n} Alert",
+  "rg.peek_warning": "{n} Warning",
   "rg.trimmed": "Part of this slot's pixel detail was left out to keep the day archive small.",
   "rg.sources": "Data: Himawari-9 and GK2A (NOAA Open Data on AWS), Open-Meteo (humidity, CC BY 4.0), NASA FIRMS and NASA POWER (support), KHG peat map (KLHK).",
   "access.title": "Operator access",

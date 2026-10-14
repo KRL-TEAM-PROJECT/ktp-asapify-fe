@@ -9,6 +9,7 @@ pixels and the VIIRS detections beside them, and a day player that opens any arc
 humidity and cloud timeline, Fuzzy MAUT utilities, status changes), the Gemini agent's NASA FIRMS verification with
 a Re-verify button, and the publish/reject decision.
 
+- Design: [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) (mobile-first rules and the brand manual's visual language)
 - UI specification: `../asapify/ui.html` · API contract: `../asapify/backend.html` sections 03–05
 - System concept and rules: `../ASAPify_Pitch_Google_AI_Builder_2026/WORKLOG.md` sections 7–10
 - The interface, code and API are English only.

@@ -26,12 +26,12 @@ export function fmtSlot(iso: string): string {
   return `${fmtDate(iso)} ${fmtTime(iso)} UTC+7`;
 }
 
-/** Night YYYY-MM-DD (the UTC+7 date when the night starts) → "Sun, 24 Sep 2023". */
-export function fmtNight(night: string): string {
+/** Day YYYY-MM-DD (a UTC+7 calendar day of the archive) → "Sun, 12 Oct 2026". */
+export function fmtDay(day: string): string {
   // en-US gives "Sep" (en-GB now writes "Sept"); the order is assembled below.
   const f = new Intl.DateTimeFormat(LOCALE, { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   const p: Record<string, string> = {};
-  for (const x of f.formatToParts(new Date(`${night}T12:00:00Z`))) p[x.type] = x.value;
+  for (const x of f.formatToParts(new Date(`${day}T12:00:00Z`))) p[x.type] = x.value;
   return `${p.weekday.replace('.', '')}, ${p.day} ${p.month.replace('.', '')} ${p.year}`;
 }
 
@@ -50,9 +50,6 @@ export function fmtSigned(n: number, digits: number): string {
   const s = fmtNum(Math.abs(n), digits);
   return `${n < 0 && Number(s.replace(/,/g, '')) !== 0 ? '−' : '+'}${s}`;
 }
-
-/** Plain number with a real minus sign (U+2212) for coordinates and tooltip values. */
-export const fmtNumM = (n: number, digits: number) => fmtNum(n, digits).replace('-', '−');
 
 /** Brightness temperature K → "38.4 °C". */
 export const fmtC = (k: number) => `${fmtNum(k - 273.15, 1)} °C`;

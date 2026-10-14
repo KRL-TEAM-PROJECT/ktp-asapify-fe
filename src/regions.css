@@ -1,84 +1,101 @@
-/* Risk-engine region screens (map home + region detail). Tokens come from styles.css. */
+/* Risk-engine region screens (map home + region detail). Tokens come from styles.css; mobile first. */
 
 /* ---------- region list ---------- */
 .rg-head { display: grid; gap: 4px; }
-.rg-title { font-size: 22px; }
-.chip .rg-count { font-size: 11.5px; opacity: 0.8; margin-left: 2px; }
+.rg-title { font-size: var(--fs-lg); }
+.chip .rg-count { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; margin-left: 2px; }
 .chip.st-none { background: var(--surface-2); color: var(--ink-dim); }
-.queue-item.rg-item { border-left-color: var(--line); }
-.queue-item.rg-alert { border-left-color: var(--ember); }
-.queue-item.rg-warning { border-left-color: var(--amber); }
-.queue-item.rg-safe { border-left-color: var(--moss); }
-.queue-item.rg-no_observable { border-left-style: dashed; border-left-color: var(--ink-dim); }
-.queue-item.rg-item.on { border-color: var(--sat); border-left-color: var(--sat); }
+/* the status swatch before each region id: the same colour as the map fill (shape + word carry it too) */
+.rg-item { --st: var(--line-strong); }
+.rg-alert { --st: var(--ember); }
+.rg-warning { --st: var(--amber); }
+.rg-safe { --st: var(--moss); }
+.rg-item .qi-id::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 1px; background: var(--st); }
+.rg-no_observable .qi-id::before { background: var(--hatch); box-shadow: inset 0 0 0 1px var(--line-strong); }
 
 /* ---------- validation status (agent result, not a risk level) ---------- */
-.pill.vs-confirmed { background: var(--ember-soft); color: var(--ember); }
+.pill.vs-confirmed { background: var(--ember-soft); color: var(--ember-ink); }
 .pill.vs-rejected { background: var(--moss-soft); color: var(--moss); }
-.pill.vs-review { background: var(--amber-soft); color: var(--amber); }
+.pill.vs-review { background: var(--amber-soft); color: var(--amber-ink); }
 
-.qi-row .rg-view { font-size: 11.5px; }
+.qi-row .rg-view { font-size: var(--fs-xs); }
+.rg-archive { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 6px 10px; border-left: 3px solid var(--ink); border-radius: 0 var(--r-1) var(--r-1) 0;
+  background: var(--sat-soft); color: var(--ink); }
+.rg-archive .link-btn { min-height: 32px; padding: 0; }
+
+/* map legend: the markers as the map draws them (satellite pixels are squares, VIIRS detections dots) */
+.lg-px { display: inline-block; flex: none; margin: 0 7px; }
+.lg-px.himawari9 { width: 10px; height: 10px; margin: 0 8px; background: var(--ember); box-shadow: 0 0 0 1.5px var(--ink); }
+.lg-px.gk2a { width: 14px; height: 14px; margin: 0 6px; border: 2px solid var(--ink); }
+.lg-px.viirs { width: 7px; height: 7px; margin: 0 9.5px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 0 1.5px var(--surface); }
 
 /* ---------- region detail ---------- */
-.facts .rg-fact-text dd { font-family: var(--font-body); font-size: 14px; font-weight: 500; line-height: 1.35; }
-.rg-timeline svg text.ax { font-size: 10px; }
+.facts .rg-fact-text dd { font-family: var(--font-ui); font-size: var(--fs-sm); font-weight: 600; line-height: 1.35; }
+.rg-timeline svg text.ax { font-size: 12px; }
+/* phones: the chart keeps a readable scale and scrolls sideways instead of shrinking its labels to 5 px */
+.rg-timeline { overflow-x: auto; overscroll-behavior-x: contain; }
+.rg-timeline svg { min-width: 600px; }
 .rg-key { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
-.rg-key i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
-.rg-key i.tick { width: 2px; height: 9px; border-radius: 0; background: var(--ember); }
-.rg-sats td:first-child { font-weight: 500; }
+.rg-key i { display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 3px; vertical-align: middle; }
+.rg-key i.tick { width: 2px; height: 10px; border-radius: 0; background: var(--ember); }
+.rg-sats td:first-child { font-weight: 600; }
 .rg-sats .na { color: var(--ink-dim); }
 .rg-kv dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
 .rg-kv dd .small { color: var(--ink-dim); }
 .pill.q-ok { color: var(--moss); }
-.pill.q-mid { color: var(--amber); }
-.pill.q-bad { color: var(--ember); }
+.pill.q-mid { color: var(--amber-ink); }
+.pill.q-bad { color: var(--ember-ink); }
 
 .rg-util { display: grid; gap: 10px; }
 .rg-util-bars { display: grid; gap: 8px; }
-.rg-util-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 52px; align-items: center; gap: 10px; opacity: 0.75; }
+.rg-util-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 48px; align-items: center; gap: 10px; opacity: 0.75; }
 .rg-util-row.on { opacity: 1; }
-.rg-util-row.on b { font-weight: 700; }
+.rg-util-row.on b { font-weight: 800; }
 .rg-util-row .pill { justify-self: start; }
-.rg-bar { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
-.rg-bar i { display: block; height: 100%; border-radius: 5px; }
+.rg-bar { height: 10px; border-radius: 1px; background: var(--surface-2); overflow: hidden; }
+.rg-bar i { display: block; height: 100%; }
 .rg-bar i.fill-safe { background: var(--moss); }
 .rg-bar i.fill-warning { background: var(--amber); }
 .rg-bar i.fill-alert { background: var(--ember); }
 .rg-memb { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; }
-.rg-memb div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; border-bottom: 1px dashed var(--line); padding-bottom: 2px; }
+.rg-memb div { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-sm); border-bottom: 1px dashed var(--line); padding-bottom: 2px; }
 .rg-memb dt { color: var(--ink-dim); }
 .rg-memb dd { margin: 0; }
 
 .rg-ver-run { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.rg-facts { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.rg-facts div { background: var(--surface-2); border-radius: 8px; padding: 6px 10px; display: grid; gap: 2px; }
-.rg-facts dt { font-size: 12px; color: var(--ink-dim); }
-.rg-facts dd { margin: 0; font-size: 15px; }
-.rg-checks { margin: 0; color: var(--amber); }
-.rg-draft { margin: 0; padding: 8px 12px; border-left: 3px solid var(--sat); background: var(--sat-soft); border-radius: 0 8px 8px 0; font-size: 14px; }
+.rg-facts { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.rg-facts div { background: var(--surface-2); border-radius: var(--r-2); padding: 6px 10px; display: grid; gap: 2px; }
+.rg-facts dt { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-dim); }
+.rg-facts dd { margin: 0; font-size: var(--fs-md); }
+.rg-checks { margin: 0; color: var(--amber-ink); }
+.rg-draft { margin: 0; padding: 8px 12px; border-left: 3px solid var(--ink-dim); background: var(--sat-soft); border-radius: 0 var(--r-1) var(--r-1) 0; font-size: var(--fs-sm); }
 .rg-table-wrap { overflow-x: auto; }
-.rg-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.rg-table th { text-align: left; font-weight: 500; color: var(--ink-dim); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.rg-table td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--surface-2); white-space: nowrap; }
-.rg-trace summary { cursor: pointer; font-size: 13.5px; color: var(--ink-dim); min-height: 32px; display: flex; align-items: center; }
+.rg-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.rg-table th { text-align: left; font-weight: 600; font-size: var(--fs-xs); color: var(--ink-dim); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rg-table td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rg-trace summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-dim); min-height: 44px; display: flex; align-items: center; }
 .rg-trace ol { margin: 4px 0 6px; padding-left: 20px; display: grid; gap: 4px; }
-
-@media (max-width: 1023px) {
-  .rg-facts { grid-template-columns: minmax(0, 1fr); }
-  .rg-util-row { grid-template-columns: 96px minmax(0, 1fr) 48px; }
-}
 
 /* ---------- operator access (region list panel) ---------- */
 .rg-access-form { display: grid; gap: 4px; margin: 6px 0; }
 .rg-access-row { display: flex; gap: 8px; }
-.rg-access-row input { flex: 1; min-width: 0; min-height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 0 10px; font: inherit; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; }
+.rg-access-row input { flex: 1; min-width: 0; min-height: 44px; border-radius: var(--r-2); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); padding: 0 10px;
+  font: inherit; font-size: var(--fs-md); transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
 .rg-access-row input:hover:not(:disabled) { border-color: var(--ink-dim); }
-.rg-access-row input:focus-visible { outline: none; border-color: var(--sat); box-shadow: var(--ring); }
-.rg-access .rg-access-list li { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.rg-access-row input:focus-visible { outline: none; box-shadow: var(--ring); }
+.rg-access .rg-access-list li { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .rg-access-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; overflow-wrap: anywhere; }
 .rg-access-act { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
-.rg-access-act .link-btn { padding: 0 6px 0 0; min-height: 32px; font-size: 13px; }
-.rg-access-act .link-btn.danger { color: var(--ember); }
+.rg-access-act .link-btn { padding: 0 8px 0 0; }
+.rg-access-act .link-btn.danger { color: var(--ember-ink); }
 @media (prefers-reduced-motion: reduce) {
   .rg-access-row input { transition: none; }
+}
+
+@media (min-width: 640px) {
+  .rg-timeline svg { min-width: 0; }
+}
+@media (min-width: 1024px) {
+  .rg-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rg-util-row { grid-template-columns: 112px minmax(0, 1fr) 52px; }
 }

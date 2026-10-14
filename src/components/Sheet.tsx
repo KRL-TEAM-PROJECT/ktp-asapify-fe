@@ -7,32 +7,41 @@ interface Props {
   onOpenChange(open: boolean): void;
   enabled: boolean; // false (wide screen): a plain side panel, no dragging
   label: string;
+  peek?: ReactNode; // shown in the handle, so a closed sheet still says what is in it
+  onPeekHeight?(px: number): void; // height that stays visible when closed (for overlays above it)
   children: ReactNode;
 }
 
-const HANDLE = 56; // height of the part that stays visible when closed
 const FLICK = 450; // px/s: faster than this counts as a flick, not a plain release
 
 /**
  * Side panel on wide screens; on narrow screens it becomes a bottom sheet dragged by its handle
  * (the panel content still scrolls). On release, a flick decides by its direction; a slow release by
- * whether it passed halfway. The closed position is measured from the panel height, so it follows content changes.
+ * whether it passed halfway. The closed position is measured from the panel and handle heights, so it follows
+ * content changes.
  */
-export function Sheet({ open, onOpenChange, enabled, label, children }: Props) {
+export function Sheet({ open, onOpenChange, enabled, label, peek, onPeekHeight, children }: Props) {
   const ref = useRef<HTMLElement>(null);
+  const grab = useRef<HTMLButtonElement>(null);
   const [closedY, setClosedY] = useState(0);
   const controls = useAnimationControls();
   const dragControls = useDragControls();
   const dragged = useRef(false);
   const mounted = useRef(false);
+  const onPeek = useRef(onPeekHeight);
+  onPeek.current = onPeekHeight;
 
   useLayoutEffect(() => {
-    const el = ref.current;
-    if (!enabled || !el) { setClosedY(0); return; }
-    const measure = () => setClosedY(Math.max(0, el.offsetHeight - HANDLE));
+    const el = ref.current, handle = grab.current;
+    if (!enabled || !el || !handle) { setClosedY(0); return; }
+    const measure = () => {
+      setClosedY(Math.max(0, el.offsetHeight - handle.offsetHeight));
+      onPeek.current?.(handle.offsetHeight);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    ro.observe(handle);
     return () => ro.disconnect();
   }, [enabled]);
 
@@ -57,11 +66,12 @@ export function Sheet({ open, onOpenChange, enabled, label, children }: Props) {
       onDragStart={() => { dragged.current = true; }} onDragEnd={onDragEnd}
     >
       <button
-        className="grab" aria-expanded={open} aria-label={label}
+        ref={grab} className="grab" aria-expanded={open} aria-label={label}
         onPointerDown={(e) => { dragged.current = false; if (enabled) dragControls.start(e); }}
         onClick={() => { if (!dragged.current) onOpenChange(!open); }}
       >
         <span />
+        {peek && <span className="peek">{peek}</span>}
       </button>
       {children}
     </m.aside>

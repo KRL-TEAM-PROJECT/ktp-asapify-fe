@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 
 // MapLibre 6 loads a module worker (maplibre-gl-worker.mjs → maplibre-gl-shared.mjs) from separate files.
 // Vite transforms requested JS files, which silences the worker; this plugin serves them raw
-// under /maplibre/ in dev and copies them to dist/maplibre/ on build (see setWorkerUrl in src/map/map.ts).
+// under /maplibre/ in dev and copies them to dist/maplibre/ on build (see setWorkerUrl in src/map/regionMap.ts).
 function maplibreWorker(): Plugin {
   const files = ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs'];
   const read = (f: string) => readFileSync(`node_modules/maplibre-gl/dist/${f}`);

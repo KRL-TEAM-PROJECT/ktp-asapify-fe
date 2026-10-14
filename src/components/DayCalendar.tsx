@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, type Variants } from 'motion/react';
-import type { NightSummary } from '../types';
+import type { DayMark } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
-import { fmtNight } from '../lib/format';
+import { fmtDay } from '../lib/format';
 import { exitFast, m, spring, springSoft } from '../motion';
 import { Select } from './Select';
 
 interface Props {
-  value: string; // night currently open, YYYY-MM-DD
-  first: string; // Meta.nights.first
-  last: string; // Meta.nights.last
-  onPick(night: string): void;
+  value: string; // day currently open, YYYY-MM-DD (UTC+7)
+  first: string; // first archived day
+  last: string; // last archived day
+  onPick(day: string): void;
   onClose(): void;
 }
 
@@ -34,19 +34,19 @@ const slide: Variants = {
 };
 
 /**
- * Archive night calendar: one month per view, month and year navigation, nights without data
- * disabled, nights with ALERT clusters marked with a dot. Content from GET /operator/nights?month=.
+ * Day archive calendar: one month per view, month and year navigation, days without archived slots disabled,
+ * days with an ALERT or WARNING slot marked. Content from GET /operator/days?month=.
  */
-export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
+export function DayCalendar({ value, first, last, onPick, onClose }: Props) {
   const { t } = useI18n();
   const locale = 'en-US';
   const [month, setMonth] = useState(monthOf(value));
   const [dir, setDir] = useState(1); // direction of the last month change: 1 forward, -1 back
   const goMonth = (ym: string) => { setDir(ym > month ? 1 : -1); setMonth(ym); };
-  const [days, setDays] = useState<Map<string, NightSummary> | null>(null);
+  const [days, setDays] = useState<Map<string, DayMark> | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
-  const cache = useRef(new Map<string, NightSummary[]>());
+  const cache = useRef(new Map<string, DayMark[]>());
   const root = useRef<HTMLDivElement>(null);
   const focused = useRef(false);
 
@@ -54,18 +54,18 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
 
   useEffect(() => {
     const hit = cache.current.get(month);
-    if (hit) { setDays(new Map(hit.map((n) => [n.night, n]))); return; }
+    if (hit) { setDays(new Map(hit.map((d) => [d.date, d]))); return; }
     let alive = true;
     setDays(null);
     setError(false);
-    api.nights(month).then(
-      (list) => { cache.current.set(month, list); if (alive) setDays(new Map(list.map((n) => [n.night, n]))); },
+    api.days(month).then(
+      (ix) => { cache.current.set(month, ix.days); if (alive) setDays(new Map(ix.days.map((d) => [d.date, d]))); },
       () => { if (alive) setError(true); },
     );
     return () => { alive = false; };
   }, [month, retry]);
 
-  // Focus the selected night once, when the first month has loaded.
+  // Focus the selected day once, when the first month has loaded.
   useEffect(() => {
     if (!days || focused.current) return;
     focused.current = true;
@@ -73,10 +73,10 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
     (pick('.cal-day.on:not(:disabled)') ?? pick('.cal-day:not(:disabled)'))?.focus();
   }, [days]);
 
-  // Close with Escape or a click outside the night picker (the opening button lives in .night-pick).
+  // Close with Escape or a click outside the day picker (the opening button lives in .day-pick).
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    const down = (e: PointerEvent) => { if (!(e.target as Element).closest('.night-pick')) onClose(); };
+    const down = (e: PointerEvent) => { if (!(e.target as Element).closest('.day-pick')) onClose(); };
     document.addEventListener('keydown', key);
     document.addEventListener('pointerdown', down);
     return () => { document.removeEventListener('keydown', key); document.removeEventListener('pointerdown', down); };
@@ -105,10 +105,10 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
   ];
   while (cells.length < CELLS) cells.push(null);
 
-  const dayLabel = (d: string, s: NightSummary | undefined) => {
-    const date = fmtNight(d);
-    if (!s?.has_data) return t('cal.day_none', { date });
-    return s.alert_clusters > 0 ? t('cal.day_alert', { date, n: s.alert_clusters }) : date;
+  const dayLabel = (d: string, s: DayMark | undefined) => {
+    const date = fmtDay(d);
+    if (!s) return t('cal.day_none', { date });
+    return s.alert ? t('cal.day_alert', { date }) : s.warning ? t('cal.day_warning', { date }) : date;
   };
 
   return (
@@ -146,8 +146,8 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
               const s = days?.get(d);
               return (
                 <button
-                  key={d} className={`cal-day${d === value ? ' on' : ''}${s?.alert_clusters ? ' hot' : ''}`}
-                  disabled={!s?.has_data} aria-pressed={d === value} aria-label={dayLabel(d, s)} title={dayLabel(d, s)}
+                  key={d} className={`cal-day${d === value ? ' on' : ''}${s?.alert ? ' hot' : s?.warning ? ' warn' : ''}`}
+                  disabled={!s} aria-pressed={d === value} aria-label={dayLabel(d, s)} title={dayLabel(d, s)}
                   onClick={() => onPick(d)}
                 >
                   {Number(d.slice(8))}
@@ -163,7 +163,9 @@ export function NightCalendar({ value, first, last, onPick, onClose }: Props) {
       ) : !days ? (
         <p className="cal-note">{t('cal.loading')}</p>
       ) : (
-        <p className="cal-note"><i className="cal-dot" aria-hidden="true" />{t('cal.legend_alert')} · {t('cal.legend_none')}</p>
+        <p className="cal-note">
+          <i className="cal-dot" aria-hidden="true" />{t('cal.legend_alert')} · <i className="cal-dot warn" aria-hidden="true" />{t('cal.legend_warning')} · {t('cal.legend_none')}
+        </p>
       )}
     </m.div>
   );

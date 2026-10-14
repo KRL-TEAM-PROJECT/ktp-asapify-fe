@@ -16,13 +16,11 @@ VITE_FIREBASE_API_KEY=COPY_FROM_FIREBASE_WEB_APP
 VITE_FIREBASE_AUTH_DOMAIN=COPY_FROM_FIREBASE_WEB_APP
 VITE_FIREBASE_PROJECT_ID=SAME_PROJECT_ID
 VITE_FIREBASE_APP_ID=COPY_FROM_FIREBASE_WEB_APP
-VITE_PEAT_LAYER_URL=
 VITE_PROVINCES_LAYER_URL=/mock/provinces.geojson
 ```
 
 The bundled province boundary file comes from geoBoundaries; although it sits in the `mock` folder, it holds
 boundary geometry, not detection points. Check the attribution before publishing.
-An empty peat layer does not mean a peat map exists. Install the team's peat mask build once it is ready.
 
 3. Install dependencies from the lockfile and build:
 
@@ -54,7 +52,7 @@ from the BE repository; the user signs out and in again. No team email is allowe
 - Operator requests send `Authorization: Bearer <ID token>`; the Firebase SDK refreshes the token.
 - Non-operator accounts get 403. Signing out and in again works on the Hosting domain.
 - Without pipeline data, the "data not available" message appears; never read it as safe data.
-- The detail page and the `/clusters/:id` deep link work; the MapLibre worker is served as JavaScript.
+- The region detail page and its `/regions/:id` deep link work; the MapLibre worker is served as JavaScript.
 - Decisions whose Telegram status is `pending`, `failed` or `unknown` are marked unconfirmed.
 
 Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, saving preferences and the inbox

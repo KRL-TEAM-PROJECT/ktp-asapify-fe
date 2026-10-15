@@ -14,6 +14,7 @@ import { AboutPage } from './pages/About';
 const RegionsPage = lazy(() => import('./pages/Regions').then((m) => ({ default: m.RegionsPage })));
 const RegionPage = lazy(() => import('./pages/RegionPage').then((m) => ({ default: m.RegionPage })));
 const JoinPage = lazy(() => import('./pages/Join').then((m) => ({ default: m.JoinPage })));
+const AdminPage = lazy(() => import('./pages/Admin').then((m) => ({ default: m.AdminPage })));
 const ApiContractPage = lazy(() => import('./pages/ApiContract').then((m) => ({ default: m.ApiContractPage })));
 
 function PageFallback() {
@@ -25,7 +26,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const loc = useLocation();
   if (loading) return <PageFallback />;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname + loc.search }} />;
-  if (user.role !== 'operator') return <Navigate to="/join" replace />;
+  if (user.role !== 'operator') return <Navigate to="/" replace />;
   return children;
 }
 
@@ -52,15 +53,16 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
       <div className="topnav-in">
         <Link className="brand" to={user ? '/' : '/about'}>
           <BrandLockup size={36} />
-          <small>{t('app.role')}</small>
+          {user?.role === 'operator' && <small>{t('app.role')}</small>}
         </Link>
         {API_MODE === 'mock' && (
           <span className="mock-badge" title={t('mock.title')}>{t('mock.badge')}</span>
         )}
         <nav className="navlinks" aria-label={t('nav.label')}>
-          {user?.role === 'operator' && <NavItem to="/" end>{t('nav.regions')}</NavItem>}
+          <NavItem to="/" end>{t('nav.regions')}</NavItem>
           <NavItem to="/join">{t('nav.join')}</NavItem>
           <NavItem to="/about">{t('nav.about')}</NavItem>
+          {user?.role === 'operator' && <NavItem to="/admin">{t('nav.admin')}</NavItem>}
           {user?.role === 'operator' && (
             <NavItem to="/api-contract">
               <span className="nl-full">{t('nav.api')}</span><span className="nl-short">{t('nav.api_short')}</span>
@@ -113,8 +115,10 @@ function Root() {
         <Route path="/api-contract" element={<RequireAuth><ApiContractPage /></RequireAuth>} />
         <Route path="/join" element={<JoinPage />} />
         <Route path="/notifications" element={<Navigate to="/join" replace />} />
-        <Route path="/" element={<RequireAuth><RegionsPage dark={theme.dark} /></RequireAuth>} />
-        <Route path="/regions/:id" element={<RequireAuth><RegionPage /></RequireAuth>} />
+        {/* the map and region pages are public and read-only; actions show for operators only */}
+        <Route path="/" element={<RegionsPage dark={theme.dark} />} />
+        <Route path="/regions/:id" element={<RegionPage />} />
+        <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

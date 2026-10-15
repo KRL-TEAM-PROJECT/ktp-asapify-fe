@@ -429,6 +429,14 @@ export const ENDPOINTS: Endpoint[] = [
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION'],
   },
   {
+    id: 'public-reads', method: 'GET', path: '/public/regions · /public/regions/{id} · /public/days · /public/days/{date}', auth: 'public',
+    title: 'Public map, region and day archive',
+    purpose: 'The same data as the /operator reads for anyone, read-only: operator emails and decision notes removed, a decision is only its action and time, region detail at most 24 hours. Cached by the Hosting CDN (s-maxage 120 s; past days one day).',
+    usedBy: 'Regions map and region pages when no operator is signed in.',
+    responses: [{ code: 200, schema: 'RegionSummary[] · RegionDetail · DayIndex · DayArchive' }],
+    errors: ['VALIDATION', 'NOT_FOUND', 'DATA_NOT_READY'],
+  },
+  {
     id: 'join-links', method: 'GET', path: '/telegram/join', auth: 'public',
     title: 'Telegram groups to join',
     purpose: 'Title and invite link of every linked group that has one. Public: no sign-in, nothing else about the group.',

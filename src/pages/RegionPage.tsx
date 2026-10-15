@@ -1,6 +1,7 @@
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ApiError, type PowerSupport, type Quality, type RegionDetail, type SatelliteName, type SlotRecord, type Verification } from '../types';
 import { api } from '../api';
+import { useUser } from '../auth';
 import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
@@ -125,7 +126,8 @@ export function RegionPage() {
   // ?date=YYYY-MM-DD (from the map's day player): that WIB day's slots instead of the last 24 hours
   const date = /^\d{4}-\d{2}-\d{2}$/.test(params.get('date') ?? '') ? params.get('date') : null;
   const q = useLoad(() => api.region(id, 24, date ?? undefined), [id, date]);
-  const agent = useLoad(() => api.agent().catch(() => null), [id]);
+  const operator = useUser()?.role === 'operator';
+  const agent = useLoad(() => api.agent().catch(() => null), [id, operator]);
   const r = q.data;
 
   if (q.loading && !r) {
@@ -231,8 +233,8 @@ export function RegionPage() {
         </div>
 
         <div className="col">
-          <VerificationCard regionId={r.id} latest={v} agent={agent.data ?? null} onVerified={reload} />
-          {v && (
+          <VerificationCard regionId={r.id} latest={v} agent={agent.data ?? null} onVerified={reload} readOnly={!operator} />
+          {v && operator && (
             <DecisionPanel
               key={`${v.id}-${v.decision?.at ?? 'open'}`} decision={v.decision} province={r.province}
               caption={caption(r, v, prov, t)}

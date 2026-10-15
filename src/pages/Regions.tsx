@@ -17,8 +17,6 @@ import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
 import { ValidationBadge } from '../components/VerificationCard';
 import { Select } from '../components/Select';
 import { Sheet } from '../components/Sheet';
-import { OperatorAccess } from '../components/OperatorAccess';
-import { TelegramGroups } from '../components/TelegramGroups';
 import { DayPlayer } from '../components/DayPlayer';
 import { StatusIcon } from '../components/icons';
 import { LiteMotion, m, spring } from '../motion';
@@ -303,8 +301,6 @@ export function RegionsPage({ dark }: { dark: boolean }) {
             </ul>
             <p className="muted small">{t('rg.sources')}</p>
           </details>
-          <OperatorAccess />
-          <TelegramGroups />
         </Sheet>
 
         <div className="map-wrap">

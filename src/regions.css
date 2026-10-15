@@ -83,7 +83,12 @@
   font: inherit; font-size: var(--fs-md); transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
 .rg-access-row input:hover:not(:disabled) { border-color: var(--ink-dim); }
 .rg-access-row input:focus-visible { outline: none; box-shadow: var(--ring); }
-.rg-access .rg-access-list li { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.rg-access-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.rg-access .rg-access-list li { display: grid; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.admin { max-width: 1180px; }
+.admin-head { display: grid; gap: 8px; }
+.admin-grid { display: grid; gap: 16px; align-items: start; }
+@media (min-width: 1024px) { .admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .rg-access-who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; overflow-wrap: anywhere; }
 .rg-access-act { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
 .rg-access-act .link-btn { padding: 0 8px 0 0; }

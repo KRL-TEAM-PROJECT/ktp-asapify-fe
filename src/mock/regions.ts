@@ -53,6 +53,8 @@ function assess(dt: number, rh: number | null, cloud: number, support: Record<st
     Object.assign(m, Object.fromEntries(extra));
     utilities.ALERT = Math.max(utilities.ALERT, utility(m, { ...weights.ALERT, ...Object.fromEntries(extra.map(([k]) => [k, SUPPORT_WEIGHTS[k]])) }));
   }
+  const gated = m.delta_t_high === 0 && utilities.ALERT > 0; // ALERT needs a high thermal anomaly
+  if (gated) utilities.ALERT = 0;
   const [top, next] = [...RATED].sort((a, b) => utilities[b] - utilities[a] || SEVERITY[b] - SEVERITY[a]);
   const gap = round(utilities[top] - utilities[next], 6);
   let pick: RatedStatus = gap <= 0.05 && SEVERITY[next] > SEVERITY[top] ? next : top;
@@ -60,6 +62,7 @@ function assess(dt: number, rh: number | null, cloud: number, support: Record<st
     ? `${top} has the highest utility (${utilities[top].toFixed(3)})`
     : `${next} chosen over ${top}: utilities within the 0.05 safety margin (${gap.toFixed(3)})`;
   if (rh == null) reason += '; humidity unavailable, thermal input only';
+  if (gated) reason += '; ALERT utility set to 0: no high thermal anomaly';
   if (cap && pick === 'ALERT') { pick = 'WARNING'; reason += `; capped at WARNING (${cap})`; }
   return { status: pick as Status, utilities, memberships: Object.fromEntries(Object.entries(m).map(([k, v]) => [k, round(v, 4)])), reason };
 }

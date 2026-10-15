@@ -26,7 +26,7 @@ Copy `.env.example` to `.env` when you need to change the mode:
 
 | Variable | Value | Meaning |
 |---|---|---|
-| `VITE_API_MODE` | `mock` (default) / `live` | `mock` = fictional data without a backend; `live` = `asapify-api` |
+| `VITE_API_MODE` | `mock` (dev default) / `live` | `mock` = fictional data without a backend; `live` = `asapify-api`. `npm run build` fails unless it is set explicitly, so no deploy ships mock data by accident |
 | `VITE_API_BASE` | URL | API base for live mode; empty = same origin (`/api` is proxied to `:8080` in dev) |
 | `VITE_PROVINCES_LAYER_URL` | GeoJSON URL | Province boundary layer in the public bucket (live mode) |
 

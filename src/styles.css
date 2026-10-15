@@ -173,6 +173,7 @@ button { font: inherit; color: inherit; }
 .peek .sw::before { content: ""; width: 10px; height: 10px; border-radius: 1px; background: var(--st, var(--line-strong)); }
 .peek .sw.alert { --st: var(--ember); }
 .peek .sw.warning { --st: var(--amber); }
+.peek .sw.stale { --st: var(--ink-dim); color: var(--ember-ink); }
 .peek .when { margin-left: auto; font-family: var(--font-mono); font-weight: 500; color: var(--ink-dim); }
 .filters { display: grid; gap: 12px; }
 /* phones: one row of status filters that scrolls sideways; wider screens wrap them */

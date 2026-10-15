@@ -107,6 +107,11 @@ export async function getUserToken(): Promise<string | null> {
   return firebaseAuth.currentUser.getIdToken();
 }
 export const getOperatorToken = getUserToken;
+/** Operators read the operator endpoints (full detail); everyone else reads the public, CDN-cached ones. */
+export async function isOperator(): Promise<boolean> {
+  await ready;
+  return state.user?.role === 'operator';
+}
 export function useAuthState(): AuthState {
   return useSyncExternalStore(
     (notify) => { listeners.add(notify); return () => { listeners.delete(notify); }; },

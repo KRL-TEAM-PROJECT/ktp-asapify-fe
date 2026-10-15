@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { TelegramGroup } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
@@ -48,9 +48,12 @@ export function TelegramGroups() {
     try { await api.unlinkTelegramGroup(id); await load(); } catch (e) { setError(errorText(e, t)); } finally { setBusy(false); }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, []);
+
   return (
-    <details className="legend rg-access" onToggle={(e) => { if (e.currentTarget.open && !rows) void load(); }}>
-      <summary>{t('tg.title')}</summary>
+    <section className="card rg-access">
+      <h2>{t('tg.title')}</h2>
       <p className="muted small">{t('tg.lede')}</p>
       {link ? (
         <div className="tg-link small">
@@ -90,7 +93,8 @@ export function TelegramGroups() {
                   />
                   <button className="btn" type="submit" disabled={busy}>{t('tg.invite_save')}</button>
                 </div>
-                <span className="muted small">{t(g.invite_url ? 'tg.invite_listed' : 'tg.invite_hint')}</span>
+                {g.invite_url ? <span className="muted small">{t('tg.invite_listed')}</span>
+                  : <span className="callout small">{t('tg.invite_hint')}</span>}
               </form>
               <span className="rg-access-act">
                 {confirm === g.id ? (
@@ -105,6 +109,6 @@ export function TelegramGroups() {
           ))}
         </ul>
       )}
-    </details>
+    </section>
   );
 }

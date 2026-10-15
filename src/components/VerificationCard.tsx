@@ -26,10 +26,11 @@ interface Props {
   latest: Verification | null;
   agent: AgentInfo | null;
   onVerified(): void;
+  readOnly?: boolean; // the public view: the result, without the Re-verify button or the quota
 }
 
 /** The agent's latest result for a region, with the Re-verify button and every piece of evidence it used. */
-export function VerificationCard({ regionId, latest: v, agent, onVerified }: Props) {
+export function VerificationCard({ regionId, latest: v, agent, onVerified, readOnly = false }: Props) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -56,7 +57,7 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified }: Pro
         {v && <ValidationBadge status={v.validation_status} />}
       </div>
 
-      <div className="rg-ver-run">
+      {!readOnly && <div className="rg-ver-run">
         <button className="btn" disabled={busy || !!blocked} onClick={() => void verify()}>
           <IconSpark />{busy ? t('agent.running') : t(v ? 'agent.reverify' : 'agent.verify')}
         </button>
@@ -65,9 +66,9 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified }: Pro
             {t('agent.quota', { left: agent.remaining, total: agent.daily_quota })} · <span className="mono">{agent.model}</span>
           </span>
         )}
-      </div>
+      </div>}
       {busy && <p className="muted small" role="status">{t('agent.running_note')}</p>}
-      {blocked && <p className="callout info small">{blocked}</p>}
+      {blocked && !readOnly && <p className="callout info small">{blocked}</p>}
       {error != null && <p className="error" role="alert">{errorText(error, t)}</p>}
 
       {!v ? (
@@ -75,7 +76,7 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified }: Pro
       ) : (
         <>
           <p className="muted small">
-            {t(v.trigger === 'auto' ? 'agent.by_auto' : 'agent.by_manual', { who: v.requested_by ?? '' })} · {fmtSlot(v.at)} ·{' '}
+            {t(v.trigger === 'auto' ? 'agent.by_auto' : v.requested_by ? 'agent.by_manual' : 'agent.by_operator', { who: v.requested_by ?? '' })} · {fmtSlot(v.at)} ·{' '}
             {t('agent.hour', { when: fmtSlot(v.observed_at) })}
           </p>
           {v.error && <p className="callout small">{errorNote(v.error, t)}</p>}

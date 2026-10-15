@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { OperatorAccess as Access } from '../types';
 import { api } from '../api';
 import { useUser } from '../auth';
@@ -43,9 +43,12 @@ export function OperatorAccess() {
     void run(async () => { await api.revokeOperator(target); return t('access.removed', { email: target }); });
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, []);
+
   return (
-    <details className="legend rg-access" onToggle={(e) => { if (e.currentTarget.open && !rows) void load(); }}>
-      <summary>{t('access.title')}</summary>
+    <section className="card rg-access">
+      <h2>{t('access.title')}</h2>
       <p className="muted small">{t('access.lede')}</p>
       <form className="rg-access-form" onSubmit={add}>
         <label className="lbl" htmlFor="access-email">{t('access.email')}</label>
@@ -84,6 +87,6 @@ export function OperatorAccess() {
           ))}
         </ul>
       )}
-    </details>
+    </section>
   );
 }

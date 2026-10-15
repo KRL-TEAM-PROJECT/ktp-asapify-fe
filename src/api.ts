@@ -3,7 +3,7 @@ import {
   type AgentInfo, type Api, type DayArchive, type DayIndex, type Decision, type OperatorAccess, type PeatRegions,
   type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification, type JoinLink,
 } from './types';
-import { getOperatorToken } from './auth';
+import { getOperatorToken, isOperator } from './auth';
 
 export const API_MODE: 'mock' | 'live' = import.meta.env.VITE_API_MODE === 'live' ? 'live' : 'mock';
 
@@ -44,17 +44,23 @@ const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 // Peat inside each region (KHG, clipped per NASA POWER cell): a static file built by the backend's tools/build_regions.py.
 const peatRegions = () => file<PeatRegions>(`${import.meta.env.BASE_URL}regions.geojson`, EMPTY_FC);
 
+// Reads: operators use /operator (full detail, never cached); everyone else /public (no names, CDN-cached).
+const read = async (path: string) => `${(await isOperator()) ? '/operator' : '/public'}${path}`;
+
 const liveApi: Api = {
   provinces: () => file<ProvinceBoundary>(import.meta.env.VITE_PROVINCES_LAYER_URL, EMPTY_FC),
-  regions: () => req<RegionSummary[]>('/operator/regions'),
+  regions: async () => req<RegionSummary[]>(await read('/regions')),
   // 6 slot records per hour are read per request (24 h = 144 reads), so ask only for what the page shows
-  region: (id, hours = 24, date) =>
-    req<RegionDetail>(`/operator/regions/${enc(id)}?${date ? `date=${enc(date)}` : `hours=${hours}`}`),
+  region: async (id, hours = 24, date) =>
+    req<RegionDetail>(await read(`/regions/${enc(id)}?${date ? `date=${enc(date)}` : `hours=${hours}`}`)),
   // the day archive: one read per day, up to 33 per calendar month
-  days: (month) => req<DayIndex>(`/operator/days?month=${enc(month)}`),
-  day: (date) => req<DayArchive>(`/operator/days/${enc(date)}`),
+  days: async (month) => req<DayIndex>(await read(`/days?month=${enc(month)}`)),
+  day: async (date) => req<DayArchive>(await read(`/days/${enc(date)}`)),
   peatRegions,
-  agent: () => req<AgentInfo>('/operator/agent'),
+  agent: async () => {
+    if (!(await isOperator())) throw new ApiError(401, 'UNAUTHENTICATED', 'Operators only.');
+    return req<AgentInfo>('/operator/agent');
+  },
   verifyRegion: (id) => req<Verification>(`/operator/regions/${enc(id)}/verify`, { method: 'POST' }),
   decideRegion: (id, body) => req<Decision>(`/operator/regions/${enc(id)}/decision`, { method: 'POST', body: JSON.stringify(body) }),
   // addresses go in the body, never in the URL, so they stay out of request logs

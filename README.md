@@ -21,7 +21,6 @@ CAPTCHA, without the Admin page (docs/GCP.md).
 - Engine and rules: `docs/ENGINE.md` in the backend repository, and the in-app About page
 - Briefing site: `../asapify/` (`ui.html` screens, `backend.html` API, `cloud.html`, `runbook.html`); the contract
   tab stays the reference for the API
-- Demo video script: [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md)
 - The interface, code and API are English only.
 
 ## Running

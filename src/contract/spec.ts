@@ -253,7 +253,7 @@ export const SCHEMAS: Schema[] = [
     desc: 'Whether the Re-verify button can run.',
     fields: [
       { name: 'configured', type: 'boolean', req: true, desc: 'FIRMS key and project present.' },
-      { name: 'model', type: 'string', req: true, desc: 'Gemini model on Vertex AI.' },
+      { name: 'model', type: 'string', req: true, desc: 'Gemini model on Gemini Enterprise Agent Platform (previously Vertex AI).' },
       { name: 'daily_quota, used_today, remaining', type: 'integer', req: true, desc: 'Hard daily quota (UTC day), taken before any model call.' },
       { name: 'max_tool_calls', type: 'integer', req: true, desc: 'FIRMS calls per run.' },
     ],

@@ -48,6 +48,8 @@ from the BE repository; the user signs out and in again. No team email is allowe
 - Operator requests send `Authorization: Bearer <ID token>`; the Firebase SDK refreshes the token.
 - Non-operator accounts get 403. Signing out and in again works on the Hosting domain.
 - Without pipeline data, the "data not available" message appears; never read it as safe data.
+- When the latest slot is older than 90 minutes (a healthy pipeline stays under about 60), the map and the region
+  page show a "Not current" warning; it re-checks every minute on an open page (`src/lib/stale.ts`).
 - The region detail page and its `/regions/:id` deep link work; the MapLibre worker is served as JavaScript.
 
 Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, refusal of access without

@@ -1,20 +1,25 @@
 # ktp-asapify-fe
 
 > **Frozen on 16 October 2026.** Development has stopped; this repository and its docs describe the app as it
-> stands. Only fixes that keep the deployed site running belong here.
+> stands. Only fixes that keep the deployed site running belong here. The tag `freeze-2026-10-16` marks the
+> submitted state of `main`.
 
 **GCP integration:** see [docs/GCP.md](docs/GCP.md) for Firebase Hosting, Google sign-in,
 the operator custom claim and the Cloud Run API; the app sends the Firebase token.
 
-ASAPify operator web app (Google Cloud AI Builder Cup 2026): a map of 65 peat regions that the backend's risk engine
-rates every 10 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE), with each slot's hot
-pixels and the VIIRS detections beside them, and a day player that opens any archived day; a region page (ΔT,
-humidity and cloud timeline, Fuzzy MAUT utilities, status changes), the Gemini agent's NASA FIRMS verification with
-a Re-verify button, and the publish/reject decision.
+ASAPify web app (Google Cloud AI Builder Cup 2026). **Public, no sign-in:** a map of 65 peat regions that the
+backend's risk engine rates every 10 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE),
+with each slot's hot pixels and the VIIRS detections beside them, a day player that opens any archived day, read-only
+region pages (ΔT, humidity and cloud timeline, Fuzzy MAUT utilities, status changes, the agent's verification), the
+Get alerts page for the Telegram group, and About. **Operators** (Google sign-in with the `role=operator` claim) also
+run the Gemini agent's NASA FIRMS verification (Re-verify), publish or reject each verification, and manage Telegram
+groups and operator access on the Admin page.
 
 - Design: [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) (mobile-first rules and the brand manual's visual language)
-- UI specification: `../asapify/ui.html` · API contract: `../asapify/backend.html` sections 03–05
-- System concept and rules: `../ASAPify_Pitch_Google_AI_Builder_2026/WORKLOG.md` sections 7–10
+- Engine and rules: `docs/ENGINE.md` in the backend repository, and the in-app About page
+- Briefing site: `../asapify/` (`ui.html` screens, `backend.html` API, `cloud.html`, `runbook.html`), rewritten for
+  the freeze; the contract tab stays the reference for the API
+- Demo video script: [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md)
 - The interface, code and API are English only.
 
 ## Running
@@ -40,7 +45,7 @@ deployed by the GitHub Actions workflow described in [docs/GCP.md](docs/GCP.md).
 ## API contract for the BE team
 
 Open the **API contract** tab in the app (`/api-contract`, operators only). It lists conventions (auth, UTC time,
-`as_of`, coordinates, errors), the error code table, every `asapify-api` endpoint (parameters, body, responses,
+coordinates, errors), the error code table, every `asapify-api` endpoint (parameters, body, responses,
 errors, the UI screens that use it), schemas, the static map files, and the internal endpoints.
 JSON examples are static samples in `src/contract/spec.ts`.
 
@@ -54,8 +59,9 @@ JSON examples are static samples in `src/contract/spec.ts`.
   ±90 KB in `public/provinces.geojson`.
 - Map labels (province names, OpenFreeMap basemap labels, MapLibre buttons) are English.
 
-The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). `backend.html` was last
-aligned on 6 Oct 2026 and is older than this contract; at the freeze the contract tab is the reference.
+The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). The briefing's `backend.html`
+was rewritten at the freeze (16 Oct 2026) to summarise this contract; where they differ, the contract tab is the
+reference.
 
 ## Motion
 

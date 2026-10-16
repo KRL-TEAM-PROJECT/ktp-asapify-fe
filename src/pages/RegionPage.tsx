@@ -6,6 +6,7 @@ import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
 import { fmtCoord, fmtDay, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { plainReason } from '../lib/reason';
 import { useStaleAge } from '../lib/stale';
 import { agreement, SATELLITE_NAMES } from '../lib/satellites';
 import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
@@ -234,7 +235,7 @@ export function RegionPage() {
                     <span className="small">
                       <span className="mono">{fmtSlot(x.observed_at)}</span> · {x.previous ? t(STATUS_KEY[x.previous]) : t('rg.first')} → <b>{t(STATUS_KEY[x.current])}</b>
                     </span>
-                    <span className="muted small">{x.reason}</span>
+                    <span className="muted small">{plainReason(x.reason)}</span>
                   </li>
                 ))}
               </ul>

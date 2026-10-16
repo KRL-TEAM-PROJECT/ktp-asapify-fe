@@ -202,7 +202,7 @@
   "dlv.st.cancelled": "cancelled",
   "dlv.st.simulated": "simulated, not sent",
   "dec.outbox_groups": "Queued for {g} Telegram groups. Queued does not mean delivered.",
-  "dec.outbox_none": "No Telegram group is linked yet, so nothing was sent. Link one on the Regions page.",
+  "dec.outbox_none": "No Telegram group is linked yet, so nothing was sent. Link one on the Admin page.",
   "dec.outbox_pending": "Decision saved. The Telegram messages are still being queued; this resumes automatically within a minute.",
   "err.TELEGRAM_NOT_CONFIGURED": "The Telegram bot is not configured yet.",
   "err.NOTIFICATIONS_NOT_CONFIGURED": "Notifications are not configured on the server yet.",

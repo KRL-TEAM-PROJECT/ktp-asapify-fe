@@ -74,7 +74,7 @@ https://firebase.google.com/docs/auth/admin/custom-claims.
 ## Alerts in Telegram
 
 Alerts go to the team's Telegram group, nowhere else. An operator adds the bot to the group and pastes its invite
-link on the Regions page (Telegram groups panel); the ASAPify bot then posts every published alert there. The public
+link on the Admin page (Telegram groups panel); the ASAPify bot then posts every published alert there. The public
 **Get alerts** page (`/join`, no sign-in) shows a Join button for each group that has an invite link. Only operators
 sign in; any other account lands on `/join`. The backend side is in the BE repository's `docs/NOTIFICATIONS.md`.
 

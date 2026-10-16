@@ -144,7 +144,7 @@
   "about.limit4": "A FIRMS hotspot is a thermal detection, not proof of fire. The images come from the last daytime VIIRS pass, often hours before a night observation, and cloud or haze can hide the place: an image never confirms a fire on its own.",
   "about.limit5": "The peat map in use (KHG) is incomplete, so a fire anywhere in the cell counts, marked on or off mapped peat.",
   "about.data_title": "Data sources",
-  "about.data_note": "All processing runs on Google Cloud: Cloud Run, Cloud Scheduler, Firestore, Gemini Enterprise Agent Platform (Gemini) and the Agent Development Kit.",
+  "about.data_note": "All processing runs on Google Cloud: Cloud Run, Cloud Scheduler, Firestore, Gemini Enterprise and the Agent Development Kit.",
   "about.src_himawari": "Bands 7 and 13 (3.9 and 10.4 µm), 2 km, every 10 minutes; JMA, via NOAA Open Data on AWS",
   "about.src_gk2a": "Channels SW038 and IR105 (3.8 and 10.5 µm), 2 km, every 10 minutes; KMA, via NOAA Open Data on AWS",
   "about.src_power": "Hourly skin temperature and humidity, 0.5° × 0.625°, about 2–3 days behind. Humidity against its own 2021–2025 normal sets the dry-air shift; skin temperature is support only",

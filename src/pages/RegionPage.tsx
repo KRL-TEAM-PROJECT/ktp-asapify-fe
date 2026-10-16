@@ -101,6 +101,7 @@ function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | 
               ? <span className="mono">ΔT {fmtSigned(power.delta_t_k, 1)} K · RH {power.relative_humidity_pct != null ? `${fmtNum(power.relative_humidity_pct, 0)}%` : '–'}</span>
               : '–'}
             {power && <span className="small">{t('rgi.power_when', { when: fmtSlot(power.observed_at) })}</span>}
+            {power?.dry_z != null && <span className="small">{t('rgi.power_dry', { z: fmtSigned(power.dry_z, 1), h: power.dry_z_hours ?? '–' })}</span>}
           </dd>
         </div>
       </dl>
@@ -184,7 +185,13 @@ export function RegionPage() {
         )}
         {latest && (
           <dl className="facts">
-            <div className={latest.status === 'ALERT' ? 'hot' : ''}><dt>ΔT</dt><dd>{latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}</dd></div>
+            <div className={latest.status === 'ALERT' ? 'hot' : ''}>
+              <dt>ΔT</dt>
+              <dd>
+                {latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}
+                {latest.adjust?.delta_t_eff_k != null && <span className="small"> ({t('rgt.counted')} {fmtSigned(latest.adjust.delta_t_eff_k, 1)} K)</span>}
+              </dd>
+            </div>
             <div className="rg-fact-text"><dt>{t('rg.f_view')}</dt><dd><ViewText flags={latest.flags} /> · {t(latest.night ? 'rgt.night' : 'rgt.day')}</dd></div>
             <div><dt>{t('rg.f_rh')}</dt><dd>{latest.inputs.relative_humidity_pct != null ? `${fmtNum(latest.inputs.relative_humidity_pct, 0)}%` : '–'}</dd></div>
             <div><dt>{t('rg.f_cloud')}</dt><dd>{latest.inputs.cloud_cover_pct != null ? `${fmtNum(latest.inputs.cloud_cover_pct, 0)}%` : '–'}</dd></div>

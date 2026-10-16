@@ -1,7 +1,8 @@
 import type { DayArchive, DaySlot, Status } from '../types';
 
-// The backend's day archive (asapify_engine/geo.py, engine_days): one WIB calendar day, 144 ten-minute slots keyed
-// HHMM in UTC+7, region statuses as one character each in `regions` order.
+// The backend's day archive (asapify_engine/geo.py, engine_days): one WIB calendar day keyed HHMM in UTC+7 by the
+// satellites' 10-minute scan times, region statuses as one character each in `regions` order. The engine rates a slot
+// every 15 minutes, so about one scan slot in three stays empty; the player steps over them.
 
 export const DAY_SLOTS = 144;
 const WIB_MS = 7 * 3_600_000;

@@ -9,19 +9,19 @@ const STATUS_ROWS: [Status, string][] = [
   ['ALERT', 'about.st_alert'], ['WARNING', 'about.st_warning'], ['NO_OBSERVABLE', 'about.st_noobs'], ['SAFE', 'about.st_safe'],
 ];
 // Initial values of the backend (asapify_engine/contextual.py, fusion.py, rules.py): hypotheses until calibrated
-// against VIIRS over more nights.
+// against VIIRS (tools/backtest_rules.py replays stored slots with the current rules).
 const RULES: [string, string][] = [
   ['about.r_hot', 'ΔBT ≥ 3 K and ≥ 3σ · 3.9 µm ≥ 2 K and ≥ 3σ'],
-  ['about.r_agree', '≤ 8 km'],
+  ['about.r_agree', '≤ 8 km (quality flag only)'],
+  ['about.r_fuse', 'ΔT = mean of the satellites that see, weighted by clear fraction'],
+  ['about.r_dry', '+1 K · tanh(z / 2), z = (POWER normal RH − RH) / σ'],
+  ['about.r_sun', '−1 K · sin(sun elevation), by day'],
   ['about.r_dt_low', '−∞ … 1–3 K'],
   ['about.r_dt_mid', '1–3 … 6–8 K'],
   ['about.r_dt_high', '6–8 K … ∞'],
-  ['about.r_rh_high', '40–60 % … ∞'],
-  ['about.r_rh_low', '−∞ … 30–40 %'],
+  ['about.r_bounds', 'Safe < 1.95 K ≤ Warning < 6.95 K ≤ Alert'],
   ['about.r_cloud', '> 60 %'],
-  ['about.r_weights', 'SAFE 0.6·ΔT low + 0.4·RH high · WARNING 1.0·ΔT medium · ALERT 0.6·ΔT high + 0.4·RH low'],
-  ['about.r_support', 'ALERT + 0.2·VIIRS + 0.1·POWER, upward only'],
-  ['about.r_cap', 'WARNING'],
+  ['about.r_support', 'ALERT + 0.2·VIIRS + 0.1·POWER, upward only, only when ΔT high > 0'],
   ['about.r_margin', '0.05'],
   ['about.r_agent', '6 h · 20 / day'],
 ];
@@ -29,6 +29,7 @@ const SOURCES: [string, string][] = [
   ['Himawari-9 AHI', 'about.src_himawari'],
   ['GK2A AMI', 'about.src_gk2a'],
   ['NASA FIRMS VIIRS', 'about.src_firms'],
+  ['NASA GIBS', 'about.src_gibs'],
   ['NASA POWER', 'about.src_power'],
   ['Open-Meteo', 'about.src_om'],
   ['KHG Indicative Peat Map', 'about.src_khg'],

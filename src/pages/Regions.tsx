@@ -27,7 +27,7 @@ import '../player.css';
 type Filter = Status | 'NONE';
 const FILTERS: Filter[] = ['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE', 'NONE'];
 const RANK: Record<Filter, number> = { ALERT: 0, WARNING: 1, NO_OBSERVABLE: 2, SAFE: 3, NONE: 4 };
-const REFRESH_MS = 10 * 60_000; // one satellite slot every 10 minutes; polling faster only costs reads
+const REFRESH_MS = 15 * 60_000; // the engine rates one satellite slot every 15 minutes; polling faster only costs reads
 
 type Sort = 'severity' | 'delta_t' | 'verified';
 const dt = (r: RegionSummary) => r.inputs?.delta_t_k ?? -Infinity;
@@ -78,13 +78,20 @@ export function RegionsPage({ dark }: { dark: boolean }) {
   const atLatest = live && cur === last; // the map shows the API's current state, plus the last slot's pixels
   const shownSlot = cur >= 0 ? slots[cur] : null;
 
+  // Poll while the tab is visible; coming back to a tab that missed a poll refreshes at once, so a page left in the
+  // background does not show "Not current" for up to a whole interval.
+  const polled = useRef(Date.now());
   useEffect(() => {
-    const id = setInterval(() => {
+    const refresh = () => {
       if (document.visibilityState !== 'visible') return;
+      polled.current = Date.now();
       regions.reload(); agent.reload();
       if (live) archive.reload();
-    }, REFRESH_MS);
-    return () => clearInterval(id);
+    };
+    const id = setInterval(refresh, REFRESH_MS);
+    const onShow = () => { if (Date.now() - polled.current >= REFRESH_MS) refresh(); };
+    document.addEventListener('visibilitychange', onShow);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onShow); };
   }, [regions.reload, agent.reload, archive.reload, live]);
 
   // Statuses and ΔT of the open slot; the live list keeps everything the API sends.
@@ -119,7 +126,15 @@ export function RegionsPage({ dark }: { dark: boolean }) {
     if (p && cur >= last) setSlotSel(slots.findIndex(Boolean));
     setPlaying(p);
   };
-  const onSlot = (i: number) => { setPlaying(false); setSlotSel(i === last ? null : i); };
+  // The engine rates a slot every 15 minutes, so about one scan slot in three is empty: the slider and the arrow keys
+  // land on the nearest archived slot in the direction of travel (the other way when there is none).
+  const onSlot = (i: number) => {
+    setPlaying(false);
+    const step = i >= cur ? 1 : -1;
+    const seek = (dir: number) => { let j = i; while (j >= 0 && j <= last && !slots[j]) j += dir; return j >= 0 && j <= last ? j : -1; };
+    const j = seek(step) >= 0 ? seek(step) : seek(-step);
+    if (j >= 0) setSlotSel(j === last ? null : j);
+  };
   const goDay = (d: string | null) => {
     setPlaying(false);
     setSlotSel(null);

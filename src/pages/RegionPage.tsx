@@ -6,7 +6,7 @@ import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
 import { fmtCoord, fmtDay, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
-import { staleAge } from '../lib/stale';
+import { useStaleAge } from '../lib/stale';
 import { agreement, SATELLITE_NAMES } from '../lib/satellites';
 import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
 import { RegionTimeline } from '../components/RegionTimeline';
@@ -130,6 +130,7 @@ export function RegionPage() {
   const operator = useUser()?.role === 'operator';
   const agent = useLoad(() => api.agent().catch(() => null), [id, operator]);
   const r = q.data;
+  const stale = useStaleAge(date ? null : r?.observed_at); // an archived day is old on purpose
 
   if (q.loading && !r) {
     return (
@@ -160,7 +161,6 @@ export function RegionPage() {
   const slots = r.slots ?? [];
   const latest = !date && r.latest && 'views' in r.latest ? r.latest : slots[slots.length - 1];
   const v = r.verifications[0] ?? null;
-  const stale = date ? null : staleAge(r.observed_at); // an archived day is old on purpose
   const prov = t(`prov.${r.province}`);
   const reload = () => { q.reload(); agent.reload(); };
 

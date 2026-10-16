@@ -7,7 +7,7 @@ import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
 import { fmtDay, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
-import { staleAge } from '../lib/stale';
+import { useStaleAge } from '../lib/stale';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { detectLite, loadLitePref } from '../lib/device';
 import { ISLANDS, PROVINCES, REGION, provincesOf } from '../lib/provinces';
@@ -65,7 +65,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
   // ---------- day archive: the date picker and the slot player ----------
   const all = regions.data ?? [];
   const latestSlot = useMemo(() => all.reduce<string | null>((a, r) => (r.observed_at && (!a || r.observed_at > a) ? r.observed_at : a), null), [all]);
-  const stale = staleAge(latestSlot); // read on every render; the page re-renders at each 10-minute poll
+  const stale = useStaleAge(latestSlot);
   const liveDay = latestSlot ? dayOf(latestSlot) : null;
   const live = daySel == null;
   const viewDay = daySel ?? liveDay;

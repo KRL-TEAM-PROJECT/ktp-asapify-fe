@@ -36,7 +36,7 @@ The judged prototype runs on Firebase Hosting in live mode at https://hack2skill
 deployed by the GitHub Actions workflow described in [docs/GCP.md](docs/GCP.md).
 
 Vercel is only for mock-mode previews: import the repository in Vercel; settings come from `vercel.json`
-(Vite, `npm ci`, `npm run build`, output `dist/`). Without any environment variable the site runs in **mock mode**
+(Vite, `npm ci`, `VITE_API_MODE=mock npm run build`, output `dist/`), so the site runs in **mock mode**
 (fictional data + demo login). `vercel.json` also routes every path to `index.html` (a deep link such as
 `/regions/R3.50S105.625E` never 404s) and serves `/maplibre/*.mjs` as JavaScript for the map worker. Needs Node ≥ 22.12 (`engines`).
 

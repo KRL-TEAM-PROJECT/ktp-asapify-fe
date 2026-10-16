@@ -49,20 +49,19 @@
 .pill.q-bad { color: var(--ember-ink); }
 
 .rg-util { display: grid; gap: 10px; }
-.rg-util-bars { display: grid; gap: 8px; }
-.rg-util-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 48px; align-items: center; gap: 10px; opacity: 0.75; }
-.rg-util-row.on { opacity: 1; }
-.rg-util-row.on b { font-weight: 800; }
-.rg-util-row .pill { justify-self: start; }
-.rg-bar { height: 10px; border-radius: 1px; background: var(--surface-2); overflow: hidden; }
-.rg-bar i { display: block; height: 100%; }
-.rg-bar i.fill-safe { background: var(--moss); }
-.rg-bar i.fill-warning { background: var(--amber); }
-.rg-bar i.fill-alert { background: var(--ember); }
-.rg-memb { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; }
-.rg-memb div { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-sm); border-bottom: 1px dashed var(--line); padding-bottom: 2px; }
-.rg-memb dt { color: var(--ink-dim); }
-.rg-memb dd { margin: 0; }
+.rg-result { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.rg-scale-wrap { display: grid; gap: 4px; padding: 0 2px; }
+.rg-scale { position: relative; height: 12px; border-radius: 2px; overflow: visible; background: var(--surface-2); }
+.rg-scale .z { position: absolute; top: 0; bottom: 0; opacity: 0.35; }
+.rg-scale .z-safe { background: var(--moss); border-radius: 2px 0 0 2px; }
+.rg-scale .z-warning { background: var(--amber); }
+.rg-scale .z-alert { background: var(--ember); border-radius: 0 2px 2px 0; }
+.rg-scale .mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px;
+  background: var(--ink); box-shadow: 0 0 0 2px var(--surface); }
+.rg-scale-axis { position: relative; height: 1.2em; color: var(--ink-dim); }
+.rg-scale-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.rg-scale-axis span:first-child { transform: none; }
+.rg-scale-axis span:last-child { transform: translateX(-100%); }
 .rg-adjust { margin: 0; display: grid; gap: 4px; padding: 8px 10px; background: var(--surface-2); border-radius: var(--r-2); }
 .rg-adjust div { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-sm); }
 .rg-adjust dt { color: var(--ink-dim); min-width: 0; }
@@ -119,5 +118,4 @@
 }
 @media (min-width: 1024px) {
   .rg-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .rg-util-row { grid-template-columns: 112px minmax(0, 1fr) 52px; }
 }

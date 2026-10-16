@@ -1,7 +1,6 @@
 # Firebase Hosting + Google sign-in
 
-Live mode sends Firebase tokens to the Cloud Run API.
-Mock mode stays available; live mode never reads the demo login from localStorage.
+The app sends Firebase tokens to the Cloud Run API.
 Status, 13 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
 Routine deploys go through GitHub Actions, not a laptop; see "Redeploy" below. Manual steps 1–5
 are only for a new project.
@@ -10,17 +9,15 @@ are only for a new project.
 2. Create a Firebase Web App, enable the Google provider and Authorized domains, then fill `.env.local`:
 
 ```dotenv
-VITE_API_MODE=live
 VITE_API_BASE=
 VITE_FIREBASE_API_KEY=COPY_FROM_FIREBASE_WEB_APP
 VITE_FIREBASE_AUTH_DOMAIN=COPY_FROM_FIREBASE_WEB_APP
 VITE_FIREBASE_PROJECT_ID=SAME_PROJECT_ID
 VITE_FIREBASE_APP_ID=COPY_FROM_FIREBASE_WEB_APP
-VITE_PROVINCES_LAYER_URL=/mock/provinces.geojson
 ```
 
-The bundled province boundary file comes from geoBoundaries; although it sits in the `mock` folder, it holds
-boundary geometry, not detection points. Check the attribution before publishing.
+The bundled province boundary file `public/provinces.geojson` comes from geoBoundaries; it holds boundary
+geometry, not detection points. Check the attribution before publishing.
 
 3. Install dependencies from the lockfile and build:
 
@@ -47,7 +44,6 @@ from the BE repository; the user signs out and in again. No team email is allowe
 
 ## Checks
 
-- An old mock login never opens live-mode routes.
 - While the Firebase session restores, the page waits instead of rushing to the login page.
 - Operator requests send `Authorization: Bearer <ID token>`; the Firebase SDK refreshes the token.
 - Non-operator accounts get 403. Signing out and in again works on the Hosting domain.

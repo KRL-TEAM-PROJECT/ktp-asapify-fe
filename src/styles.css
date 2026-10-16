@@ -81,7 +81,6 @@ button { font: inherit; color: inherit; }
   :root:not([data-theme="light"]) { --brand-ink: #F8FAFC; --brand-leaf: #F8FAFC; --brand-flame-hi: #F8FAFC; --brand-flame-lo: #F8FAFC; --brand-dot: #F8FAFC; }
 }
 :root[data-theme="dark"] { --brand-ink: #F8FAFC; --brand-leaf: #F8FAFC; --brand-flame-hi: #F8FAFC; --brand-flame-lo: #F8FAFC; --brand-dot: #F8FAFC; }
-.mock-badge { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 500; padding: 2px 6px; border-radius: var(--r-1); border: 1px dashed var(--ochre); color: var(--amber-ink); white-space: nowrap; cursor: help; }
 .navlinks { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; height: calc(var(--tabbar) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom); display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
   background: var(--surface); border-top: 1px solid var(--line); }
@@ -141,7 +140,7 @@ button { font: inherit; color: inherit; }
 .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--ember-solid) 86%, #000); border-color: transparent; }
 .btn.wide { width: 100%; }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .icon-btn, .chip, .opt input, .navlinks a { transition: none !important; }
+  .btn, .icon-btn, .chip, .navlinks a { transition: none !important; }
 }
 
 /* <details> opens/closes with a flowing height; browsers without ::details-content simply switch */
@@ -301,16 +300,6 @@ button { font: inherit; color: inherit; }
 .kv div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 0; border-top: 1px solid var(--line); font-size: var(--fs-sm); }
 .kv dt { font-weight: 700; }
 .kv dd { margin: 0; color: var(--ink-dim); }
-
-/* ---------- option controls (switch, checkbox) ---------- */
-.opt { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: var(--fs-sm); cursor: pointer; }
-.opt input { appearance: none; flex: none; margin: 0; cursor: pointer; transition: background-color var(--dur-2) var(--ease-out), background-position var(--dur-2) var(--ease-out), border-color var(--dur-1), box-shadow var(--dur-1); }
-.opt input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-/* switch: the knob is drawn with gradients (pseudo-elements on inputs are unreliable across browsers) */
-.opt.switch { justify-content: space-between; }
-.opt input[type="checkbox"] { width: 36px; height: 20px; border-radius: var(--r-1);
-  background: linear-gradient(#fff, #fff) 3px 3px / 14px 14px no-repeat, var(--line-strong); }
-.opt input[type="checkbox"]:checked { background-color: var(--moss); background-position: 19px 3px; }
 
 /* ---------- route loading fallback ---------- */
 .page-fallback { padding: 16px; height: 100%; }

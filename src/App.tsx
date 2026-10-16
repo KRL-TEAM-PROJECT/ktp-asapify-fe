@@ -4,7 +4,6 @@ import { I18nProvider, useI18n } from './i18n';
 import { MotionProvider, m, spring, springSoft } from './motion';
 import { signOut, useAuthState, useUser } from './auth';
 import { useTheme } from './lib/theme';
-import { API_MODE } from './api';
 import { BrandLockup } from './components/BrandMark';
 import { LoginPage } from './pages/Login';
 import { AboutPage } from './pages/About';
@@ -55,9 +54,6 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
           <BrandLockup size={36} />
           {user?.role === 'operator' && <small>{t('app.role')}</small>}
         </Link>
-        {API_MODE === 'mock' && (
-          <span className="mock-badge" title={t('mock.title')}>{t('mock.badge')}</span>
-        )}
         <nav className="navlinks" aria-label={t('nav.label')}>
           <NavItem to="/" end>{t('nav.regions')}</NavItem>
           <NavItem to="/join">{t('nav.join')}</NavItem>

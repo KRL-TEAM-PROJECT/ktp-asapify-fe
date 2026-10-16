@@ -1,23 +1,15 @@
 import { useSyncExternalStore } from 'react';
-import { load, save } from './lib/storage';
 import type { Auth, User as FirebaseUser } from 'firebase/auth';
 
 export interface User { uid: string; email: string; name: string; role: 'operator' | 'subscriber' }
 interface AuthState { user: User | null; loading: boolean; error: string | null }
-const LIVE = import.meta.env.VITE_API_MODE === 'live';
-const KEY = 'asapify.user';
 const listeners = new Set<() => void>();
 let firebaseAuth: Auth | null = null;
 let sequence = 0;
 
-function readDemo(): User | null {
-  if (LIVE) return null; // A previous mock login never grants live access.
-  try { return JSON.parse(load(KEY) ?? 'null') as User | null; } catch { return null; }
-}
-let state: AuthState = { user: readDemo(), loading: LIVE, error: null };
+let state: AuthState = { user: null, loading: true, error: null };
 function set(next: AuthState) {
   state = next;
-  if (!LIVE) save(KEY, next.user ? JSON.stringify(next.user) : null);
   listeners.forEach((notify) => notify());
 }
 async function verifiedUser(user: FirebaseUser): Promise<User> {
@@ -44,7 +36,7 @@ function activate(user: FirebaseUser): Promise<boolean> {
   }
   return activation.done;
 }
-const ready: Promise<void> = LIVE ? (async () => {
+const ready: Promise<void> = (async () => {
   const config = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -68,15 +60,10 @@ const ready: Promise<void> = LIVE ? (async () => {
   });
 })().catch((e: unknown) => {
   set({ user: null, loading: false, error: e instanceof Error ? e.message : 'AUTH_UNAVAILABLE' });
-}) : Promise.resolve();
+});
 
 export async function signIn(): Promise<User> {
   await ready;
-  if (!LIVE) {
-    const user: User = { uid: 'mock-operator', email: 'operator@example.org', name: 'Demo Operator', role: 'operator' };
-    set({ user, loading: false, error: null });
-    return user;
-  }
   if (!firebaseAuth) throw new Error(state.error ?? 'AUTH_NOT_CONFIGURED');
   const sdk = await import('firebase/auth');
   const provider = new sdk.GoogleAuthProvider();
@@ -95,14 +82,13 @@ export async function signIn(): Promise<User> {
 }
 export async function signOut(): Promise<void> {
   await ready;
-  if (LIVE && firebaseAuth) await (await import('firebase/auth')).signOut(firebaseAuth);
+  if (firebaseAuth) await (await import('firebase/auth')).signOut(firebaseAuth);
   activation = null; // the next sign-in on this page asks again
   ++sequence;
   set({ user: null, loading: false, error: null });
 }
-export async function getUserToken(): Promise<string | null> {
+export async function getUserToken(): Promise<string> {
   await ready;
-  if (!LIVE) return null;
   if (!state.user || !firebaseAuth?.currentUser) throw new Error('UNAUTHENTICATED');
   return firebaseAuth.currentUser.getIdToken();
 }

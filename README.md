@@ -17,8 +17,8 @@ groups and operator access on the Admin page.
 
 - Design: [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) (mobile-first rules and the brand manual's visual language)
 - Engine and rules: `docs/ENGINE.md` in the backend repository, and the in-app About page
-- Briefing site: `../asapify/` (`ui.html` screens, `backend.html` API, `cloud.html`, `runbook.html`), rewritten for
-  the freeze; the contract tab stays the reference for the API
+- Briefing site: `../asapify/` (`ui.html` screens, `backend.html` API, `cloud.html`, `runbook.html`); the contract
+  tab stays the reference for the API
 - Demo video script: [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md)
 - The interface, code and API are English only.
 
@@ -60,8 +60,7 @@ JSON examples are static samples in `src/contract/spec.ts`.
 - Map labels (province names, OpenFreeMap basemap labels, MapLibre buttons) are English.
 
 The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). The briefing's `backend.html`
-was rewritten at the freeze (16 Oct 2026) to summarise this contract; where they differ, the contract tab is the
-reference.
+summarises this contract; where they differ, the contract tab is the reference.
 
 ## Motion
 

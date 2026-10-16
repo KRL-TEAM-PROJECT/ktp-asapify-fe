@@ -23,7 +23,7 @@ const RULES: [string, string][] = [
   ['about.r_cloud', '> 60 %'],
   ['about.r_support', 'ALERT + 0.2·VIIRS + 0.1·POWER, upward only, only when ΔT high > 0'],
   ['about.r_margin', '0.05'],
-  ['about.r_agent', '6 h · 20 / day'],
+  ['about.r_agent', '24 h · 20 / day'],
 ];
 const SOURCES: [string, string][] = [
   ['Himawari-9 AHI', 'about.src_himawari'],

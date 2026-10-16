@@ -54,6 +54,8 @@ only then. Nothing to set in the FE: the site key comes from `GET /api/v1/access
 - Operator requests send `Authorization: Bearer <ID token>`; the Firebase SDK refreshes the token.
 - Non-operator accounts get 403. Signing out and in again works on the Hosting domain.
 - Without pipeline data, the "data not available" message appears; never read it as safe data.
+- When the latest slot is older than 90 minutes (a healthy pipeline stays under about 60), the map and the region
+  page show a "Not current" warning; it re-checks every minute on an open page (`src/lib/stale.ts`).
 - The region detail page and its `/regions/:id` deep link work; the MapLibre worker is served as JavaScript.
 
 Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, refusal of access without
@@ -81,7 +83,7 @@ https://firebase.google.com/docs/auth/admin/custom-claims.
 Alerts go to the team's Telegram group, nowhere else. An operator adds the bot to the group and pastes its invite
 link on the Admin page (Telegram groups panel); the ASAPify bot then posts every published alert there. The public
 **Get alerts** page (`/join`, no sign-in) shows a Join button for each group that has an invite link. Only operators
-sign in; any other account lands on `/join`. The backend side is in the BE repository's `docs/NOTIFICATIONS.md`.
+sign in; any other account lands on the public map (`/`). The backend side is in the BE repository's `docs/NOTIFICATIONS.md`.
 
 `notification-sw.js` is the retired service worker of the old /notifications page (offline inbox and push). It now
 deletes its caches, unregisters itself and reloads open tabs, so no browser keeps an old cached build. Firebase

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AgentInfo, Verification, ValidationStatus } from '../types';
+import type { AgentInfo, Verification, ValidationStatus, VerificationWeather } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
 import { errorText } from '../lib/errors';
@@ -21,6 +21,15 @@ function errorNote(code: string, t: (k: string, v?: Record<string, string | numb
   return s === key ? code : s;
 }
 
+/** The weather line, or null when Open-Meteo gave nothing for that hour. */
+function weatherText(w: VerificationWeather | null | undefined, t: (k: string, v?: Record<string, string | number>) => string) {
+  if (!w || w.error || !w.at) return null;
+  const n = (x: number | null | undefined, d: number) => (x != null ? fmtNum(x, d) : '–');
+  return t('agent.weather', {
+    dir: n(w.wind_from_deg, 0), speed: n(w.wind_speed_ms, 1), rain: n(w.precipitation_24h_mm, 1), rh: n(w.relative_humidity_pct, 0),
+  });
+}
+
 interface Props {
   regionId: string;
   latest: Verification | null;
@@ -36,6 +45,8 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
   const [error, setError] = useState<unknown>(null);
   const blocked = !agent ? null : !agent.configured ? t('agent.not_configured') : agent.remaining <= 0 ? t('agent.quota_used') : null;
   const confidence = (c: string) => { const key = `agent.conf.${c}`; const s = t(key); return s === key ? c : s; }; // VIIRS l/n/h; anything else as sent
+  const images = v?.imagery?.images ?? [];
+  const weather = weatherText(v?.weather, t);
 
   async function verify() {
     setBusy(true);
@@ -101,6 +112,34 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
           </dl>
           <p className="muted small">{t('agent.confidence_note')}</p>
 
+          {images.length > 0 && v.imagery && (
+            <>
+              <h3>{t('agent.images', { date: v.imagery.date ?? '–', h: v.imagery.hours_before_observation != null ? fmtNum(v.imagery.hours_before_observation, 1) : '–' })}</h3>
+              <div className="rg-images">
+                {images.map((img) => (
+                  <figure key={img.view}>
+                    <a href={img.url} target="_blank" rel="noreferrer">
+                      <img src={img.url} alt={t(`agent.image_view.${img.view}`)} loading="lazy" />
+                    </a>
+                    <figcaption className="small">{t(`agent.image_view.${img.view}`)}</figcaption>
+                  </figure>
+                ))}
+              </div>
+              <p className="muted small">{t('agent.images_note')}</p>
+            </>
+          )}
+          {v.visual_evidence && (
+            <>
+              <h3>{t('agent.visual')}</h3>
+              <dl className="rg-facts">
+                <div><dt>{t('agent.visual.smoke')}</dt><dd>{t(`agent.seen.${v.visual_evidence.smoke}`)}</dd></div>
+                <div><dt>{t('agent.visual.burn_scar')}</dt><dd>{t(`agent.seen.${v.visual_evidence.burn_scar}`)}</dd></div>
+              </dl>
+              {v.visual_evidence.notes && <p className="small">{v.visual_evidence.notes}</p>}
+            </>
+          )}
+          {weather && <p className="small">{weather}</p>}
+
           {v.draft_operator_alert && (
             <>
               <h3>{t('agent.draft')}</h3>
@@ -149,7 +188,7 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
               })}
             </p>
           </details>
-          <p className="callout info small">{t('agent.no_imagery')}</p>
+          {images.length === 0 && <p className="callout info small">{t('agent.no_imagery')}</p>}
         </>
       )}
     </m.section>

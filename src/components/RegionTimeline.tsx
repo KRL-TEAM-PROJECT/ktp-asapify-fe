@@ -11,7 +11,7 @@ const DT = { y: 30, h: 92 };
 const RH = { y: 136, h: 58 };
 const CLOUD = { y: 208, h: 50 };
 const H = CLOUD.y + CLOUD.h + 26;
-const STEP = 600_000; // one 10-minute slot
+const STEP = 900_000; // one rated slot every 15 minutes
 const FILL: Record<Status, string> = { SAFE: 'var(--moss)', WARNING: 'var(--amber)', ALERT: 'var(--ember)', NO_OBSERVABLE: '' };
 // the map's colours: Himawari-9 in thermal amber, GK2A in ink
 const SAT: [SatelliteName, string, string][] = [['himawari9', 'H', 'var(--ember)'], ['gk2a', 'G', 'var(--ink-dim)']];
@@ -29,9 +29,11 @@ function path(points: ({ x: number; y: number } | null)[]) {
 }
 
 /**
- * Slot by slot: rules-engine status (strip), the ΔT both satellites confirm (line) with each satellite's own anomaly
- * (dots: H Himawari-9, G GK2A), relative humidity and cloud cover. Day slots are shaded: there the status stops at
- * WARNING. Dashed lines are the rule breakpoints: ΔT 3 K / 8 K, humidity 30 % / 60 %, cloud 60 %.
+ * Slot by slot: rules-engine status (strip), the ΔT the rules counted (bold line: measured ΔT moved by dry air and the
+ * sun) over the measured ΔT (thin line) with each satellite's own anomaly (dots: H Himawari-9, G GK2A), relative
+ * humidity and cloud cover. Day slots are shaded: there the sun raises the bar. Dashed lines are the status boundaries
+ * of the counted ΔT (about 2 K and 7 K) and the cloud limit (60 %). Older records have no counted ΔT: the bold line
+ * falls back to the measured one.
  */
 export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
   const { t } = useI18n();
@@ -44,7 +46,8 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
   const slot = ((W - PL - PR) * STEP) / (span + STEP);
   const x = (iso: string) => PL + ((Date.parse(iso) - t0) / (span + STEP)) * (W - PL - PR) + slot / 2;
 
-  const values = slots.flatMap((s) => [s.inputs.delta_t_k, ...SAT.map(([n]) => s.views[n]?.max_anomaly_k ?? null)])
+  const counted = (s: SlotRecord) => s.adjust?.delta_t_eff_k ?? s.inputs.delta_t_k;
+  const values = slots.flatMap((s) => [s.inputs.delta_t_k, counted(s), ...SAT.map(([n]) => s.views[n]?.max_anomaly_k ?? null)])
     .filter((v): v is number => v != null);
   const lo = Math.min(-2, ...values), hi = Math.max(10, ...values);
   const yDt = (v: number) => DT.y + (1 - (v - lo) / (hi - lo)) * DT.h;
@@ -84,20 +87,14 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
         <text x={PL - 6} y={RH.y + 10} textAnchor="end" className="ax">RH %</text>
         <text x={PL - 6} y={CLOUD.y + 10} textAnchor="end" className="ax">{t('rgt.cloud')}</text>
 
-        {/* thresholds */}
-        {[[3, 'var(--amber)'], [8, 'var(--ember)']].map(([v, c]) => (
+        {/* status boundaries of the counted ΔT: 1.95 K and 6.95 K with the default curves and safety margin */}
+        {([[1.95, 2, 'var(--amber)'], [6.95, 7, 'var(--ember)']] as const).map(([v, label, c]) => (
           <g key={v}>
-            <line x1={PL} x2={W - PR} y1={yDt(v as number)} y2={yDt(v as number)} stroke={c as string} strokeDasharray="4 3" />
-            <text x={W - PR - 4} y={yDt(v as number) - 3} textAnchor="end" className="ax" fill={c as string}>{v} K</text>
+            <line x1={PL} x2={W - PR} y1={yDt(v)} y2={yDt(v)} stroke={c} strokeDasharray="4 3" />
+            <text x={W - PR - 4} y={yDt(v) - 3} textAnchor="end" className="ax" fill={c}>{label} K</text>
           </g>
         ))}
         <line x1={PL} x2={W - PR} y1={yDt(0)} y2={yDt(0)} stroke="var(--line)" />
-        {[[30, 'var(--ember)'], [60, 'var(--moss)']].map(([v, c]) => (
-          <g key={v}>
-            <line x1={PL} x2={W - PR} y1={yPct(RH, v as number)} y2={yPct(RH, v as number)} stroke={c as string} strokeDasharray="4 3" />
-            <text x={W - PR - 4} y={yPct(RH, v as number) - 3} textAnchor="end" className="ax" fill={c as string}>{v}%</text>
-          </g>
-        ))}
         <line x1={PL} x2={W - PR} y1={yPct(CLOUD, 60)} y2={yPct(CLOUD, 60)} stroke="var(--ink-dim)" strokeDasharray="4 3" />
         <text x={W - PR - 4} y={yPct(CLOUD, 60) - 3} textAnchor="end" className="ax">60%</text>
 
@@ -119,9 +116,13 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
           <line key={`v-${s.observed_at}`} x1={x(s.observed_at)} x2={x(s.observed_at)} y1={DT.y + 1} y2={DT.y + 7} stroke="var(--ember)" strokeWidth="1.4" />
         ))}
 
-        {/* ΔT both satellites confirm and humidity draw left to right */}
-        <m.path
+        {/* measured ΔT, the ΔT the rules counted and humidity draw left to right */}
+        <path
           d={path(slots.map((s) => (s.inputs.delta_t_k == null ? null : { x: x(s.observed_at), y: yDt(s.inputs.delta_t_k) })))}
+          fill="none" stroke="var(--ink-dim)" strokeWidth="1" strokeLinejoin="round" opacity="0.7"
+        />
+        <m.path
+          d={path(slots.map((s) => { const v = counted(s); return v == null ? null : { x: x(s.observed_at), y: yDt(v) }; }))}
           fill="none" stroke="var(--ink)" strokeWidth="1.8" strokeLinejoin="round"
           initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, ease: [0.32, 0.72, 0, 1] }}
         />
@@ -146,6 +147,7 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
               fmtSlot(s.observed_at),
               `${t(STATUS_KEY[s.status])} (${t(s.night ? 'rgt.night' : 'rgt.day')})`,
               s.inputs.delta_t_k != null ? `ΔT ${fmtSigned(s.inputs.delta_t_k, 1)} K` : 'ΔT –',
+              ...(s.adjust ? [`${t('rgt.counted')} ${fmtSigned(s.adjust.delta_t_eff_k, 1)} K`] : []),
               viewText(s),
               s.inputs.relative_humidity_pct != null ? `RH ${fmtNum(s.inputs.relative_humidity_pct, 0)}%` : 'RH –',
               s.inputs.cloud_cover_pct != null ? `${t('rgt.cloud')} ${fmtNum(s.inputs.cloud_cover_pct, 0)}%` : `${t('rgt.cloud')} –`,
@@ -155,7 +157,7 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
       </svg>
       <figcaption>
         {t('rgt.caption', { range: `${fmtSlot(slots[0].observed_at)} – ${fmtSlot(slots[slots.length - 1].observed_at)}` })}{' '}
-        <span className="rg-key"><i style={{ background: 'var(--ember)' }} />H Himawari-9 <i style={{ background: 'var(--ink-dim)' }} />G GK2A <i className="tick" />{t('rgt.viirs')}</span>
+        <span className="rg-key"><i className="line" />{t('rgt.counted')} <i className="line thin" />{t('rgt.measured')} <i style={{ background: 'var(--ember)' }} />H Himawari-9 <i style={{ background: 'var(--ink-dim)' }} />G GK2A <i className="tick" />{t('rgt.viirs')}</span>
       </figcaption>
     </figure>
   );

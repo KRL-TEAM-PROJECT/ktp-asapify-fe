@@ -7,10 +7,11 @@
 the operator custom claim and the Cloud Run API; the app sends the Firebase token.
 
 ASAPify operator web app (Google Cloud AI Builder Cup 2026): a map of 65 peat regions that the backend's risk engine
-rates every 10 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE), with each slot's hot
+rates every 15 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE), with each slot's hot
 pixels and the VIIRS detections beside them, and a day player that opens any archived day; a region page (ΔT,
-humidity and cloud timeline, Fuzzy MAUT utilities, status changes), the Gemini agent's NASA FIRMS verification with
-a Re-verify button, and the publish/reject decision.
+humidity and cloud timeline, how dry air and the sun moved ΔT, Fuzzy MAUT utilities, status changes), the Gemini
+agent's verification (NASA FIRMS hotspots, the NASA GIBS images it looked at and the weather at the hot pixel) with a
+Re-verify button, and the publish/reject decision.
 
 - Design: [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) (mobile-first rules and the brand manual's visual language)
 - UI specification: `../asapify/ui.html` · API contract: `../asapify/backend.html` sections 03–05

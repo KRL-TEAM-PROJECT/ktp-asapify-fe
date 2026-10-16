@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-// A healthy pipeline shows a slot at most about 60 minutes old: a slot only one satellite published waits 40 minutes,
-// the worker ticks every 10 and this page polls every 10. Past 90 minutes something upstream has stopped.
+// A healthy pipeline shows a slot at most about 70 minutes old: a slot only one satellite published waits 40 minutes,
+// the worker ticks every 15 and this page polls every 15. Past 90 minutes something upstream has stopped.
 const STALE_MS = 90 * 60_000;
 
 /** "2 h 05 min" when the slot at `iso` is older than a healthy pipeline allows; null when current or unknown. */

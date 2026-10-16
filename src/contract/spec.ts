@@ -162,7 +162,7 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'RegionSummary', origin: 'backend',
-    desc: 'One peat region of the risk engine (a NASA POWER cell with mapped peat) and its latest assessed 10-minute slot.',
+    desc: 'One peat region of the risk engine (a NASA POWER cell with mapped peat) and its latest assessed slot (one every 15 minutes).',
     fields: [
       { name: 'id', type: 'string', req: true, desc: 'Cell centre, e.g. `R2.50S113.750E`.' },
       { name: 'province', type: PROV_T, req: true, desc: 'BPS code of the province holding most of its peat.' },
@@ -181,9 +181,9 @@ export const SCHEMAS: Schema[] = [
     desc: 'RegionSummary fields (without inputs/quality/reason/flags/night) plus the history of one region.',
     fields: [
       { name: 'latest', type: 'SlotRecord', req: false, desc: 'Latest assessed slot.' },
-      { name: 'slots', type: 'SlotRecord[]', req: true, desc: 'Oldest first, 6 per hour; `hours` query parameter, default 24 (144 slots), or one WIB day with `date`.' },
-      { name: 'hours', type: 'object[]', req: true, desc: 'NASA POWER support per hour, oldest first: observed_at, inputs (skin_temperature_k, baseline_k, delta_t_k, relative_humidity_pct, …), quality, flags. No status.' },
-      { name: 'power', type: 'PowerSupport | null', req: false, desc: 'Latest POWER hour: observed_at, skin_temperature_k, baseline_k, delta_t_k, relative_humidity_pct, updated_at. About 2–3 days behind.' },
+      { name: 'slots', type: 'SlotRecord[]', req: true, desc: 'Oldest first, 4 per hour (6 before 16 Oct 2026); `hours` query parameter, default 24 (96 slots), or one WIB day with `date`.' },
+      { name: 'hours', type: 'object[]', req: true, desc: 'NASA POWER support per hour, oldest first: observed_at, inputs (skin_temperature_k, baseline_k, delta_t_k, relative_humidity_pct, rh_baseline_pct, rh_baseline_std_pct, dry_z, …), quality, flags. No status.' },
+      { name: 'power', type: 'PowerSupport | null', req: false, desc: 'Latest POWER hour: observed_at, skin_temperature_k, baseline_k, baseline_std_k, delta_t_k, relative_humidity_pct, rh_baseline_pct, rh_baseline_std_pct, updated_at; dry_z = mean dryness in σ over the last dry_z_hours (24) published hours, each against its own hour\'s 2021–2025 normal; rh_normal = [mean, σ] % per UTC hour, the Open-Meteo fallback\'s normal. About 2–3 days behind.' },
       { name: 'transitions', type: 'object[]', req: true, desc: 'Last 20 status changes, newest first: observed_at, previous, current, utilities, reason.' },
       { name: 'verifications', type: 'Verification[]', req: true, desc: 'Last 10 agent runs, newest first.' },
       { name: 'last_error', type: 'string | null', req: true, desc: 'Error type of the last failed cycle for this region.' },
@@ -191,17 +191,18 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'SlotRecord', origin: 'backend',
-    desc: 'Audit record of one 10-minute satellite slot (design section 10, audit trail). Firestore keeps it 30 days.',
+    desc: 'Audit record of one satellite slot, rated every 15 minutes (design section 10, audit trail). Firestore keeps it 30 days.',
     fields: [
       { name: 'observed_at', type: ISO, req: true, desc: 'Scan start of the slot (UTC), not the ingestion time.' },
-      { name: 'night, sun_elevation_deg', type: 'boolean, number', req: true, desc: 'Night = sun below −6° at the cell centre. Only night slots can reach ALERT.' },
+      { name: 'night, sun_elevation_deg', type: 'boolean, number', req: true, desc: 'Night = sun below −6° at the cell centre (informational). The sun elevation sets the sun shift: by day ΔT counts up to 1 K less.' },
       { name: 'views', type: '{ himawari9, gk2a: SatelliteView | null }', req: true, desc: 'Per satellite: n_pixels, n_clear, cloud_fraction, n_peat, n_peat_clear, background_k, background_mad_k, max_anomaly_k (0 = no fire-like pixel, null = too few clear pixels), max_z, n_hot, n_hot_peat, hot_on_peat, hot_lat, hot_lon, mwir_k, lwir_k, hot_pixels (up to 5 `{ lat, lon, anomaly_k }`, strongest first). null = no data for this slot.' },
-      { name: 'inputs', type: 'RegionInputs', req: true, desc: 'delta_t_k (the anomaly both satellites confirm; null = not observable), cloud_cover_pct (clearest view), relative_humidity_pct (Open-Meteo), hot_lat, hot_lon.' },
+      { name: 'inputs', type: 'RegionInputs', req: true, desc: 'delta_t_k (mean anomaly of the satellites that see the cell, weighted by clear fraction; null = not observable), cloud_cover_pct (clearest view), relative_humidity_pct (Open-Meteo), dry_z (dryness in σ against the NASA POWER normal), dry_source (`nasa_power`, `open_meteo_fallback` or null), hot_lat, hot_lon.' },
       { name: 'support', type: '{ viirs_support?, power_support?: number }', req: true, desc: 'Only at a possible hotspot; can only raise ALERT.' },
       { name: 'viirs', type: '{ lat, lon, acquired_at, confidence, distance_km }[]', req: false, desc: 'VIIRS detections within 10 km and 12 h of any hot pixel, nearest first, at most 5. Map evidence only; the support value comes from the strongest pixel.' },
-      { name: 'quality', type: "{ thermal, relative_humidity: 'ACCEPTED' | 'DEGRADED' | 'REJECTED' | 'MISSING' }", req: true, desc: 'thermal ACCEPTED = night and both satellites agree; DEGRADED (day, one satellite, disagreement) is capped at WARNING; REJECTED = no clear view.' },
-      { name: 'flags', type: 'string[]', req: true, desc: 'two_satellites_agree, two_satellites_quiet, satellites_disagree, single_satellite:<name>, no_data:<name>, no_clear_view, daytime, model_estimate.' },
-      { name: 'status, utilities, memberships, reason', type: 'Status, object, object, string', req: true, desc: 'Rules-engine output for that slot; the reason says when the cap applied.' },
+      { name: 'quality', type: "{ thermal, relative_humidity: 'ACCEPTED' | 'DEGRADED' | 'REJECTED' | 'MISSING' }", req: true, desc: 'thermal ACCEPTED = both satellites agree; DEGRADED = one satellite or disagreement (informational, no cap); REJECTED = no clear view.' },
+      { name: 'flags', type: 'string[]', req: true, desc: 'two_satellites_agree, two_satellites_quiet, satellites_disagree, single_satellite:<name>, no_data:<name>, no_clear_view, daytime, model_estimate, dryness_fallback:open_meteo.' },
+      { name: 'status, utilities, memberships, reason', type: 'Status, object, object, string', req: true, desc: 'Rules-engine output for that slot: memberships delta_t_low/medium/high of the counted ΔT (+ support); the reason states the shift.' },
+      { name: 'adjust', type: '{ delta_t_k, dry_z, rh_shift_k, sun_shift_k, delta_t_eff_k } | null', req: false, desc: 'ΔT counted = delta_t_k + rh_shift_k − sun_shift_k; rh_shift_k = 1 K · tanh(dry_z / 2), sun_shift_k = 1 K · max(0, sin(sun elevation)). Absent before 16 Oct 2026 and when NO_OBSERVABLE.' },
     ],
   },
   {
@@ -214,7 +215,7 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'DayArchive', origin: 'backend',
-    desc: 'Every archived 10-minute slot of one WIB day (Firestore `engine_days/{date}`, one read, under 1 MiB, kept without TTL).',
+    desc: 'Every archived slot of one WIB day, keyed by the satellites\' 10-minute scan times; one rated every 15 minutes (Firestore `engine_days/{date}`, one read, under 1 MiB, kept without TTL).',
     fields: [
       { name: 'date', type: 'YYYY-MM-DD', req: true, desc: 'The WIB day.' },
       { name: 'regions', type: 'string[]', req: true, desc: 'Region ids; `status` and `delta_t` of each slot follow this order.' },
@@ -238,6 +239,9 @@ export const SCHEMAS: Schema[] = [
       { name: 'confidence_score, analysis', type: 'number 0–1 | null, string', req: true, desc: 'From the YAML output.' },
       { name: 'supporting_data', type: '{ firms_hotspot_count, highest_brightness_temp } | null', req: true, desc: 'Must match a fetch_firms_data result.' },
       { name: 'draft_operator_alert', type: '{ title, message } | null', req: true, desc: 'Starting caption for Publish.' },
+      { name: 'visual_evidence', type: "{ smoke, burn_scar: 'visible' | 'not_visible' | 'obscured' | 'no_image', image_date, notes } | null", req: false, desc: 'What the agent saw in the images. A CONFIRMED with clear images from the last 24 h showing neither smoke nor a burn scar is sent to manual review.' },
+      { name: 'imagery', type: '{ date, hours_before_observation, images: { view, url }[], errors: string[] } | null', req: false, desc: 'NASA GIBS WMS images the agent was shown (true_color, false_color_swir, VIIRS thermal anomalies on top) from the last daytime NOAA-20 pass.' },
+      { name: 'weather', type: '{ source, at, relative_humidity_pct, wind_speed_ms, wind_from_deg, precipitation_24h_mm } | { error } | null', req: false, desc: 'Open-Meteo at the hot pixel: context for the agent, never a rules input.' },
       { name: 'checks, error', type: 'string[], string | null', req: true, desc: 'Why the backend downgraded it; AGENT_TIMEOUT, INVALID_OUTPUT, LLM_CALL_LIMIT or AGENT_ERROR:<type>.' },
       { name: 'tool_calls, evidence', type: 'object[], Hotspot[]', req: true, desc: 'Every FIRMS query and up to 15 hotspots (lat, lon, acquired_at, distance_km, confidence, frp_mw, brightness_k).' },
       { name: 'model, usage, duration_s', type: 'string, object, number', req: true, desc: 'Cost trail.' },
@@ -288,7 +292,7 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'regions', method: 'GET', path: '/operator/regions', auth: 'operator',
     title: 'Peat regions',
-    purpose: 'All 65 regions with their current status and latest inputs. The engine reads one satellite slot every 10 minutes, so the UI refreshes no faster than that.',
+    purpose: 'All 65 regions with their current status and latest inputs. The engine rates one satellite slot every 15 minutes, so the UI refreshes no faster than that.',
     usedBy: 'Regions map (home) → map fill, filters, list.',
     responses: [{ code: 200, schema: 'RegionSummary[]', example: 'regions' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'DATA_NOT_READY'],
@@ -451,22 +455,23 @@ export const ENDPOINTS: Endpoint[] = [
 export const INTERNAL: { method: string; path: string; desc: string }[] = [
   { method: 'POST', path: '/api/v1/notifications/telegram-webhook', desc: 'Called by Telegram; requires the X-Telegram-Bot-Api-Secret-Token header. Links a group from the one-time /start code an operator created; ignores private chats; never replies.' },
   { method: 'POST', path: '/_internal/notifications/dispatch', desc: 'asapify-notify. OIDC asapify-task from Cloud Tasks. Body {job_id}. Claims one job, then sends it.' },
-  { method: 'POST', path: '/_internal/engine/geo-tick', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every 10 minutes (minute 5, 15, … 55), ?budget=240. Newest Himawari-9 + GK2A slot for all 65 regions: fusion, rules, state machine, agent requests and waiting agent runs.' },
+  { method: 'POST', path: '/_internal/engine/geo-tick', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every 15 minutes (minute 5, 20, 35, 50), ?budget=240. Newest Himawari-9 + GK2A slot for all 65 regions: fusion, rules, state machine, agent requests and waiting agent runs.' },
   { method: 'POST', path: '/_internal/engine/tick', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every 15 minutes, ?batch=20&budget=240. NASA POWER support only: one probe, then new hours per region. Sets no status.' },
   { method: 'POST', path: '/_internal/notifications/sweep', desc: 'asapify-notify. OIDC asapify-task from Cloud Scheduler every minute. Resumes pending fan-outs, queues pending jobs, marks stuck jobs unknown.' },
 ];
 
 /** One example body per `ExampleKey`; the contract page renders them next to each endpoint. */
 export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
-  // regions / region: the engine run locally on the real 11 Oct 2026 18:10 UTC slot (no humidity source in that run)
+  // regions / region: the engine run locally on the real 11 Oct 2026 18:10 UTC slot (no humidity source in that run),
+  // re-rated with the 16 Oct 2026 rules
   regions: [{
     id: 'R3.50S105.625E', province: '16', lat: -3.5, lon: 105.625, bounds: [105.3125, -3.75, 105.9375, -3.25], peat_km2: 66.7,
     status: 'ALERT', since: '2026-10-11T18:10:00Z', observed_at: '2026-10-11T18:10:00Z', utilities: { SAFE: 0, WARNING: 0, ALERT: 1 },
     updated_at: '2026-10-11T18:40:00Z', agent_requested_at: '2026-10-11T18:40:00Z', last_agent_at: '2026-10-11T18:40:00Z',
     verification: null,
-    inputs: { delta_t_k: 39.396, cloud_cover_pct: 0, relative_humidity_pct: null, hot_lat: -3.5658, hot_lon: 105.7343 },
+    inputs: { delta_t_k: 39.396, cloud_cover_pct: 0, relative_humidity_pct: null, dry_z: null, dry_source: null, hot_lat: -3.5658, hot_lon: 105.7343 },
     quality: { thermal: 'ACCEPTED', relative_humidity: 'MISSING' },
-    reason: 'ALERT has the highest utility (1.000); humidity unavailable, thermal input only',
+    reason: 'ALERT has the highest utility (1.000); ΔT 39.40 K counted as 39.40 K (no humidity anomaly)',
     flags: ['two_satellites_agree'], night: true,
   }],
   region: {
@@ -477,15 +482,16 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
         himawari9: { n_pixels: 686, n_clear: 686, cloud_fraction: 0, n_peat: 14, n_peat_clear: 14, background_k: 0.083, background_mad_k: 0.658, max_anomaly_k: 39.396, max_z: 59.92, n_hot: 18, n_hot_peat: 0, hot_on_peat: false, hot_lat: -3.577, hot_lon: 105.723, mwir_k: 342.45, lwir_k: 302.97, hot_pixels: [{ lat: -3.577, lon: 105.723, anomaly_k: 39.4 }, { lat: -3.561, lon: 105.741, anomaly_k: 31.2 }] },
         gk2a: { n_pixels: 825, n_clear: 825, cloud_fraction: 0, n_peat: 12, n_peat_clear: 12, background_k: -0.118, background_mad_k: 0.551, max_anomaly_k: 42.252, max_z: 76.68, n_hot: 19, n_hot_peat: 0, hot_on_peat: false, hot_lat: -3.566, hot_lon: 105.734, mwir_k: 348.04, lwir_k: 305.91, hot_pixels: [{ lat: -3.566, lon: 105.734, anomaly_k: 42.25 }] },
       },
-      inputs: { delta_t_k: 39.396, cloud_cover_pct: 0, relative_humidity_pct: null, hot_lat: -3.5658, hot_lon: 105.7343 },
+      inputs: { delta_t_k: 39.396, cloud_cover_pct: 0, relative_humidity_pct: null, dry_z: null, dry_source: null, hot_lat: -3.5658, hot_lon: 105.7343 },
       support: { viirs_support: 1 }, viirs: [{ lat: -3.569, lon: 105.729, acquired_at: '2026-10-11T17:46:00Z', confidence: 'n', distance_km: 0.9 }],
       quality: { thermal: 'ACCEPTED', relative_humidity: 'MISSING' }, flags: ['two_satellites_agree'],
-      sources: { thermal: 'Himawari-9 AHI B07-B13 and GK2A AMI SW038-IR105 brightness temperatures (NOAA open data on AWS)', relative_humidity: 'open_meteo', viirs_support: 'nasa_firms', power_support: 'nasa_power' },
+      sources: { thermal: 'Himawari-9 AHI B07-B13 and GK2A AMI SW038-IR105 brightness temperatures (NOAA open data on AWS)', relative_humidity: 'open_meteo', dryness: null, viirs_support: 'nasa_firms', power_support: 'nasa_power' },
       status: 'ALERT', utilities: { SAFE: 0, WARNING: 0, ALERT: 1 }, memberships: { delta_t_low: 0, delta_t_medium: 0, delta_t_high: 1, viirs_support: 1 },
-      reason: 'ALERT has the highest utility (1.000); humidity unavailable, thermal input only',
+      adjust: { delta_t_k: 39.396, dry_z: null, rh_shift_k: 0, sun_shift_k: 0, delta_t_eff_k: 39.396 },
+      reason: 'ALERT has the highest utility (1.000); ΔT 39.40 K counted as 39.40 K (no humidity anomaly)',
     }],
     hours: [], power: null,
-    transitions: [{ observed_at: '2026-10-11T18:10:00Z', previous: null, current: 'ALERT', utilities: { SAFE: 0, WARNING: 0, ALERT: 1 }, reason: 'ALERT has the highest utility (1.000); humidity unavailable, thermal input only' }],
+    transitions: [{ observed_at: '2026-10-11T18:10:00Z', previous: null, current: 'ALERT', utilities: { SAFE: 0, WARNING: 0, ALERT: 1 }, reason: 'ALERT has the highest utility (1.000); ΔT 39.40 K counted as 39.40 K (no humidity anomaly)' }],
     verifications: [],
   },
   dayIndex: {
@@ -512,6 +518,16 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
     confidence_score: 0.95, analysis: 'NASA FIRMS VIIRS shows 1,938 hotspots in the buffered region within 24 hours, 1,794 of nominal or high confidence, up to 367 K. This is a thermal indication, not a visual confirmation.',
     supporting_data: { firms_hotspot_count: 1938, highest_brightness_temp: 367 },
     draft_operator_alert: { title: 'Thermal indication in South Sumatra', message: 'NASA FIRMS shows many hotspots near peat region R3.50S105.625E. Verify in the field.' },
+    // visual_evidence, imagery, weather: illustrative values in the shape added on 16 Oct 2026, after this run
+    visual_evidence: { smoke: 'visible', burn_scar: 'visible', image_date: '2026-10-10', notes: 'Smoke drifts north-west from the hotspot cluster; a dark scar in the false-colour image.' },
+    imagery: {
+      date: '2026-10-10', hours_before_observation: 16.5, errors: [],
+      images: [
+        { view: 'true_color', url: 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=VIIRS_NOAA20_CorrectedReflectance_TrueColor%2CVIIRS_NOAA20_Thermal_Anomalies_375m_All&STYLES=%2C&CRS=EPSG%3A4326&BBOX=-3.8500%2C105.2125%2C-3.1500%2C106.0375&WIDTH=768&HEIGHT=652&FORMAT=image%2Fjpeg&TIME=2026-10-10' },
+        { view: 'false_color_swir', url: 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=VIIRS_NOAA20_CorrectedReflectance_BandsM11-I2-I1%2CVIIRS_NOAA20_Thermal_Anomalies_375m_All&STYLES=%2C&CRS=EPSG%3A4326&BBOX=-3.8500%2C105.2125%2C-3.1500%2C106.0375&WIDTH=768&HEIGHT=652&FORMAT=image%2Fjpeg&TIME=2026-10-10' },
+      ],
+    },
+    weather: { source: 'open_meteo', at: '2026-10-10T23:00Z', relative_humidity_pct: 78, wind_speed_ms: 1.9, wind_from_deg: 135, precipitation_24h_mm: 0 },
     checks: [], error: null,
     tool_calls: [{ hours_window: 24, buffer_km: 10, from: '2026-10-09T23:00:00Z', to: '2026-10-11T23:00:00Z', hotspot_count: 1938, confident_count: 1794, highest_brightness_temp_k: 367, error: null }],
     evidence: [{ lat: -3.42, lon: 105.71, acquired_at: '2026-10-11T06:24:00Z', hours_from_observation: 7.4, distance_km: 13.2, confidence: 'h', brightness_k: 367, frp_mw: 48.1, daynight: 'D', satellite: 'N21' }],

@@ -27,7 +27,7 @@ import '../player.css';
 type Filter = Status | 'NONE';
 const FILTERS: Filter[] = ['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE', 'NONE'];
 const RANK: Record<Filter, number> = { ALERT: 0, WARNING: 1, NO_OBSERVABLE: 2, SAFE: 3, NONE: 4 };
-const REFRESH_MS = 10 * 60_000; // one satellite slot every 10 minutes; polling faster only costs reads
+const REFRESH_MS = 15 * 60_000; // the engine rates one satellite slot every 15 minutes; polling faster only costs reads
 
 type Sort = 'severity' | 'delta_t' | 'verified';
 const dt = (r: RegionSummary) => r.inputs?.delta_t_k ?? -Infinity;

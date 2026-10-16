@@ -101,6 +101,7 @@ function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | 
               ? <span className="mono">ΔT {fmtSigned(power.delta_t_k, 1)} K · RH {power.relative_humidity_pct != null ? `${fmtNum(power.relative_humidity_pct, 0)}%` : '–'}</span>
               : '–'}
             {power && <span className="small">{t('rgi.power_when', { when: fmtSlot(power.observed_at) })}</span>}
+            {power?.dry_z != null && <span className="small">{t('rgi.power_dry', { z: fmtSigned(power.dry_z, 1), h: power.dry_z_hours ?? '–' })}</span>}
           </dd>
         </div>
       </dl>

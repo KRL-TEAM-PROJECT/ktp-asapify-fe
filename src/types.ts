@@ -34,7 +34,7 @@ export type Quality = 'ACCEPTED' | 'DEGRADED' | 'REJECTED' | 'MISSING';
 export type ValidationStatus = 'CONFIRMED' | 'REJECTED' | 'NEEDS_MANUAL_REVIEW';
 export type SatelliteName = 'himawari9' | 'gk2a';
 
-/** What one geostationary satellite saw in a region cell during one 10-minute slot. */
+/** What one geostationary satellite saw in a region cell during one slot (rated every 15 minutes). */
 export interface SatelliteView {
   n_pixels: number; // pixels whose centre is in the cell
   n_clear: number;
@@ -64,31 +64,45 @@ export interface RegionInputs {
   delta_t_k: number | null; // brightness-temperature anomaly the satellites confirm, K; null = not observable
   cloud_cover_pct: number | null; // share of the cell under cloud in the clearest view
   relative_humidity_pct: number | null; // Open-Meteo model value for the slot's hour
+  dry_z?: number | null; // how much drier the air is than its NASA POWER normal, in σ; absent in older records
+  dry_source?: DrySource | null; // where dry_z came from; null = no dryness, the curves are not moved
   hot_lat: number | null; // where the strongest anomaly is (the cell centre when there is none)
   hot_lon: number | null;
 }
 
+export type DrySource = 'nasa_power' | 'open_meteo_fallback';
+
 export interface SlotQuality { thermal: Quality; relative_humidity: Quality }
 
-/** One 10-minute satellite slot: the audit record the rules engine keeps. */
+/** How the environment moved the measured ΔT before the curves rated it (backend asapify_engine/rules.py). */
+export interface SlotAdjust {
+  delta_t_k: number; // measured: clear-weighted mean of the satellites that see the region
+  dry_z: number | null;
+  rh_shift_k: number; // + up to 1 K when the air is drier than its normal (− when wetter)
+  sun_shift_k: number; // − up to 1 K for the sun: reflected sunlight also raises the 3.9 µm channel
+  delta_t_eff_k: number; // ΔT counted = delta_t_k + rh_shift_k − sun_shift_k
+}
+
+/** One satellite slot, rated every 15 minutes: the audit record the rules engine keeps. */
 export interface SlotRecord {
   observed_at: string; // scan start of the slot, UTC
-  night: boolean; // sun below −6°: only then can the status reach ALERT
+  night: boolean; // sun below −6° (informational: ALERT can be reached day or night)
   sun_elevation_deg: number;
   views: Record<SatelliteName, SatelliteView | null>; // null = no data from that satellite
   inputs: RegionInputs;
   support: { viirs_support?: number; power_support?: number }; // only at a possible hotspot, 0–1
   viirs?: ViirsNear[]; // nearest first, at most 5; only at a possible hotspot
   quality: SlotQuality;
-  flags: string[]; // e.g. two_satellites_agree, satellites_disagree, single_satellite:gk2a, daytime, no_data:gk2a
-  sources: Record<string, string>;
+  flags: string[]; // e.g. two_satellites_agree, satellites_disagree, single_satellite:gk2a, daytime, dryness_fallback:open_meteo
+  sources: Record<string, string | null>; // dryness: null when no dryness was used
   status: Status;
   utilities: Partial<Record<RatedStatus, number>>; // empty when NO_OBSERVABLE
-  memberships: Record<string, number>;
+  memberships: Record<string, number>; // delta_t_low/medium/high (+ support); older records: humidity_low/high too
+  adjust?: SlotAdjust | null; // absent in records older than the shifted curves; null when NO_OBSERVABLE
   reason: string;
 }
 
-/** Latest NASA POWER hour of a region: supporting data, about 2–3 days behind. */
+/** Latest NASA POWER hour of a region, about 2–3 days behind: its humidity normal sets the dry-air shift. */
 export interface PowerSupport {
   observed_at: string;
   skin_temperature_k: number | null;
@@ -98,13 +112,18 @@ export interface PowerSupport {
   baseline: string;
   delta_t_k: number | null; // skin temperature − baseline
   relative_humidity_pct: number | null;
+  rh_baseline_pct?: number | null; // mean humidity, same UTC hour ±15 days, 2021–2025
+  rh_baseline_std_pct?: number | null;
+  dry_z?: number | null; // mean over the last 24 published hours, each against its own hour's normal
+  dry_z_hours?: number;
+  rh_normal?: { mean: (number | null)[]; std: (number | null)[] } | null; // % per UTC hour 0–23: the Open-Meteo fallback's normal
   updated_at: string;
 }
 
 /** One NASA POWER hour (support only: no status). */
 export interface PowerHour {
   observed_at: string;
-  inputs: Omit<PowerSupport, 'observed_at' | 'updated_at'>;
+  inputs: Omit<PowerSupport, 'observed_at' | 'updated_at' | 'dry_z_hours' | 'rh_normal'>;
   quality: { skin_temperature: Quality; relative_humidity: Quality };
   flags: string[];
 }
@@ -142,6 +161,30 @@ export interface AgentToolCall {
   error: string | null;
 }
 
+export type Seen = 'visible' | 'not_visible' | 'obscured' | 'no_image';
+
+/** What the agent reported seeing in the GIBS images. */
+export interface VisualEvidence { smoke: Seen; burn_scar: Seen; image_date: string | null; notes: string }
+
+/** The images the agent was shown: NASA GIBS URLs of the last daytime VIIRS overpass. */
+export interface VerificationImagery {
+  date: string | null; // overpass date
+  hours_before_observation: number | null;
+  images: { view: string; url: string }[]; // true_color, false_color_swir
+  errors: string[]; // views GIBS did not serve
+}
+
+/** Open-Meteo weather at the hot pixel, given to the agent as context. */
+export interface VerificationWeather {
+  source?: string;
+  at?: string | null; // null = the hour was outside the model's range
+  relative_humidity_pct?: number | null;
+  wind_speed_ms?: number | null;
+  wind_from_deg?: number | null;
+  precipitation_24h_mm?: number | null;
+  error?: string;
+}
+
 export interface Verification {
   id: string; // YYYYMMDDTHHMMSSZ
   region_id: string;
@@ -156,6 +199,9 @@ export interface Verification {
   analysis: string;
   supporting_data: { firms_hotspot_count: number; highest_brightness_temp: number | null } | null;
   draft_operator_alert: { title: string; message: string } | null;
+  visual_evidence?: VisualEvidence | null; // absent in verifications older than the visual check
+  imagery?: VerificationImagery | null;
+  weather?: VerificationWeather | null;
   checks: string[]; // why the backend downgraded the agent's answer
   error: string | null;
   tool_calls: AgentToolCall[];
@@ -202,7 +248,7 @@ export interface RegionSummary {
 export interface RegionDetail extends Omit<RegionSummary, 'inputs' | 'quality' | 'reason' | 'flags' | 'night'> {
   last_error: string | null;
   latest?: SlotRecord;
-  slots: SlotRecord[]; // oldest first, 6 per hour
+  slots: SlotRecord[]; // oldest first, 4 per hour (6 in records older than 16 October 2026)
   hours: PowerHour[]; // NASA POWER support, oldest first
   power?: PowerSupport | null;
   transitions: TransitionRecord[]; // newest first
@@ -231,7 +277,11 @@ export interface OperatorAccess {
   added_by: string | null; // null = granted by hand with the backend's tools/set_operator.py
   added_at: string | null;
   activated_at: string | null;
+  signup_until?: string | null; // self-registered for the judging period: access ends after this WIB day
 }
+
+/** Whether accounts can register themselves as operators (hackathon judging period only). */
+export interface SignupStatus { open: boolean; until: string | null; site_key: string | null }
 
 /** A Telegram group that receives every published alert; its chat id stays on the server. */
 export interface TelegramGroup {
@@ -294,6 +344,7 @@ export interface Api {
   unlinkTelegramGroup(id: string): Promise<void>;
   setTelegramInvite(id: string, inviteUrl: string | null): Promise<TelegramGroup>;
   joinLinks(): Promise<JoinLink[]>; // public, no sign-in
+  signupStatus(): Promise<SignupStatus>; // public
 }
 
 export class ApiError extends Error {

@@ -42,6 +42,12 @@ without public transport, Hosting gets a 403 before the request reaches the app.
 adds the custom claim `role=operator`. The admin checks the UID/email, then uses `tools/set_operator.py`
 from the BE repository; the user signs out and in again. No team email is allowed automatically.
 
+6. **Hackathon judging only:** while the backend has `OPERATOR_SIGNUP_UNTIL` and `RECAPTCHA_SITE_KEY` (BE
+`gcp/signup-setup.sh`), a signed-in account that is not an operator stays on the sign-in page and sees a reCAPTCHA
+Enterprise checkbox (`src/components/OperatorSignup.tsx`). Solving it sends the request by itself; the account
+becomes an operator until that day, without the Admin tab. The page loads `www.google.com/recaptcha/enterprise.js`
+only then. Nothing to set in the FE: the site key comes from `GET /api/v1/access/signup`.
+
 ## Checks
 
 - While the Firebase session restores, the page waits instead of rushing to the login page.

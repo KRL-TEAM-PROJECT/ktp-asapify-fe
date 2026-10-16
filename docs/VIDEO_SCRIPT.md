@@ -25,7 +25,7 @@ not live.
 | "In this replay the alert goes out 20 minutes after the scan" | Dropped. Cloud Tasks delivery with per-group status instead | Latency was never measured in the live system |
 | "On past fire seasons we measure how often AWAS comes before VIIRS" | One checked night slot: both satellites flagged the same 10 regions, each beside a VIIRS fire | No backtest was run; the day archive replays real slots |
 | "Operators can work from a phone, with a lite mode for slow connections" | The public map works on a phone, with a lite mode for Data Saver and low-end devices | The map is public now; lite mode reacts to the device, not the connection speed |
-| "Cloud Run, Gemini on Vertex AI, and Firebase" | Adds Firestore (and Cloud Scheduler, Cloud Tasks on the architecture card) | The real stack |
+| "Cloud Run, Gemini on Vertex AI, and Firebase" | Gemini Enterprise; adds Firestore (and Cloud Scheduler, Cloud Tasks on the architecture card) | The real stack |
 
 ## Before recording (blocking)
 
@@ -71,7 +71,7 @@ not live.
 | 2 | 0:12-0:30 | The problem | v3 scene 2 (three statistic cards with sources, peat cross-section: smouldering for days, then "first hotspot seen from space") | V03-V05 |
 | 3 | 0:30-0:52 | Two satellites, every 10 minutes | Public map `/`, day player on 16 Oct 00:00 WIB: 65 cells coloured by status, legend (Himawari-9 hot pixel; GK2A ring = both agree; VIIRS detection within 10 km and 12 h). Overlay: "Himawari-9 140.7° E · GK2A 128.2° E · every 10 min · NOAA Open Data". End on a hatched *Not observable* cell | V06-V08 |
 | 4 | 0:52-1:17 | Rules detect | Live, after dark: the region page of a region at Alert (e.g. `/regions/R3.50S105.625E`): "What the satellites saw at …" (strongest anomaly, 3.9 / 10.4 µm at that pixel, Sun: "Night (sun …°)", "Both satellites agree"), then the "Fuzzy MAUT result" bars and "Status changes". Text overlay: "3.9 µm test, 11 Oct night slot: all 6 cirrus false alarms removed". Short cut (recorded by day): "Day (sun …°): Warning at most" | V09-V12 |
-| 5 | 1:17-1:59 | Gemini investigates | `/regions/R3.50S105.625E`, "Agent verification": "Automatic, on entering Alert", "Confirmed indication", Confidence 0.95, FIRMS hotspots 683, Highest brightness 367.0 K, "Tool calls (1)" opened, Draft alert. Then `/regions/R1.50N98.750E`: "Needs manual review", "Tool calls (2)" opened (24 h / 10 km, then 48 h / 25 km), 0 hotspots. Hold on the line "No imagery is checked…"; show the Re-verify button signed in, without pressing it | V13-V18N |
+| 5 | 1:17-1:59 | Gemini investigates | `/regions/R3.50S105.625E`, "Gemini AI Analysis": "Automatic, on entering Alert", "Confirmed indication", Confidence 0.95, FIRMS hotspots 683, Highest brightness 367.0 K, "Tool calls (1)" opened, Draft alert. Then `/regions/R1.50N98.750E`: "Needs manual review", "Tool calls (2)" opened (24 h / 10 km, then 48 h / 25 km), 0 hotspots. Hold on the line "No imagery is checked…"; show the Re-verify button signed in, without pressing it | V13-V18N |
 | 6 | 1:59-2:21 | A person decides | Signed in: "Operator decision" → "Message for the Telegram group" → Publish → confirmation → "Yes, send" → delivery status "accepted by provider". Cut to a phone: the message arriving in the group. Then `/join`: "Get fire alerts on Telegram" → "Join on Telegram" | V19-V21B |
 | 7 | 2:21-2:39 | Replay any day | Map: "Play this day" over a gap-free stretch of 15 Oct; the day calendar with alert days. Text overlay (11 Oct is before the archive starts): "11 Oct 18:10 UTC · one night slot · same 10 regions on both satellites · each with a VIIRS fire within 1.4 km of the hot pixel · not a calibration" | V22R-V24 |
 | 8 | 2:39-2:57 | Phone, Google Cloud, close | Phone (390 px): public map with the bottom sheet. Architecture card: Cloud Run (API + private worker, Jakarta) · Cloud Scheduler · Cloud Tasks · Firestore · Gemini on Vertex AI + ADK · Firebase Hosting + Auth · Secret Manager · Artifact Registry · GitHub Actions via Workload Identity. Logo, URL, tagline | V27R-V26 |
@@ -96,7 +96,7 @@ v3's measured pace of about 2.7 words per second. Re-time from the rendered audi
 | V11 | Alert needs a night hotspot that both satellites see within eight kilometres. By day, it stops at Warning. | 6.7 |
 | V12 | Every status comes from auditable rules, with Fuzzy MAUT at the core. AI is not the detector. | 5.9 |
 | V13 | Gemini investigates. | 1.5 |
-| V14 | When a region enters Alert, an agent built with Google's Agent Development Kit, powered by Gemini on Vertex AI, gets one tool. | 8.2 |
+| V14 | When a region enters Alert, an agent built with Google's Agent Development Kit, powered by Gemini Enterprise, gets one tool. | 8.2 |
 | V15 | It pulls NASA FIRMS VIIRS hotspots around that region, and answers in a fixed YAML schema. | 5.9 |
 | V16N | In South Sumatra, it counted 683 hotspots in and around the region over 24 hours: a confirmed thermal indication. | 7.1 |
 | V17N | In North Sumatra, both satellites saw an anomaly of about ten kelvin, but VIIRS had nothing, even in a wider search: needs manual review. | 8.9 |
@@ -109,7 +109,7 @@ v3's measured pace of about 2.7 words per second. Re-time from the rendered audi
 | V23R | In one night slot we checked, both satellites flagged the same ten regions, all beside VIIRS fires. | 6.3 |
 | V24 | Small embers stay too faint for a pixel two to four kilometres wide. | 4.8 |
 | V27R | The public map works on a phone, with a lite mode for data saver and low-end devices. | 6.3 |
-| V25 | It all runs on Google Cloud: Cloud Run, Firestore, Gemini on Vertex AI, and Firebase. | 5.6 |
+| V25 | It all runs on Google Cloud: Cloud Run, Firestore, Gemini Enterprise, and Firebase. | 5.6 |
 | V26 | Rules detect. Gemini investigates. A person decides. | 4.0 |
 
 About 395 words and 148 s of speech; the scene windows add up to 2:57. Scenes 4, 5 and 7 have the least room (about
@@ -151,7 +151,7 @@ re-check note.
 > 2:39 Phone and Google Cloud
 >
 > Built on Google Cloud: Cloud Run, Cloud Scheduler, Cloud Tasks, Firestore, Secret Manager, Artifact Registry,
-> Gemini on Vertex AI, Agent Development Kit, Firebase Hosting and Auth.
+> Gemini Enterprise, Agent Development Kit, Firebase Hosting and Auth.
 > Data: Himawari-9 (JMA) and GK2A (KMA) via NOAA Open Data on AWS; NASA FIRMS and NASA POWER; Open-Meteo humidity
 > (CC BY 4.0); indicative peat map (KHG, KLHK); province boundaries from geoBoundaries (ODbL); basemap OpenFreeMap,
 > © OpenStreetMap contributors.
@@ -174,7 +174,7 @@ re-check note.
 | ALERT only at night with both satellites within 8 km; day / one satellite / disagreement capped at WARNING | BE `asapify_engine/fusion.py` (`agree_km = 8.0`, sun below −6°), `docs/ENGINE.md` items 4-5 |
 | Clouds (< 40 % clear, > 60 % cloud) = NOT OBSERVABLE, never SAFE; no utility is computed then | BE `fusion.py` `min_clear = 0.4`, `rules.py` `cloud_max = 60.0`; FE "Not rated: the slot is not observable" |
 | Fuzzy MAUT, safety margin 0.05, every transition stored | BE `asapify_engine/rules.py`, `fsm.py`; FE region page "Status changes" |
-| Agent: built with ADK, runs in the Cloud Run services, Gemini on Vertex AI, one tool `fetch_firms_data`, fixed YAML; the backend checks the hotspot count, the highest brightness and that CONFIRMED has a nominal/high hotspot | BE `asapify_agent/agent.py`, `asapify_engine/verifier.py`; env `GEMINI_MODEL=gemini-3.5-flash` |
+| Agent: built with ADK, runs in the Cloud Run services, Gemini Enterprise, one tool `fetch_firms_data`, fixed YAML; the backend checks the hotspot count, the highest brightness and that CONFIRMED has a nominal/high hotspot | BE `asapify_agent/agent.py`, `asapify_engine/verifier.py`; env `GEMINI_MODEL=gemini-3.5-flash` |
 | South Sumatra example: 683 hotspots in the region's cell plus 10 km over 24 h (638 nominal/high), highest 367 K, CONFIRMED 0.95, automatic, 1 tool call | Live `/api/v1/public/regions/R3.50S105.625E`, verification 15 Oct 2026 21:05 UTC (slot 20:40 UTC) |
 | North Sumatra example: both satellites agree at night, ΔT 9.9 K (Himawari 10.9 K, GK2A 9.9 K), 0 hotspots after widening from 24 h / 10 km to 48 h / 25 km, NEEDS_MANUAL_REVIEW 0.75 | Live `/api/v1/public/regions/R1.50N98.750E`, verification 15 Oct 2026 17:35 UTC (slot 17:00 UTC) |
 | 19 of 65 regions have a verification; their latest are 14 CONFIRMED and 5 NEEDS_MANUAL_REVIEW (17 automatic, 2 manual) | Live `/api/v1/public/regions`, 16 Oct |

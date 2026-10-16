@@ -1,7 +1,7 @@
 import {
   ApiError,
   type AgentInfo, type Api, type DayArchive, type DayIndex, type Decision, type OperatorAccess, type PeatRegions,
-  type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification, type JoinLink,
+  type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification, type JoinLink, type SignupStatus,
 } from './types';
 import { getOperatorToken, isOperator } from './auth';
 
@@ -46,7 +46,7 @@ const read = async (path: string) => `${(await isOperator()) ? '/operator' : '/p
 export const api: Api = {
   provinces: () => file<ProvinceBoundary>(`${import.meta.env.BASE_URL}provinces.geojson`),
   regions: async () => req<RegionSummary[]>(await read('/regions')),
-  // 6 slot records per hour are read per request (24 h = 144 reads), so ask only for what the page shows
+  // 4 slot records per hour are read per request (24 h = 96 reads), so ask only for what the page shows
   region: async (id, hours = 24, date) =>
     req<RegionDetail>(await read(`/regions/${enc(id)}?${date ? `date=${enc(date)}` : `hours=${hours}`}`)),
   // the day archive: one read per day, up to 33 per calendar month
@@ -73,5 +73,6 @@ export const api: Api = {
   setTelegramInvite: (id, inviteUrl) =>
     req<TelegramGroup>(`/operator/telegram-groups/${enc(id)}`, { method: 'PUT', body: JSON.stringify({ invite_url: inviteUrl }) }),
   joinLinks: () => req<JoinLink[]>('/telegram/join'),
+  signupStatus: () => req<SignupStatus>('/access/signup'),
 };
 

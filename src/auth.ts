@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import type { Auth, User as FirebaseUser } from 'firebase/auth';
 
-export interface User { uid: string; email: string; name: string; role: 'operator' | 'subscriber' }
+/** signupUntil: last day (WIB) of a self-registered operator's access for the judging period; null = added by the team. */
+export interface User { uid: string; email: string; name: string; role: 'operator' | 'subscriber'; signupUntil: string | null }
 interface AuthState { user: User | null; loading: boolean; error: string | null }
 const listeners = new Set<() => void>();
 let firebaseAuth: Auth | null = null;
@@ -12,10 +13,14 @@ function set(next: AuthState) {
   state = next;
   listeners.forEach((notify) => notify());
 }
+const API = import.meta.env.VITE_API_BASE ?? '';
+const wibToday = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 async function verifiedUser(user: FirebaseUser): Promise<User> {
   const token = await user.getIdTokenResult();
   if (!user.emailVerified) throw new Error('FORBIDDEN');
-  return { uid: user.uid, email: user.email ?? user.uid, name: user.displayName ?? user.email ?? 'ASAPify', role: token.claims.role === 'operator' ? 'operator' : 'subscriber' };
+  const until = typeof token.claims.signup_until === 'string' ? token.claims.signup_until : null;
+  const operator = token.claims.role === 'operator' && !(until && wibToday() > until); // a judging access ends by itself
+  return { uid: user.uid, email: user.email ?? user.uid, name: user.displayName ?? user.email ?? 'ASAPify', role: operator ? 'operator' : 'subscriber', signupUntil: operator ? until : null };
 }
 let activation: { uid: string; done: Promise<boolean> } | null = null;
 /**
@@ -25,7 +30,7 @@ let activation: { uid: string; done: Promise<boolean> } | null = null;
 function activate(user: FirebaseUser): Promise<boolean> {
   if (activation?.uid !== user.uid) {
     activation = { uid: user.uid, done: (async () => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE ?? ''}/api/v1/access/activate`, {
+      const response = await fetch(`${API}/api/v1/access/activate`, {
         method: 'POST', headers: { Authorization: `Bearer ${await user.getIdToken()}` },
       });
       if (!response.ok) return false;
@@ -79,6 +84,29 @@ export async function signIn(): Promise<User> {
     set({ user: null, loading: false, error: 'FORBIDDEN' });
     throw e;
   }
+}
+/**
+ * Self-registration for the hackathon judging period (backend POST /api/v1/access/signup): the reCAPTCHA token goes
+ * to the backend, which grants role=operator with signup_until. Throws the backend's error code.
+ */
+export async function registerOperator(captchaToken: string): Promise<User> {
+  await ready;
+  const current = firebaseAuth?.currentUser;
+  if (!current) throw new Error('UNAUTHENTICATED');
+  const response = await fetch(`${API}/api/v1/access/signup`, {
+    method: 'POST', body: JSON.stringify({ token: captchaToken }),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await current.getIdToken()}` },
+  });
+  if (!response.ok) {
+    let code = `HTTP_${response.status}`;
+    try { code = ((await response.json()) as { error?: { code?: string } }).error?.code ?? code; } catch { /* not JSON */ }
+    throw new Error(code);
+  }
+  await current.getIdToken(true); // the new claim only comes with a fresh token
+  const user = await verifiedUser(current);
+  ++sequence;
+  set({ user, loading: false, error: null });
+  return user;
 }
 export async function signOut(): Promise<void> {
   await ready;

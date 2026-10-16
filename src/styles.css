@@ -269,6 +269,9 @@ button { font: inherit; color: inherit; }
 .login-beat { font-family: var(--font-mono); font-weight: 700; letter-spacing: -0.03em; color: var(--ember-ink); white-space: nowrap; }
 .login-card { display: grid; gap: 16px; padding-top: 24px; border-top: 1px solid var(--line-strong); }
 .login-card h1 { font-size: var(--fs-lg); }
+.signup { display: grid; gap: 12px; }
+.signup-box { min-height: 78px; } /* the reCAPTCHA checkbox is 304 x 78 px: keep its place while it loads */
+.login-links { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
 
 /* ---------- join (public) ---------- */
 .join { max-width: 720px; gap: 24px; }

@@ -8,12 +8,14 @@
 the operator custom claim and the Cloud Run API; the app sends the Firebase token.
 
 ASAPify web app (Google Cloud AI Builder Cup 2026). **Public, no sign-in:** a map of 65 peat regions that the
-backend's risk engine rates every 10 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE),
+backend's risk engine rates every 15 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE),
 with each slot's hot pixels and the VIIRS detections beside them, a day player that opens any archived day, read-only
-region pages (ΔT, humidity and cloud timeline, Fuzzy MAUT utilities, status changes, the agent's verification), the
-Get alerts page for the Telegram group, and About. **Operators** (Google sign-in with the `role=operator` claim) also
-run the Gemini agent's NASA FIRMS verification (Re-verify), publish or reject each verification, and manage Telegram
-groups and operator access on the Admin page.
+region pages (ΔT, humidity and cloud timeline, how dry air and the sun moved ΔT, Fuzzy MAUT utilities, status
+changes, the Gemini AI Analysis with the NASA GIBS images it looked at and the weather at the hot pixel), the Get
+alerts page for the Telegram group, and About. **Operators** (Google sign-in with the `role=operator` claim) also run
+the Gemini AI Analysis (Re-verify), publish or reject each verification, and manage Telegram groups and operator
+access on the Admin page. During the hackathon judging, a signed-in account can make itself an operator after a
+CAPTCHA, without the Admin page (docs/GCP.md).
 
 - Design: [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) (mobile-first rules and the brand manual's visual language)
 - Engine and rules: `docs/ENGINE.md` in the backend repository, and the in-app About page

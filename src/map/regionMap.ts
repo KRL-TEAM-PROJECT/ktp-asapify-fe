@@ -10,7 +10,7 @@ import { localizeBasemap, styleFor, updateSource } from './layers';
 
 // Peat regions of the risk engine: one NASA POWER cell each (outline), the KHG peat inside it (fill by status),
 // the hot pixels both geostationary satellites saw in the open slot and the VIIRS detections beside them.
-// Statuses change at most every 10 minutes, so they live in the GeoJSON properties; no feature-state bookkeeping.
+// Statuses change at most every 15 minutes, so they live in the GeoJSON properties; no feature-state bookkeeping.
 setWorkerUrl(`${import.meta.env.BASE_URL}maplibre/maplibre-gl-worker.mjs`);
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };

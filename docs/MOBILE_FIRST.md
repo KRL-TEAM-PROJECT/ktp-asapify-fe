@@ -43,7 +43,7 @@ never features.
 - Each route loads only its own code; the map library loads only on the map. Fonts are self-hosted.
 - Data always shows its time ("Latest slot 12 Oct 01:10 UTC+7"), so stale data is visible. Missing data is never
   shown as Safe.
-- Poll no faster than the data changes (one satellite slot every 10 minutes). One day of the archive is one request.
+- Poll no faster than the data changes (one satellite slot rated every 15 minutes). One day of the archive is one request.
 - Lite mode (data saver, ≤ 2 GB RAM, ≤ 2 cores, or reduced motion): plain basemap, no camera animation, pixel
   ratio 1, no transform motion.
 

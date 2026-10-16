@@ -38,6 +38,8 @@
 .rg-key { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .rg-key i { display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 3px; vertical-align: middle; }
 .rg-key i.tick { width: 2px; height: 10px; border-radius: 0; background: var(--ember); }
+.rg-key i.line { width: 14px; height: 2px; border-radius: 0; background: var(--ink); }
+.rg-key i.line.thin { height: 1px; background: var(--ink-dim); }
 .rg-sats td:first-child { font-weight: 600; }
 .rg-sats .na { color: var(--ink-dim); }
 .rg-kv dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
@@ -61,6 +63,16 @@
 .rg-memb div { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-sm); border-bottom: 1px dashed var(--line); padding-bottom: 2px; }
 .rg-memb dt { color: var(--ink-dim); }
 .rg-memb dd { margin: 0; }
+.rg-adjust { margin: 0; display: grid; gap: 4px; padding: 8px 10px; background: var(--surface-2); border-radius: var(--r-2); }
+.rg-adjust div { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-sm); }
+.rg-adjust dt { color: var(--ink-dim); min-width: 0; }
+.rg-adjust dd { margin: 0; white-space: nowrap; }
+.rg-adjust .sum { border-top: 1px solid var(--line); padding-top: 4px; }
+.rg-adjust .sum dt { color: var(--ink); font-weight: 600; }
+.rg-images { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.rg-images figure { margin: 0; display: grid; gap: 4px; }
+.rg-images img { display: block; width: 100%; height: auto; border-radius: var(--r-2); background: var(--surface-2); }
+.rg-images figcaption { color: var(--ink-dim); }
 
 .rg-ver-run { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .rg-facts { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
@@ -103,6 +115,7 @@
 
 @media (min-width: 640px) {
   .rg-timeline svg { min-width: 0; }
+  .rg-images { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
   .rg-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }

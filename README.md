@@ -1,5 +1,8 @@
 # ktp-asapify-fe
 
+> **Frozen on 16 October 2026.** Development has stopped; this repository and its docs describe the app as it
+> stands. Only fixes that keep the deployed site running belong here.
+
 **GCP integration:** see [docs/GCP.md](docs/GCP.md) for Firebase Hosting, Google sign-in,
 the operator custom claim and the Cloud Run API; the app sends the Firebase token.
 
@@ -38,7 +41,7 @@ deployed by the GitHub Actions workflow described in [docs/GCP.md](docs/GCP.md).
 
 Open the **API contract** tab in the app (`/api-contract`, operators only). It lists conventions (auth, UTC time,
 `as_of`, coordinates, errors), the error code table, every `asapify-api` endpoint (parameters, body, responses,
-errors, the UI screens that use it), schemas, static files in the bucket, and the internal endpoints.
+errors, the UI screens that use it), schemas, the static map files, and the internal endpoints.
 JSON examples are static samples in `src/contract/spec.ts`.
 
 ## Light map
@@ -51,8 +54,8 @@ JSON examples are static samples in `src/contract/spec.ts`.
   ±90 KB in `public/provinces.geojson`.
 - Map labels (province names, OpenFreeMap basemap labels, MapLibre buttons) are English.
 
-The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). Every endpoint
-and field in the contract is listed in `backend.html` (aligned on 6 Oct 2026).
+The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). `backend.html` was last
+aligned on 6 Oct 2026 and is older than this contract; at the freeze the contract tab is the reference.
 
 ## Motion
 
@@ -81,4 +84,4 @@ to its end value; only opacity still fades. Spring presets live in `src/motion/p
   (dev) and copies them to `dist/maplibre/` (build); `setWorkerUrl` points there.
 - Basemap: OpenFreeMap `positron` (light) / `dark` (dark), no API key; a theme change calls `setStyle`
   and every data layer is reinstalled on `style.load`.
-- IBM Plex fonts are bundled through `@fontsource` (no Google Fonts).
+- Plus Jakarta Sans and JetBrains Mono are bundled through `@fontsource` (no Google Fonts).

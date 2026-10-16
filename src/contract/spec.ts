@@ -103,7 +103,7 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'ProvinceBoundary', origin: 'backend',
-    desc: 'Static file `layers/provinces.geojson` in the public bucket (not an API endpoint): the 15 Sumatra + Kalimantan provinces, simplified ≈ 90 KB (≈ 30 KB gzip). Source geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors).',
+    desc: 'Static file `/provinces.geojson` served with the app (not an API endpoint): the 15 Sumatra + Kalimantan provinces, simplified ≈ 90 KB (≈ 30 KB gzip). Source geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors).',
     fields: [
       { name: 'features[].properties.code', type: PROV_T, req: true, desc: 'BPS province code.' },
       { name: 'features[].properties.name', type: 'string', req: true, desc: 'Province name (map label).' },

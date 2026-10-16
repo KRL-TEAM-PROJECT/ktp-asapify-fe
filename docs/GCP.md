@@ -1,7 +1,7 @@
 # Firebase Hosting + Google sign-in
 
 The app sends Firebase tokens to the Cloud Run API.
-Status, 13 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
+Status at the freeze, 16 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
 Routine deploys go through GitHub Actions, not a laptop; see "Redeploy" below. Manual steps 1–5
 are only for a new project.
 
@@ -50,9 +50,8 @@ from the BE repository; the user signs out and in again. No team email is allowe
 - Without pipeline data, the "data not available" message appears; never read it as safe data.
 - The region detail page and its `/regions/:id` deep link work; the MapLibre worker is served as JavaScript.
 
-Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run and refusal of access without
-sign-in. Not tested yet: the operator flow with real data, publishing and
-the alert in the Telegram group. The MapLibre chunk size warning predates this work; it stays lazily loaded.
+Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, refusal of access without
+sign-in, the map with live satellite data, and an operator publishing an alert that reached the Telegram group. The MapLibre chunk size warning predates this work; it stays lazily loaded.
 
 ## Deploy
 

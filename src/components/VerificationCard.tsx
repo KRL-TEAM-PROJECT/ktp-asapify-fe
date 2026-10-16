@@ -21,6 +21,17 @@ function errorNote(code: string, t: (k: string, v?: Record<string, string | numb
   return s === key ? code : s;
 }
 
+/** The WMS request's own size, so the card keeps its height while GIBS renders (seconds) and buttons stay put. */
+function imageSize(url: string): { width?: number; height?: number } {
+  try {
+    const q = new URL(url).searchParams;
+    const width = Number(q.get('WIDTH')), height = Number(q.get('HEIGHT'));
+    return width > 0 && height > 0 ? { width, height } : {};
+  } catch {
+    return {};
+  }
+}
+
 /** The weather line, or null when Open-Meteo gave nothing for that hour. */
 function weatherText(w: VerificationWeather | null | undefined, t: (k: string, v?: Record<string, string | number>) => string) {
   if (!w || w.error || !w.at) return null;
@@ -45,7 +56,9 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
   const [error, setError] = useState<unknown>(null);
   const blocked = !agent ? null : !agent.configured ? t('agent.not_configured') : agent.remaining <= 0 ? t('agent.quota_used') : null;
   const confidence = (c: string) => { const key = `agent.conf.${c}`; const s = t(key); return s === key ? c : s; }; // VIIRS l/n/h; anything else as sent
-  const images = v?.imagery?.images ?? [];
+  const [failed, setFailed] = useState<string[]>([]); // images the browser could not load: left out, not shown broken
+  const images = (v?.imagery?.images ?? []).filter((img) => !failed.includes(img.url));
+  const viewName = (k: string) => { const key = `agent.image_view.${k}`; const s = t(key); return s === key ? k : s; };
   const weather = weatherText(v?.weather, t);
 
   async function verify() {
@@ -117,11 +130,14 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
               <h3>{t('agent.images', { date: v.imagery.date ?? '–', h: v.imagery.hours_before_observation != null ? fmtNum(v.imagery.hours_before_observation, 1) : '–' })}</h3>
               <div className="rg-images">
                 {images.map((img) => (
-                  <figure key={img.view}>
+                  <figure key={img.url}>
                     <a href={img.url} target="_blank" rel="noreferrer">
-                      <img src={img.url} alt={t(`agent.image_view.${img.view}`)} loading="lazy" />
+                      <img
+                        src={img.url} alt={viewName(img.view)} loading="lazy" {...imageSize(img.url)}
+                        onError={() => setFailed((f) => [...f, img.url])}
+                      />
                     </a>
-                    <figcaption className="small">{t(`agent.image_view.${img.view}`)}</figcaption>
+                    <figcaption className="small">{viewName(img.view)}</figcaption>
                   </figure>
                 ))}
               </div>

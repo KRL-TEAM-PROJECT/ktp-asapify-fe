@@ -94,11 +94,11 @@ export interface SlotRecord {
   viirs?: ViirsNear[]; // nearest first, at most 5; only at a possible hotspot
   quality: SlotQuality;
   flags: string[]; // e.g. two_satellites_agree, satellites_disagree, single_satellite:gk2a, daytime, dryness_fallback:open_meteo
-  sources: Record<string, string>;
+  sources: Record<string, string | null>; // dryness: null when no dryness was used
   status: Status;
   utilities: Partial<Record<RatedStatus, number>>; // empty when NO_OBSERVABLE
   memberships: Record<string, number>; // delta_t_low/medium/high (+ support); older records: humidity_low/high too
-  adjust?: SlotAdjust | null; // absent in records older than the shifted curves and when NO_OBSERVABLE
+  adjust?: SlotAdjust | null; // absent in records older than the shifted curves; null when NO_OBSERVABLE
   reason: string;
 }
 
@@ -116,7 +116,7 @@ export interface PowerSupport {
   rh_baseline_std_pct?: number | null;
   dry_z?: number | null; // mean over the last 24 published hours, each against its own hour's normal
   dry_z_hours?: number;
-  rh_normal?: [number, number][] | null; // [mean, σ] % per UTC hour 0–23: the Open-Meteo fallback's normal
+  rh_normal?: { mean: (number | null)[]; std: (number | null)[] } | null; // % per UTC hour 0–23: the Open-Meteo fallback's normal
   updated_at: string;
 }
 

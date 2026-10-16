@@ -23,7 +23,7 @@ export function RegionUtilities({ record }: { record: SlotRecord }) {
     );
   }
   const keys = [...MEMBERSHIPS, ...OPTIONAL.filter((k) => k in record.memberships)];
-  const a = record.adjust;
+  const a = record.adjust?.delta_t_eff_k != null ? record.adjust : null; // absent, null or {} without a shift
   const src = record.inputs.dry_source;
   return (
     <div className="rg-util">

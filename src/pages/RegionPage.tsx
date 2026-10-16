@@ -185,7 +185,13 @@ export function RegionPage() {
         )}
         {latest && (
           <dl className="facts">
-            <div className={latest.status === 'ALERT' ? 'hot' : ''}><dt>ΔT</dt><dd>{latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}</dd></div>
+            <div className={latest.status === 'ALERT' ? 'hot' : ''}>
+              <dt>ΔT</dt>
+              <dd>
+                {latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}
+                {latest.adjust?.delta_t_eff_k != null && <span className="small"> ({t('rgt.counted')} {fmtSigned(latest.adjust.delta_t_eff_k, 1)} K)</span>}
+              </dd>
+            </div>
             <div className="rg-fact-text"><dt>{t('rg.f_view')}</dt><dd><ViewText flags={latest.flags} /> · {t(latest.night ? 'rgt.night' : 'rgt.day')}</dd></div>
             <div><dt>{t('rg.f_rh')}</dt><dd>{latest.inputs.relative_humidity_pct != null ? `${fmtNum(latest.inputs.relative_humidity_pct, 0)}%` : '–'}</dd></div>
             <div><dt>{t('rg.f_cloud')}</dt><dd>{latest.inputs.cloud_cover_pct != null ? `${fmtNum(latest.inputs.cloud_cover_pct, 0)}%` : '–'}</dd></div>

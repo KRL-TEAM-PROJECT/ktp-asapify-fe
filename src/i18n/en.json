@@ -128,7 +128,7 @@
   "about.step2_d": "ΔBT = 3.9 µm − 10.4 µm, against the clear pixels of the same cell, slot and satellite. A pixel is fire-like only if the 3.9 µm channel itself also rose: thin cloud raises ΔBT without it.",
   "about.step3_t": "Fusion and rules",
   "about.step3_d": "ΔT is the mean of the satellites that see the region, weighted by how much each sees clear. Trapezoid memberships of ΔT give Safe, Warning and Alert; air drier than its NASA POWER normal moves the curves down by up to 1 K, and the midday sun moves them up by up to 1 K. VIIRS and POWER near the hotspot can only raise Alert. Cloud over 60 % means Not observable. Every change of status is recorded.",
-  "about.step4_t": "Agent verification",
+  "about.step4_t": "Gemini AI Analysis",
   "about.step4_d": "On entering Alert, or when an operator asks, a Gemini agent built with Google ADK calls fetch_firms_data for VIIRS hotspots, looks at NASA GIBS true- and false-colour images of the region with the weather at the hot pixel, and answers Confirmed, Rejected or Needs manual review in YAML. The backend checks its numbers against what the tool returned, and sends a Confirmed to manual review when clear images from the last 24 hours show neither smoke nor a burn scar.",
   "about.step5_t": "The operator decides",
   "about.step5_d": "The operator publishes or rejects each verification. The ASAPify bot posts every published alert in the ASAPify Telegram group; anyone can join it from Get alerts.",

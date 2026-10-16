@@ -6,6 +6,7 @@ import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
 import { fmtCoord, fmtDay, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { useStaleAge } from '../lib/stale';
 import { agreement, SATELLITE_NAMES } from '../lib/satellites';
 import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
 import { RegionTimeline } from '../components/RegionTimeline';
@@ -129,6 +130,7 @@ export function RegionPage() {
   const operator = useUser()?.role === 'operator';
   const agent = useLoad(() => api.agent().catch(() => null), [id, operator]);
   const r = q.data;
+  const stale = useStaleAge(date ? null : r?.observed_at); // an archived day is old on purpose
 
   if (q.loading && !r) {
     return (
@@ -190,6 +192,7 @@ export function RegionPage() {
             {v && <div><dt>{t('cluster.f_dec')}</dt><dd><DecisionState decision={v.decision} /></dd></div>}
           </dl>
         )}
+        {stale && <p className="error" role="status">{t('rg.stale_region', { age: stale })}</p>}
         <p className="callout"><IconAlert size={14} /> {t('rg.lag_note')}</p>
         {r.last_error && <p className="error" role="alert">{t('rg.last_error', { code: r.last_error })}</p>}
       </m.header>

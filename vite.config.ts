@@ -24,7 +24,7 @@ function maplibreWorker(): Plugin {
   };
 }
 
-// Live mode without VITE_API_BASE: /api/** is proxied to a local asapify-api in dev.
+// Without VITE_API_BASE, /api/** is proxied to a local asapify-api in dev.
 export default defineConfig({
   plugins: [react(), maplibreWorker()],
   build: {

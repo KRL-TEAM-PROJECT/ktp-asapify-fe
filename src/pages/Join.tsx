@@ -5,7 +5,7 @@ import { useLoad } from '../lib/useLoad';
 
 /**
  * Public page: the Telegram groups anyone may join to get ASAPify alerts. The bot posts every alert an operator
- * publishes there; no account, subscription or inbox in the app. Operators set the invite links on the Regions page.
+ * publishes there; no account, subscription or inbox in the app. Operators set the invite links on the Admin page.
  */
 export function JoinPage() {
   const { t } = useI18n();

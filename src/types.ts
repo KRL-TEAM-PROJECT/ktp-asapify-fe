@@ -16,7 +16,7 @@ export interface Decision {
   at: string;
   reason: string | null;
   alert_id: string | null;
-  /** Present in live API; absent in mock mode. A saved decision is not proof of delivery. */
+  /** A saved decision is not proof of delivery. */
 }
 
 export interface DecisionRequest {

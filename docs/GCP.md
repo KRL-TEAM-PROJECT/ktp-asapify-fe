@@ -1,8 +1,7 @@
 # Firebase Hosting + Google sign-in
 
-Live mode sends Firebase tokens to the Cloud Run API.
-Mock mode stays available; live mode never reads the demo login from localStorage.
-Status, 13 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
+The app sends Firebase tokens to the Cloud Run API.
+Status at the freeze, 16 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
 Routine deploys go through GitHub Actions, not a laptop; see "Redeploy" below. Manual steps 1–5
 are only for a new project.
 
@@ -10,17 +9,15 @@ are only for a new project.
 2. Create a Firebase Web App, enable the Google provider and Authorized domains, then fill `.env.local`:
 
 ```dotenv
-VITE_API_MODE=live
 VITE_API_BASE=
 VITE_FIREBASE_API_KEY=COPY_FROM_FIREBASE_WEB_APP
 VITE_FIREBASE_AUTH_DOMAIN=COPY_FROM_FIREBASE_WEB_APP
 VITE_FIREBASE_PROJECT_ID=SAME_PROJECT_ID
 VITE_FIREBASE_APP_ID=COPY_FROM_FIREBASE_WEB_APP
-VITE_PROVINCES_LAYER_URL=/mock/provinces.geojson
 ```
 
-The bundled province boundary file comes from geoBoundaries; although it sits in the `mock` folder, it holds
-boundary geometry, not detection points. Check the attribution before publishing.
+The bundled province boundary file `public/provinces.geojson` comes from geoBoundaries; it holds boundary
+geometry, not detection points. Check the attribution before publishing.
 
 3. Install dependencies from the lockfile and build:
 
@@ -47,16 +44,14 @@ from the BE repository; the user signs out and in again. No team email is allowe
 
 ## Checks
 
-- An old mock login never opens live-mode routes.
 - While the Firebase session restores, the page waits instead of rushing to the login page.
 - Operator requests send `Authorization: Bearer <ID token>`; the Firebase SDK refreshes the token.
 - Non-operator accounts get 403. Signing out and in again works on the Hosting domain.
 - Without pipeline data, the "data not available" message appears; never read it as safe data.
 - The region detail page and its `/regions/:id` deep link work; the MapLibre worker is served as JavaScript.
 
-Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run and refusal of access without
-sign-in. Not tested yet: the operator flow with real data, publishing and
-the alert in the Telegram group. The MapLibre chunk size warning predates this work; it stays lazily loaded.
+Proven on the live project: Google sign-in, the `/api/**` rewrite to Cloud Run, refusal of access without
+sign-in, the map with live satellite data, and an operator publishing an alert that reached the Telegram group. The MapLibre chunk size warning predates this work; it stays lazily loaded.
 
 ## Deploy
 
@@ -78,7 +73,7 @@ https://firebase.google.com/docs/auth/admin/custom-claims.
 ## Alerts in Telegram
 
 Alerts go to the team's Telegram group, nowhere else. An operator adds the bot to the group and pastes its invite
-link on the Regions page (Telegram groups panel); the ASAPify bot then posts every published alert there. The public
+link on the Admin page (Telegram groups panel); the ASAPify bot then posts every published alert there. The public
 **Get alerts** page (`/join`, no sign-in) shows a Join button for each group that has an invite link. Only operators
 sign in; any other account lands on `/join`. The backend side is in the BE repository's `docs/NOTIFICATIONS.md`.
 

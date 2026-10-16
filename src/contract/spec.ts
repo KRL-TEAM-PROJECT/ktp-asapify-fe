@@ -19,7 +19,7 @@ export interface Schema {
 }
 
 export type ExampleKey =
-  | 'health' | 'alerts' | 'closeReq' | 'closeRes'
+  | 'health'
   | 'deliveries' | 'joinLinks' | 'tgInviteReq'
   | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes'
   | 'dayIndex' | 'dayArchive'
@@ -50,7 +50,7 @@ export const CONVENTIONS: { title: string; body: string }[] = [
   },
   {
     title: 'Authentication',
-    body: '`operator` endpoints require `Authorization: Bearer <Firebase ID token>` with custom claim `role = "operator"`. Missing or invalid token → 401 `UNAUTHENTICATED`; no operator role → 403 `FORBIDDEN`. `public` endpoints need no header. (The mock-mode UI still uses a demo login.)',
+    body: '`operator` endpoints require `Authorization: Bearer <Firebase ID token>` with custom claim `role = "operator"`. Missing or invalid token → 401 `UNAUTHENTICATED`; no operator role → 403 `FORBIDDEN`. `public` endpoints need no header.',
   },
   {
     title: 'Time',
@@ -80,7 +80,6 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'NOT_FOUND', http: 404, when: 'Region or alert does not exist' },
   { code: 'VALIDATION', http: 400, when: 'Malformed parameter/body (e.g. `date` is not YYYY-MM-DD)' },
   { code: 'ALREADY_DECIDED', http: 409, when: 'Verification already published/rejected by another operator' },
-  { code: 'ALREADY_CLOSED', http: 409, when: 'Alert already closed' },
   { code: 'REASON_REQUIRED', http: 422, when: 'Reject without `reason`' },
   { code: 'CAPTION_INVALID', http: 422, when: 'Publish with an empty caption or > 1,024 characters' },
   { code: 'TELEGRAM_NOT_CONFIGURED', http: 503, when: 'The Telegram bot is not set up in the backend' },
@@ -104,7 +103,7 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'ProvinceBoundary', origin: 'backend',
-    desc: 'Static file `layers/provinces.geojson` in the public bucket (not an API endpoint): the 15 Sumatra + Kalimantan provinces, simplified ≈ 90 KB (≈ 30 KB gzip). Source geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors).',
+    desc: 'Static file `/provinces.geojson` served with the app (not an API endpoint): the 15 Sumatra + Kalimantan provinces, simplified ≈ 90 KB (≈ 30 KB gzip). Source geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors).',
     fields: [
       { name: 'features[].properties.code', type: PROV_T, req: true, desc: 'BPS province code.' },
       { name: 'features[].properties.name', type: 'string', req: true, desc: 'Province name (map label).' },
@@ -138,30 +137,6 @@ export const SCHEMAS: Schema[] = [
       { name: '…Decision', type: '—', req: true, desc: 'All Decision fields.' },
       { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_groups', groups: number, jobs: number} | null", req: true, desc: 'Saved outbox, not proof of delivery: one job per linked Telegram group. fanout_pending = the decision is saved but the jobs are not all queued yet; the backend sweep resumes it. no_groups = no group is linked.' },
       { name: 'queue', type: "{state: 'accepted'|'awaiting_recovery', count: number}", req: false, desc: 'Enqueue result for publish; Scheduler recovers enqueue failures.' },
-    ],
-  },
-  {
-    name: 'Alert', origin: 'backend',
-    desc: 'Alert published to the linked Telegram groups.',
-    fields: [
-      { name: 'id', type: 'string', req: true, desc: '`A-{region id}-{verification id}`.' },
-      { name: 'region_id', type: 'string', req: true, desc: 'Source region.' },
-      { name: 'verification_id', type: 'string', req: true, desc: 'The agent verification the operator published.' },
-      { name: 'province', type: PROV_T, req: true, desc: 'Province of the region; named in the Telegram message.' },
-      { name: 'caption', type: 'string', req: true, desc: 'Caption sent (or last edited).' },
-      { name: 'published_by', type: 'string (email)', req: true, desc: 'Publishing operator.' },
-      { name: 'published_at', type: ISO, req: true, desc: 'Publish time.' },
-      { name: 'status', type: "'active' | 'closed'", req: true, desc: 'closed = unsent Telegram jobs cancelled.' },
-      { name: 'closed_at', type: `${ISO} | null`, req: true, desc: 'Close time.' },
-      { name: 'closed_by', type: "string | 'system' | null", req: true, desc: "Operator email, or 'system' when the alert closed automatically." },
-      { name: 'notifications', type: "{state: 'fanout_pending'|'outbox_saved'|'no_groups', groups: number, jobs: number}", req: true, desc: 'Queue summary; per-channel status comes from /operator/alerts/{id}/deliveries.' },
-    ],
-  },
-  {
-    name: 'CloseRequest', origin: 'backend',
-    desc: 'Close an alert early.',
-    fields: [
-      { name: 'reason', type: 'string | null', req: false, desc: 'Note for audit_log.' },
     ],
   },
   {
@@ -462,27 +437,6 @@ export const ENDPOINTS: Endpoint[] = [
     errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
   },
   {
-    id: 'alerts', method: 'GET', path: '/operator/alerts', auth: 'operator',
-    title: 'Alert list',
-    purpose: 'Published alerts + their delivery status.',
-    usedBy: null,
-    params: [
-      { name: 'status', type: "query · 'active' | 'closed'", req: false, origin: 'backend', desc: 'Omitted = all.' },
-    ],
-    responses: [{ code: 200, schema: 'Alert', example: 'alerts', note: 'Alert[].' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
-  },
-  {
-    id: 'close', method: 'POST', path: '/operator/alerts/{id}/close', auth: 'operator',
-    title: 'Close alert',
-    purpose: 'Early close by an operator: unsent Telegram jobs are cancelled. Not implemented in the backend yet.',
-    usedBy: null,
-    params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Alert id, e.g. A-R2.00S113.750E-20230923T165500Z.' }],
-    body: { schema: 'CloseRequest', example: 'closeReq' },
-    responses: [{ code: 200, schema: 'Alert', example: 'closeRes' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ALREADY_CLOSED'],
-  },
-  {
     id: 'deliveries', method: 'GET', path: '/operator/alerts/{id}/deliveries', auth: 'operator',
     title: 'Delivery status per Telegram group',
     purpose: 'Every send job of one alert: the group\'s title, status and timestamps. Never a chat id.',
@@ -580,21 +534,6 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   tgInviteReq: { invite_url: 'https://t.me/+AbCdEf123456' },
   tgGroupLink: { url: 'https://t.me/asapify_alert_bot?startgroup=Qm9…x7Ze', expires_in_seconds: 600 },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },
-  alerts: [{
-    id: 'A-R2.00S113.750E-20230923T165500Z', region_id: 'R2.00S113.750E', verification_id: '20230923T165500Z', province: '62',
-    caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
-    published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
-    status: 'active', closed_at: null, closed_by: null,
-    notifications: { state: 'outbox_saved', groups: 1, jobs: 1 },
-  }],
-  closeReq: { reason: 'Fire out according to the Central Kalimantan disaster agency (BPBD)' },
-  closeRes: {
-    id: 'A-R2.00S113.750E-20230923T165500Z', region_id: 'R2.00S113.750E', verification_id: '20230923T165500Z', province: '62',
-    caption: '<b>ALERT · Suspected smouldering peat</b>\n📍 Central Kalimantan · -2.05, 113.69 · 6 pixels\n…',
-    published_by: 'operator@example.org', published_at: '2023-09-23T17:02:00Z',
-    status: 'closed', closed_at: '2023-09-26T02:00:00Z', closed_by: 'operator@example.org',
-    notifications: { state: 'outbox_saved', groups: 1, jobs: 1 },
-  },
   deliveries: [{
     id: '7b1d…09cf', channel: 'telegram_group', group: 'ASAPify Notified', status: 'accepted', error: null, attempts: 1,
     created_at: '2023-09-24T15:30:00Z', started_at: '2023-09-24T15:30:02Z', finished_at: '2023-09-24T15:30:03Z',

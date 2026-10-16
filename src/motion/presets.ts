@@ -7,8 +7,6 @@ export const spring: Transition = { type: 'spring', stiffness: 520, damping: 42,
 export const springSoft: Transition = { type: 'spring', stiffness: 300, damping: 34, mass: 0.9 };
 /** Bottom sheet spring: no excessive bounce when released from a drag. */
 export const springSheet: Transition = { type: 'spring', stiffness: 420, damping: 40, mass: 0.9 };
-/** For `auto` height: a spring can overshoot 0 and produce a negative height, so use a plain curve. */
-export const expandEase: Transition = { duration: 0.28, ease: [0.32, 0.72, 0, 1] };
 export const exitFast: Transition = { duration: 0.12, ease: 'easeIn' };
 
 /** Rise in slightly; `custom` = the order used for the stagger delay. */

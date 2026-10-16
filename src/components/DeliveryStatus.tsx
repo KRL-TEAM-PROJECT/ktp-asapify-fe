@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { getUserToken } from '../auth';
-import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
 
 type Row = { group: string | null; status: string; error: string | null }; // group = its title; null once unlinked
@@ -16,7 +15,6 @@ export function DeliveryStatus({ alertId, since }: { alertId: string; since: str
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
-    if (API_MODE !== 'live') return;
     let active = true;
     let timer: number | undefined;
     async function load() {
@@ -36,7 +34,6 @@ export function DeliveryStatus({ alertId, since }: { alertId: string; since: str
     void load();
     return () => { active = false; clearTimeout(timer); };
   }, [alertId, since]);
-  if (API_MODE !== 'live') return null;
   if (error) return <p className="error">{t('dlv.error')}</p>;
   if (!rows) return <p className="muted">{t('dlv.loading')}</p>;
   const counts = new Map<string, number>();

@@ -1,7 +1,10 @@
 # ktp-asapify-fe
 
+> **Frozen on 16 October 2026.** Development has stopped; this repository and its docs describe the app as it
+> stands. Only fixes that keep the deployed site running belong here.
+
 **GCP integration:** see [docs/GCP.md](docs/GCP.md) for Firebase Hosting, Google sign-in,
-the operator custom claim and the Cloud Run API. Live mode sends the Firebase token; mock mode stays available.
+the operator custom claim and the Cloud Run API; the app sends the Firebase token.
 
 ASAPify operator web app (Google Cloud AI Builder Cup 2026): a map of 65 peat regions that the backend's risk engine
 rates every 10 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE), with each slot's hot
@@ -18,44 +21,27 @@ a Re-verify button, and the publish/reject decision.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173; /api is proxied to an asapify-api on :8080
 npm run build      # tsc --noEmit + vite build → dist/
 ```
 
-Copy `.env.example` to `.env` when you need to change the mode:
+Needs Node ≥ 22.12 (`engines`). Copy `.env.example` to `.env.local` and fill it:
 
 | Variable | Value | Meaning |
 |---|---|---|
-| `VITE_API_MODE` | `mock` (default) / `live` | `mock` = fictional data without a backend; `live` = `asapify-api` |
-| `VITE_API_BASE` | URL | API base for live mode; empty = same origin (`/api` is proxied to `:8080` in dev) |
-| `VITE_PROVINCES_LAYER_URL` | GeoJSON URL | Province boundary layer in the public bucket (live mode) |
+| `VITE_API_BASE` | URL | API base; empty = same origin (`/api` is proxied to `:8080` in dev) |
+| `VITE_FIREBASE_*` | Firebase Web App config | Google sign-in for operators; see [docs/GCP.md](docs/GCP.md) |
 
 ## Deploy
 
-The judged prototype runs on Firebase Hosting in live mode at https://hack2skill-510921.web.app,
+The judged prototype runs on Firebase Hosting at https://hack2skill-510921.web.app,
 deployed by the GitHub Actions workflow described in [docs/GCP.md](docs/GCP.md).
-
-Vercel is only for mock-mode previews: import the repository in Vercel; settings come from `vercel.json`
-(Vite, `npm ci`, `npm run build`, output `dist/`). Without any environment variable the site runs in **mock mode**
-(fictional data + demo login). `vercel.json` also routes every path to `index.html` (a deep link such as
-`/regions/R3.50S105.625E` never 404s) and serves `/maplibre/*.mjs` as JavaScript for the map worker. Needs Node ≥ 22.12 (`engines`).
-
-> The mock-mode demo login protects nothing: anyone with the URL can enter. That is fine while the data is
-> fictional; live mode uses Firebase Auth.
-
-## Mock mode
-
-Regions (`/`): the real 65 regions and peat shapes from `public/regions.geojson` (built by the backend's
-`tools/build_regions.py`; copy it here when the region list changes), with generated 10-minute slots up to
-12 Oct 2026 01:10 UTC+7 and a day archive from 5 Oct, rated by a copy of the backend rules so every status appears.
-Re-verify returns a sample result after about 1.5 s. Decisions live in memory and disappear on reload. The login is a
-stand-in (no Firebase).
 
 ## API contract for the BE team
 
-Open the **API contract** tab in the app (`/api-contract`, public). It lists conventions (auth, UTC time,
+Open the **API contract** tab in the app (`/api-contract`, operators only). It lists conventions (auth, UTC time,
 `as_of`, coordinates, errors), the error code table, every `asapify-api` endpoint (parameters, body, responses,
-errors, the UI screens that use it), schemas, static files in the bucket, and the internal endpoints.
+errors, the UI screens that use it), schemas, the static map files, and the internal endpoints.
 JSON examples are static samples in `src/contract/spec.ts`.
 
 ## Light map
@@ -64,12 +50,12 @@ JSON examples are static samples in `src/contract/spec.ts`.
 - Lite mode switches on automatically with data saver, RAM ≤ 2 GB, ≤ 2 cores (or ≤ 4 cores with RAM ≤ 4 GB),
   or reduced motion: plain basemap, no camera animation, pixel ratio 1, and interface transform
   motion off (fades only). A choice saved earlier on the device (`asapify.lite`) overrides the detection.
-- Mock province boundaries: geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors), 15 provinces simplified to
-  ±90 KB in `public/mock/`. Live mode uses `VITE_PROVINCES_LAYER_URL`.
+- Province boundaries: geoBoundaries IDN ADM1 (ODbL, © OpenStreetMap contributors), 15 provinces simplified to
+  ±90 KB in `public/provinces.geojson`.
 - Map labels (province names, OpenFreeMap basemap labels, MapLibre buttons) are English.
 
-The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). Every endpoint
-and field in the contract is listed in `backend.html` (aligned on 6 Oct 2026).
+The data source is `src/contract/spec.ts` (TypeScript types stay in `src/types.ts`). `backend.html` was last
+aligned on 6 Oct 2026 and is older than this contract; at the freeze the contract tab is the reference.
 
 ## Motion
 
@@ -98,4 +84,4 @@ to its end value; only opacity still fades. Spring presets live in `src/motion/p
   (dev) and copies them to `dist/maplibre/` (build); `setWorkerUrl` points there.
 - Basemap: OpenFreeMap `positron` (light) / `dark` (dark), no API key; a theme change calls `setStyle`
   and every data layer is reinstalled on `style.load`.
-- IBM Plex fonts are bundled through `@fontsource` (no Google Fonts).
+- Plus Jakarta Sans and JetBrains Mono are bundled through `@fontsource` (no Google Fonts).

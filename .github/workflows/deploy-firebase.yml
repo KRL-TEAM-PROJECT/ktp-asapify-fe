@@ -42,12 +42,10 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
-          VITE_API_MODE: live
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: hack2skill-510921.firebaseapp.com
           VITE_FIREBASE_PROJECT_ID: hack2skill-510921
           VITE_FIREBASE_APP_ID: 1:950889990251:web:4a2937a1d2377d9541492e
-          VITE_PROVINCES_LAYER_URL: /mock/provinces.geojson
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

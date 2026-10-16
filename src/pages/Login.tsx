@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { signIn, useAuthState } from '../auth';
-import { API_MODE } from '../api';
 import { useI18n } from '../i18n';
 import { BrandMark, BrandWordmark } from '../components/BrandMark';
 import { m, springSoft } from '../motion';
@@ -44,9 +43,9 @@ export function LoginPage() {
       >
         <h1>{t('login.title')}</h1>
         <button className="btn primary wide" disabled={busy || loading} onClick={() => { void login(); }}>
-          {t(busy || loading ? 'login.wait' : API_MODE === 'live' ? 'login.google' : 'login.btn')}
+          {t(busy || loading ? 'login.wait' : 'login.google')}
         </button>
-        <p className="muted small">{t(API_MODE === 'live' ? 'login.live_note' : 'login.note')}</p>
+        <p className="muted small">{t('login.live_note')}</p>
         {(error || authError) && <p className="error" role="alert">{error ?? t(authError === 'FORBIDDEN' ? 'err.FORBIDDEN' : 'login.config_error')}</p>}
         <Link className="small" to="/about">{t('login.about')}</Link>
       </m.div>

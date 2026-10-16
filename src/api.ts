@@ -5,8 +5,6 @@ import {
 } from './types';
 import { getOperatorToken, isOperator } from './auth';
 
-export const API_MODE: 'mock' | 'live' = import.meta.env.VITE_API_MODE === 'live' ? 'live' : 'mock';
-
 const BASE = `${import.meta.env.VITE_API_BASE ?? ''}/api/v1`;
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -32,23 +30,21 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return r.json() as Promise<T>;
 }
 
-async function file<T>(url: string | undefined, empty: T): Promise<T> {
-  if (!url) return empty;
+async function file<T>(url: string): Promise<T> {
   const r = await fetch(url);
   if (!r.ok) throw new ApiError(r.status, 'LAYER_UNAVAILABLE', 'The map layer is not available yet.');
   return (await r.json()) as T;
 }
 
 const enc = encodeURIComponent;
-const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 // Peat inside each region (KHG, clipped per NASA POWER cell): a static file built by the backend's tools/build_regions.py.
-const peatRegions = () => file<PeatRegions>(`${import.meta.env.BASE_URL}regions.geojson`, EMPTY_FC);
+const peatRegions = () => file<PeatRegions>(`${import.meta.env.BASE_URL}regions.geojson`);
 
 // Reads: operators use /operator (full detail, never cached); everyone else /public (no names, CDN-cached).
 const read = async (path: string) => `${(await isOperator()) ? '/operator' : '/public'}${path}`;
 
-const liveApi: Api = {
-  provinces: () => file<ProvinceBoundary>(import.meta.env.VITE_PROVINCES_LAYER_URL, EMPTY_FC),
+export const api: Api = {
+  provinces: () => file<ProvinceBoundary>(`${import.meta.env.BASE_URL}provinces.geojson`),
   regions: async () => req<RegionSummary[]>(await read('/regions')),
   // 6 slot records per hour are read per request (24 h = 144 reads), so ask only for what the page shows
   region: async (id, hours = 24, date) =>
@@ -79,27 +75,3 @@ const liveApi: Api = {
   joinLinks: () => req<JoinLink[]>('/telegram/join'),
 };
 
-// Mock mode loads lazily: its code + fictional data stay out of the main chunk.
-const mockRegions = () => import('./mock/regions').then((m) => m.mockRegionApi);
-const mockAccess = () => import('./mock/access').then((m) => m.mockAccessApi);
-const mockApi: Api = {
-  provinces: () => file<ProvinceBoundary>(`${import.meta.env.BASE_URL}mock/provinces.geojson`, EMPTY_FC),
-  regions: () => mockRegions().then((m) => m.regions()),
-  region: (id, hours, date) => mockRegions().then((m) => m.region(id, hours, date)),
-  days: (month) => mockRegions().then((m) => m.days(month)),
-  day: (date) => mockRegions().then((m) => m.day(date)),
-  peatRegions,
-  agent: () => mockRegions().then((m) => m.agent()),
-  verifyRegion: (id) => mockRegions().then((m) => m.verifyRegion(id)),
-  decideRegion: (id, body) => mockRegions().then((m) => m.decideRegion(id, body)),
-  operatorAccess: () => mockAccess().then((m) => m.list()),
-  grantOperator: (email) => mockAccess().then((m) => m.grant(email)),
-  revokeOperator: (email) => mockAccess().then((m) => m.revoke(email)),
-  telegramGroups: () => mockAccess().then((m) => m.groups()),
-  linkTelegramGroup: () => mockAccess().then((m) => m.linkGroup()),
-  unlinkTelegramGroup: (id) => mockAccess().then((m) => m.unlinkGroup(id)),
-  setTelegramInvite: (id, inviteUrl) => mockAccess().then((m) => m.setInvite(id, inviteUrl)),
-  joinLinks: () => mockAccess().then((m) => m.joinLinks()),
-};
-
-export const api: Api = API_MODE === 'live' ? liveApi : mockApi;

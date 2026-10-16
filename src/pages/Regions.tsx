@@ -7,6 +7,7 @@ import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
 import { fmtDay, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { useStaleAge } from '../lib/stale';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { detectLite, loadLitePref } from '../lib/device';
 import { ISLANDS, PROVINCES, REGION, provincesOf } from '../lib/provinces';
@@ -64,6 +65,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
   // ---------- day archive: the date picker and the slot player ----------
   const all = regions.data ?? [];
   const latestSlot = useMemo(() => all.reduce<string | null>((a, r) => (r.observed_at && (!a || r.observed_at > a) ? r.observed_at : a), null), [all]);
+  const stale = useStaleAge(latestSlot);
   const liveDay = latestSlot ? dayOf(latestSlot) : null;
   const live = daySel == null;
   const viewDay = daySel ?? liveDay;
@@ -182,6 +184,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
             <span className="sw alert">{t('rg.peek_alert', { n: counts.ALERT })}</span>
             <span className="sw warning">{t('rg.peek_warning', { n: counts.WARNING })}</span>
             {(atLatest ? latestSlot : shownSlot?.at) && <span className="when">{fmtSlot((atLatest ? latestSlot : shownSlot?.at)!)}</span>}
+            {stale && <span className="sw stale">{t('rg.stale_short')}</span>}
           </>}
         >
           <div className="rg-head">
@@ -191,6 +194,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
               {latestSlot ? t('rg.latest_slot', { when: fmtSlot(latestSlot) }) : t('rg.no_slot')}
               {agent.data && <> · {agent.data.configured ? t('agent.quota', { left: agent.data.remaining, total: agent.data.daily_quota }) : t('agent.off')}</>}
             </p>
+            {stale && <p className="error small" role="status">{t('rg.stale', { age: stale })}</p>}
             {!atLatest && viewDay && (
               <p className="rg-archive small" role="status">
                 {t('rg.archive', { date: fmtDay(viewDay), time: cur >= 0 ? slotTime(cur) : '–' })}{' '}

@@ -4,7 +4,7 @@ import { api } from '../api';
 import { useUser } from '../auth';
 import { useI18n } from '../i18n';
 import { errorText } from '../lib/errors';
-import { fmtSlot } from '../lib/format';
+import { fmtDay, fmtSlot } from '../lib/format';
 
 const EMAIL = /^[^@\s/]+@[^@\s/]+\.[^@\s/]+$/; // same check as the backend, so the operator gets a precise message
 
@@ -70,7 +70,9 @@ export function OperatorAccess() {
                 <span className="mono small">{r.email}</span>
                 <span className={`pill outline ${r.state === 'active' ? 'q-ok' : 'q-mid'}`}>{t(`access.${r.state}`)}</span>
               </span>
-              {r.added_by && r.added_at && (
+              {r.signup_until && r.added_at ? (
+                <span className="muted small">{t('access.self', { when: fmtSlot(r.added_at), until: fmtDay(r.signup_until) })}</span>
+              ) : r.added_by && r.added_at && (
                 <span className="muted small">{t('access.added_by', { who: r.added_by, when: fmtSlot(r.added_at) })}</span>
               )}
               <span className="rg-access-act">

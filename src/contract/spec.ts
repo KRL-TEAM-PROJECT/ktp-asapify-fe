@@ -23,7 +23,8 @@ export type ExampleKey =
   | 'deliveries' | 'joinLinks' | 'tgInviteReq'
   | 'regions' | 'region' | 'agentInfo' | 'regionVerifyRes' | 'regionDecisionReq' | 'regionDecisionRes'
   | 'dayIndex' | 'dayArchive'
-  | 'accessList' | 'accessReq' | 'accessRes' | 'activateRes' | 'tgGroups' | 'tgGroupLink';
+  | 'accessList' | 'accessReq' | 'accessRes' | 'activateRes' | 'tgGroups' | 'tgGroupLink'
+  | 'signupStatus' | 'signupReq' | 'signupRes';
 
 export interface Endpoint {
   id: string;
@@ -89,6 +90,11 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'VERIFIED_RECENTLY', http: 409, when: 'The region was verified less than 5 minutes ago' },
   { code: 'VERIFICATION_REJECTED', http: 409, when: 'Publish on a verification the agent rejected' },
   { code: 'CANNOT_REMOVE_SELF', http: 409, when: 'An operator tried to remove their own operator access' },
+  { code: 'ADMIN_ONLY', http: 403, when: 'A self-registered (judging) operator called an Admin route: operator access or Telegram groups' },
+  { code: 'SIGNUP_ENDED', http: 403, when: 'A self-registered operator after the judging window (OPERATOR_SIGNUP_UNTIL) has passed' },
+  { code: 'SIGNUP_CLOSED', http: 403, when: 'Self-registration requested while it is closed' },
+  { code: 'CAPTCHA_FAILED', http: 403, when: 'The reCAPTCHA Enterprise token is invalid, for another action, or too risky' },
+  { code: 'CAPTCHA_UNAVAILABLE', http: 503, when: 'reCAPTCHA Enterprise could not be reached to check the token' },
 ];
 
 export const SCHEMAS: Schema[] = [
@@ -253,7 +259,7 @@ export const SCHEMAS: Schema[] = [
     desc: 'Whether the Re-verify button can run.',
     fields: [
       { name: 'configured', type: 'boolean', req: true, desc: 'FIRMS key and project present.' },
-      { name: 'model', type: 'string', req: true, desc: 'Gemini model on Vertex AI.' },
+      { name: 'model', type: 'string', req: true, desc: 'Gemini model on Gemini Enterprise.' },
       { name: 'daily_quota, used_today, remaining', type: 'integer', req: true, desc: 'Hard daily quota (UTC day), taken before any model call.' },
       { name: 'max_tool_calls', type: 'integer', req: true, desc: 'FIRMS calls per run.' },
     ],
@@ -361,7 +367,7 @@ export const ENDPOINTS: Endpoint[] = [
     purpose: 'Every account holding role=operator plus the addresses waiting for their first sign-in. Asks Firebase for all operator accounts, so the UI loads it only when the panel opens.',
     usedBy: 'Regions map → Operator access panel.',
     responses: [{ code: 200, schema: 'OperatorAccess[]', example: 'accessList' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'ADMIN_ONLY'],
   },
   {
     id: 'operator-access-grant', method: 'POST', path: '/operator/access', auth: 'operator',
@@ -370,7 +376,7 @@ export const ENDPOINTS: Endpoint[] = [
     usedBy: 'Regions map → Operator access panel → Add operator.',
     body: { schema: '{ email: string }', example: 'accessReq' },
     responses: [{ code: 201, schema: 'OperatorAccess', example: 'accessRes' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION', 'ADMIN_ONLY'],
   },
   {
     id: 'operator-access-revoke', method: 'POST', path: '/operator/access/revoke', auth: 'operator',
@@ -379,7 +385,7 @@ export const ENDPOINTS: Endpoint[] = [
     usedBy: 'Regions map → Operator access panel → Remove.',
     body: { schema: '{ email: string }', example: 'accessReq' },
     responses: [{ code: 200, schema: "{ email, state: 'removed' }" }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION', 'NOT_FOUND', 'CANNOT_REMOVE_SELF'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'VALIDATION', 'NOT_FOUND', 'CANNOT_REMOVE_SELF', 'ADMIN_ONLY'],
   },
   {
     id: 'tg-groups', method: 'GET', path: '/operator/telegram-groups', auth: 'operator',
@@ -387,7 +393,7 @@ export const ENDPOINTS: Endpoint[] = [
     purpose: 'Groups that receive every published alert. The title only; the chat id stays on the server.',
     usedBy: 'Regions map → Telegram groups panel.',
     responses: [{ code: 200, schema: '{ id, title, invite_url, linked_by, linked_at }[]', example: 'tgGroups' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'ADMIN_ONLY'],
   },
   {
     id: 'tg-group-link', method: 'POST', path: '/operator/telegram-groups/link', auth: 'operator',
@@ -395,7 +401,7 @@ export const ENDPOINTS: Endpoint[] = [
     purpose: 'A one-time t.me/<bot>?startgroup=<code> link, valid 10 minutes. Telegram asks which group, adds the bot and posts /start@<bot> <code> there; the webhook then links that group.',
     usedBy: 'Regions map → Telegram groups panel → Add the bot to a group.',
     responses: [{ code: 200, schema: '{ url: string, expires_in_seconds: 600 }', example: 'tgGroupLink' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'TELEGRAM_NOT_CONFIGURED'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'TELEGRAM_NOT_CONFIGURED', 'ADMIN_ONLY'],
   },
   {
     id: 'tg-group-invite', method: 'PUT', path: '/operator/telegram-groups/{id}', auth: 'operator',
@@ -405,7 +411,7 @@ export const ENDPOINTS: Endpoint[] = [
     params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Group id from the list (64 hex characters).' }],
     body: { schema: '{ invite_url: string | null }', example: 'tgInviteReq' },
     responses: [{ code: 200, schema: '{ id, title, invite_url, linked_by, linked_at }' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'VALIDATION', 'ADMIN_ONLY'],
   },
   {
     id: 'public-reads', method: 'GET', path: '/public/regions · /public/regions/{id} · /public/days · /public/days/{date}', auth: 'public',
@@ -430,7 +436,7 @@ export const ENDPOINTS: Endpoint[] = [
     usedBy: 'Regions map → Telegram groups panel → Unlink.',
     params: [{ name: 'id', type: 'path · string', req: true, origin: 'backend', desc: 'Group id from the list (64 hex characters).' }],
     responses: [{ code: 200, schema: '{ unlinked: true }' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ADMIN_ONLY'],
   },
   {
     id: 'access-activate', method: 'POST', path: '/access/activate', auth: 'user',
@@ -439,6 +445,23 @@ export const ENDPOINTS: Endpoint[] = [
     usedBy: 'Sign-in (auth.ts), once per account and page load.',
     responses: [{ code: 200, schema: "{ role: 'operator' | null, changed: boolean }", example: 'activateRes' }],
     errors: ['UNAUTHENTICATED', 'FORBIDDEN'],
+  },
+  {
+    id: 'access-signup-status', method: 'GET', path: '/access/signup', auth: 'public',
+    title: 'Is self-registration open (judging period)',
+    purpose: 'Whether a signed-in account can register itself as an operator for the hackathon judging, until which WIB day, and the reCAPTCHA Enterprise site key to show. Closed unless the backend has OPERATOR_SIGNUP_UNTIL (not past) and RECAPTCHA_SITE_KEY.',
+    usedBy: 'Sign-in page.',
+    responses: [{ code: 200, schema: '{ open: boolean, until: YYYY-MM-DD | null, site_key: string | null }', example: 'signupStatus' }],
+    errors: [],
+  },
+  {
+    id: 'access-signup', method: 'POST', path: '/access/signup', auth: 'user',
+    title: 'Register as operator with a CAPTCHA (judging period)',
+    purpose: 'Sent by itself once the reCAPTCHA checkbox is solved (action operator_signup). The backend checks the token with one assessment and sets role=operator plus signup_until; the app then refreshes the ID token. Such an operator cannot use the Admin routes (ADMIN_ONLY) and loses access after that day (SIGNUP_ENDED). An operator the team added is unchanged.',
+    usedBy: 'Sign-in page → Operator access for judging.',
+    body: { schema: '{ token: string }', example: 'signupReq' },
+    responses: [{ code: 200, schema: "{ role: 'operator', changed: boolean, signup_until: YYYY-MM-DD | null }", example: 'signupRes' }],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'SIGNUP_CLOSED', 'CAPTCHA_FAILED', 'CAPTCHA_UNAVAILABLE'],
   },
   {
     id: 'deliveries', method: 'GET', path: '/operator/alerts/{id}/deliveries', auth: 'operator',
@@ -543,6 +566,9 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
     { email: 'operator@example.org', state: 'active', added_by: null, added_at: null, activated_at: null },
   ],
   accessReq: { email: 'judge@example.org' },
+  signupStatus: { open: true, until: '2026-10-31', site_key: '6LcX…aBcD' },
+  signupReq: { token: '03AFcWeA…' },
+  signupRes: { role: 'operator', changed: true, signup_until: '2026-10-31' },
   accessRes: { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
   activateRes: { role: 'operator', changed: true },
   tgGroups: [{ id: '9c1f…4be2', title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456', linked_by: 'operator@example.org', linked_at: '2026-10-15T03:20:00Z' }],

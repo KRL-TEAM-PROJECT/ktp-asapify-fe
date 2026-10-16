@@ -20,12 +20,12 @@ function PageFallback() {
   return <div className="page-fallback" aria-busy="true"><div className="skel" /></div>;
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
+function RequireAuth({ children, admin = false }: { children: ReactNode; admin?: boolean }) {
   const { user, loading } = useAuthState();
   const loc = useLocation();
   if (loading) return <PageFallback />;
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname + loc.search }} />;
-  if (user.role !== 'operator') return <Navigate to="/" replace />;
+  if (user.role !== 'operator' || (admin && user.signupUntil)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -58,7 +58,7 @@ function TopBar({ theme }: { theme: ReturnType<typeof useTheme> }) {
           <NavItem to="/" end>{t('nav.regions')}</NavItem>
           <NavItem to="/join">{t('nav.join')}</NavItem>
           <NavItem to="/about">{t('nav.about')}</NavItem>
-          {user?.role === 'operator' && <NavItem to="/admin">{t('nav.admin')}</NavItem>}
+          {user?.role === 'operator' && !user.signupUntil && <NavItem to="/admin">{t('nav.admin')}</NavItem>}
           {user?.role === 'operator' && (
             <NavItem to="/api-contract">
               <span className="nl-full">{t('nav.api')}</span><span className="nl-short">{t('nav.api_short')}</span>
@@ -114,7 +114,7 @@ function Root() {
         {/* the map and region pages are public and read-only; actions show for operators only */}
         <Route path="/" element={<RegionsPage dark={theme.dark} />} />
         <Route path="/regions/:id" element={<RegionPage />} />
-        <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth admin><AdminPage /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

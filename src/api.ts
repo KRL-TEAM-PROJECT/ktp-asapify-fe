@@ -1,7 +1,7 @@
 import {
   ApiError,
   type AgentInfo, type Api, type DayArchive, type DayIndex, type Decision, type OperatorAccess, type PeatRegions,
-  type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification, type JoinLink,
+  type ProvinceBoundary, type RegionDetail, type RegionSummary, type TelegramGroup, type Verification, type JoinLink, type SignupStatus,
 } from './types';
 import { getOperatorToken, isOperator } from './auth';
 
@@ -73,5 +73,6 @@ export const api: Api = {
   setTelegramInvite: (id, inviteUrl) =>
     req<TelegramGroup>(`/operator/telegram-groups/${enc(id)}`, { method: 'PUT', body: JSON.stringify({ invite_url: inviteUrl }) }),
   joinLinks: () => req<JoinLink[]>('/telegram/join'),
+  signupStatus: () => req<SignupStatus>('/access/signup'),
 };
 

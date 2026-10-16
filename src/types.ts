@@ -277,7 +277,11 @@ export interface OperatorAccess {
   added_by: string | null; // null = granted by hand with the backend's tools/set_operator.py
   added_at: string | null;
   activated_at: string | null;
+  signup_until?: string | null; // self-registered for the judging period: access ends after this WIB day
 }
+
+/** Whether accounts can register themselves as operators (hackathon judging period only). */
+export interface SignupStatus { open: boolean; until: string | null; site_key: string | null }
 
 /** A Telegram group that receives every published alert; its chat id stays on the server. */
 export interface TelegramGroup {
@@ -340,6 +344,7 @@ export interface Api {
   unlinkTelegramGroup(id: string): Promise<void>;
   setTelegramInvite(id: string, inviteUrl: string | null): Promise<TelegramGroup>;
   joinLinks(): Promise<JoinLink[]>; // public, no sign-in
+  signupStatus(): Promise<SignupStatus>; // public
 }
 
 export class ApiError extends Error {

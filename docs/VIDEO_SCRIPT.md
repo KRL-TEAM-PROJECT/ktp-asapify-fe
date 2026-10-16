@@ -74,7 +74,7 @@ not live.
 | 5 | 1:17-1:59 | Gemini investigates | `/regions/R3.50S105.625E`, "Gemini AI Analysis": "Automatic, on entering Alert", "Confirmed indication", Confidence 0.95, FIRMS hotspots 683, Highest brightness 367.0 K, "Tool calls (1)" opened, Draft alert. Then `/regions/R1.50N98.750E`: "Needs manual review", "Tool calls (2)" opened (24 h / 10 km, then 48 h / 25 km), 0 hotspots. Hold on the line "No imagery is checked…"; show the Re-verify button signed in, without pressing it | V13-V18N |
 | 6 | 1:59-2:21 | A person decides | Signed in: "Operator decision" → "Message for the Telegram group" → Publish → confirmation → "Yes, send" → delivery status "accepted by provider". Cut to a phone: the message arriving in the group. Then `/join`: "Get fire alerts on Telegram" → "Join on Telegram" | V19-V21B |
 | 7 | 2:21-2:39 | Replay any day | Map: "Play this day" over a gap-free stretch of 15 Oct; the day calendar with alert days. Text overlay (11 Oct is before the archive starts): "11 Oct 18:10 UTC · one night slot · same 10 regions on both satellites · each with a VIIRS fire within 1.4 km of the hot pixel · not a calibration" | V22R-V24 |
-| 8 | 2:39-2:57 | Phone, Google Cloud, close | Phone (390 px): public map with the bottom sheet. Architecture card: Cloud Run (API + private worker, Jakarta) · Cloud Scheduler · Cloud Tasks · Firestore · Gemini on Vertex AI + ADK · Firebase Hosting + Auth · Secret Manager · Artifact Registry · GitHub Actions via Workload Identity. Logo, URL, tagline | V27R-V26 |
+| 8 | 2:39-2:57 | Phone, Google Cloud, close | Phone (390 px): public map with the bottom sheet. Architecture card: Cloud Run (API + private worker, Jakarta) · Cloud Scheduler · Cloud Tasks · Firestore · Gemini Enterprise + ADK · Firebase Hosting + Auth · Secret Manager · Artifact Registry · GitHub Actions via Workload Identity. Logo, URL, tagline | V27R-V26 |
 
 ## Narration
 
@@ -184,7 +184,7 @@ re-check note.
 | One night slot checked: both satellites hot in the same 10 regions, each with a VIIRS fire within 1.4 km of the hot pixel | BE `docs/ENGINE.md` (Validation, 11 Oct 2026 18:10 UTC) |
 | Small fires below a 2-4 km pixel | FE About page (Limitations) |
 | Mobile first; lite mode on Data Saver, ≤ 2 GB RAM, a weak CPU or reduced motion | FE `docs/MOBILE_FIRST.md`, `src/lib/device.ts` |
-| Google Cloud services | Live project `hack2skill-510921`: Cloud Run `asapify-api` + `asapify-notify`, Scheduler (3 jobs), Cloud Tasks, Firestore `asapify`, Secret Manager, Artifact Registry, Vertex AI, Firebase Hosting + Auth |
+| Google Cloud services | Live project `hack2skill-510921`: Cloud Run `asapify-api` + `asapify-notify`, Scheduler (3 jobs), Cloud Tasks, Firestore `asapify`, Secret Manager, Artifact Registry, Gemini Enterprise, Firebase Hosting + Auth |
 | Scene 2 statistics | v3 scene 2 cards: SiPongi (Ministry of Forestry), Ministry of Health via IQAir, NEA via Malay Mail. V03 not confirmed on 16 Oct |
 
 ## Do not say

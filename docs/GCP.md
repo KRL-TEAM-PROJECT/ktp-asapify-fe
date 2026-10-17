@@ -82,9 +82,9 @@ https://firebase.google.com/docs/auth/admin/custom-claims.
 
 Alerts go to the team's Telegram group, nowhere else. An operator adds the bot to the group and pastes its invite
 link on the Admin page (Telegram groups panel); the ASAPify bot then posts every published alert there. The public
-**Get alerts** page (`/join`, no sign-in) always lists the team's alert group (`ALERT_GROUP_URL` in
-`src/lib/telegram.ts`, https://t.me/+dWeL0KTSkbYxOTE9), also while the API is unreachable, and adds a Join button for
-every other group that has an invite link. Only operators
+**Get alerts** page (`/join`, no sign-in) shows what the backend's `GET /api/v1/telegram/join` returns: the team's
+alert group first (the backend keeps its link, https://t.me/+dWeL0KTSkbYxOTE9, also before an operator saves it), then
+a Join button for every other group that has an invite link. Only operators
 sign in; any other account lands on the public map (`/`). The backend side is in the BE repository's `docs/NOTIFICATIONS.md`.
 
 `notification-sw.js` is the retired service worker of the old /notifications page (offline inbox and push). It now

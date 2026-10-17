@@ -426,7 +426,7 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'join-links', method: 'GET', path: '/telegram/join', auth: 'public',
     title: 'Telegram groups to join',
-    purpose: 'Title and invite link of every linked group that has one. Public: no sign-in, nothing else about the group.',
+    purpose: 'The team\'s alert group first (the backend keeps its link: TEAM_GROUP, or TELEGRAM_JOIN_URL), then the title and invite link of every linked group that has one; a linked group saved with the team\'s link takes its place. Public: no sign-in, nothing else about the group.',
     usedBy: 'Get alerts page (/join).',
     responses: [{ code: 200, schema: '{ title, invite_url }[]', example: 'joinLinks' }],
     errors: [],
@@ -574,7 +574,7 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   accessRes: { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
   activateRes: { role: 'operator', changed: true },
   tgGroups: [{ id: '9c1f…4be2', title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456', linked_by: 'operator@example.org', linked_at: '2026-10-15T03:20:00Z' }],
-  joinLinks: [{ title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456' }],
+  joinLinks: [{ title: 'ASAPify alert group', invite_url: 'https://t.me/+dWeL0KTSkbYxOTE9' }, { title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456' }],
   tgInviteReq: { invite_url: 'https://t.me/+AbCdEf123456' },
   tgGroupLink: { url: 'https://t.me/asapify_alert_bot?startgroup=Qm9…x7Ze', expires_in_seconds: 600 },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },

@@ -10,7 +10,7 @@
   "join.title": "Get fire alerts on Telegram",
   "join.lede": "The ASAPify bot posts every peat-fire alert an operator publishes in our Telegram group. Join the group to read them; no account needed.",
   "join.open": "Join on Telegram",
-  "join.group": "ASAPify alert group",
+  "join.none": "No group is open to join right now. Please try again later.",
   "join.note_what": "Each alert is written by an ASAPify operator after the AI agent checked the satellite data.",
   "join.note_where": "Each alert names the region, the coordinates of the hot pixel with a map link, and the satellite slot.",
   "join.note_indication": "An alert is an indication from satellites, not a confirmed fire. Check with local authorities before acting.",

@@ -12,7 +12,8 @@ export function useLoad<T>(fn: () => Promise<T>, deps: DependencyList) {
     setState((s) => ({ data: s.data, loading: true }));
     fn().then(
       (data) => { if (alive) setState({ data, loading: false }); },
-      (error: Error) => { if (alive) setState({ error, loading: false }); },
+      // a failed reload keeps what was shown: callers show the error beside it, not an empty screen
+      (error: Error) => { if (alive) setState((s) => ({ data: s.data, error, loading: false })); },
     );
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

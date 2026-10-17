@@ -119,13 +119,14 @@ export function RegionsPage({ dark }: { dark: boolean }) {
       if (document.visibilityState !== 'visible') return;
       polled.current = Date.now();
       regions.reload(); agent.reload();
+      if (!index.data) index.reload();
       if (live) archive.reload();
     };
     const id = setInterval(refresh, REFRESH_MS);
     const onShow = () => { if (Date.now() - polled.current >= REFRESH_MS) refresh(); };
     document.addEventListener('visibilitychange', onShow);
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onShow); };
-  }, [regions.reload, agent.reload, archive.reload, live]);
+  }, [regions.reload, agent.reload, archive.reload, index.reload, index.data, live]);
 
   // Statuses and ΔT of the open slot; the live list keeps everything the API sends.
   const shown = useMemo<RegionSummary[]>(() => {
@@ -235,7 +236,9 @@ export function RegionsPage({ dark }: { dark: boolean }) {
       <div className={`map-page ${sheetOpen ? 'sheet-open' : ''} ${lite ? 'is-lite' : ''}`} style={{ ['--peek' as string]: `${peekPx}px` }}>
         <Sheet
           open={sheetOpen} onOpenChange={setSheetOpen} enabled={isSheet} label={t('rg.panel')} onPeekHeight={setPeekPx}
-          peek={<>
+          peek={!regions.data ? (
+            <span className={regions.error ? 'sw stale' : 'muted'}>{t(regions.error ? 'rg.peek_error' : 'rg.peek_loading')}</span>
+          ) : <>
             <span className="sw alert">{t('rg.peek_alert', { n: counts.ALERT })}</span>
             <span className="sw warning">{t('rg.peek_warning', { n: counts.WARNING })}</span>
             {(atLatest ? latestSlot : shownSlot?.at) && <span className="when">{fmtSlot((atLatest ? latestSlot : shownSlot?.at)!)}</span>}
@@ -298,7 +301,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
               <button className="link-btn" onClick={regions.reload}>{t('retry')}</button>
             </div>
           )}
-          {archive.error && !atLatest && (
+          {archive.error && (
             <div className="error" role="alert">
               {t('load_error', { msg: errorText(archive.error, t) })}{' '}
               <button className="link-btn" onClick={archive.reload}>{t('retry')}</button>

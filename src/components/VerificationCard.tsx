@@ -108,7 +108,7 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
       {error != null && <p className="error" role="alert">{errorText(error, t)}</p>}
 
       {!v ? (
-        <p className="muted">{t('agent.none')}</p>
+        <p className="muted">{t(readOnly ? 'agent.none_public' : 'agent.none')}</p>
       ) : (
         <>
           <p className="muted small">
@@ -197,13 +197,13 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
               <div className="rg-table-wrap">
                 <table className="rg-table">
                   <thead>
-                    <tr><th>{t('agent.col.when')}</th><th>{t('agent.col.dist')}</th><th>{t('agent.col.conf')}</th><th>FRP</th><th>{t('agent.col.bt')}</th></tr>
+                    <tr><th>{t('agent.col.when')}</th><th>{t(v.evidence.some((h) => h.distance_hot_km != null) ? 'agent.col.dist_hot' : 'agent.col.dist_centre')}</th><th>{t('agent.col.conf')}</th><th>FRP</th><th>{t('agent.col.bt')}</th></tr>
                   </thead>
                   <tbody>
                     {v.evidence.map((h, i) => (
                       <tr key={i}>
                         <td>{fmtSlot(h.acquired_at)} <span className="muted">({fmtSigned(h.hours_from_observation, 1)} h)</span></td>
-                        <td className="mono">{fmtNum(h.distance_km, 1)} km</td>
+                        <td className="mono">{fmtNum(h.distance_hot_km ?? h.distance_km, 1)} km</td>
                         <td>{confidence(h.confidence)}</td>
                         <td className="mono">{h.frp_mw != null ? `${fmtNum(h.frp_mw, 1)} MW` : '–'}</td>
                         <td className="mono">{h.brightness_k != null ? `${fmtNum(h.brightness_k, 1)} K` : '–'}</td>

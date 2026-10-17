@@ -246,7 +246,7 @@ export class RegionMapController {
     });
     this.map.addLayer({
       id: 'cell-label', type: 'symbol', source: 'rg-labels', minzoom: 7.5,
-      layout: { 'text-field': ['get', 'id'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-allow-overlap': false },
+      layout: { 'text-field': ['get', 'id'], 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-allow-overlap': false },
       paint: { 'text-color': c.ink, 'text-halo-color': c.halo, 'text-halo-width': 1.5 },
     });
   }

@@ -119,7 +119,7 @@ export interface PowerSupport {
   baseline: string;
   delta_t_k: number | null; // skin temperature − baseline
   relative_humidity_pct: number | null;
-  rh_baseline_pct?: number | null; // mean humidity, same UTC hour ±15 days, 2021–2025
+  rh_baseline_pct?: number | null; // mean humidity, same UTC hour ±15 days, the two years before (five until 17 Oct 2026)
   rh_baseline_std_pct?: number | null;
   dry_z?: number | null; // mean over the last 24 published hours, each against its own hour's normal
   dry_z_hours?: number;
@@ -150,6 +150,7 @@ export interface Hotspot {
   acquired_at: string;
   hours_from_observation: number;
   distance_km: number; // from the region centre
+  distance_hot_km?: number; // from the hot pixel under review (since 17 Oct 2026)
   confidence: string; // VIIRS: l / n / h
   brightness_k: number | null;
   frp_mw: number | null;

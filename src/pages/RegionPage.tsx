@@ -146,7 +146,7 @@ export function RegionPage() {
     );
   }
 
-  if (q.error || !r) {
+  if (!r) {
     const notFound = q.error instanceof ApiError && q.error.status === 404;
     return (
       <div className="wrap detail">
@@ -173,6 +173,7 @@ export function RegionPage() {
         <Link className="back" to="/"><IconArrowLeft />{t('rg.back')}</Link>
         <div className="title-row">
           <h1 className="mono">{r.id}</h1>
+          {date && r.status && <span className="small muted">{t('rg.now')}</span>}
           {r.status ? <StatusBadge status={r.status} /> : <span className="pill grey">{t('rg.unprocessed')}</span>}
           {v && <ValidationBadge status={v.validation_status} />}
         </div>
@@ -214,6 +215,12 @@ export function RegionPage() {
             {updating ? t('rg.updating') : t('rg.refresh')}
           </button>
         </div>
+        {q.error != null && (
+          <p className="error small" role="alert">
+            {t('load_error', { msg: errorText(q.error, t) })}{' '}
+            <button className="link-btn" onClick={reload}>{t('retry')}</button>
+          </p>
+        )}
         <RegionTimeline slots={slots} updating={updating} />
       </m.section>
 

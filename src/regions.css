@@ -31,16 +31,16 @@
 .map-legend { min-width: 0; max-width: 100%; max-height: min(100%, 60dvh); display: flex; flex-direction: column;
   background: color-mix(in srgb, var(--surface) 95%, transparent); border: 1px solid var(--line-strong); border-radius: var(--r-2);
   box-shadow: var(--shadow-pop); }
-.lg-head { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 12px; min-height: 40px; }
+.lg-head { flex: none; display: flex; align-items: center; gap: 6px; padding: 2px 2px 0 12px; min-height: 44px; }
 .lg-head .lg-title { margin-right: auto; }
 .lg-title { font-size: var(--fs-sm); font-weight: 700; color: var(--ink); }
 /* the two header buttons and the folded pill: worded, with a hairline box, so it is plain that they act */
-.lg-act { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px; border: 0; border-radius: var(--r-1);
+.lg-act { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 10px; border: 0; border-radius: var(--r-1);
   background: none; color: var(--ink-dim); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
   box-shadow: inset 0 0 0 1px var(--line-strong); transition: color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
 .lg-act:hover, .lg-pill:hover .lg-act { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink-dim); }
 .lg-act[aria-expanded="true"]:not([aria-controls="lg-body"]) { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.lg-pill { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 6px 0 12px; border: 0; border-radius: var(--r-2);
+.lg-pill { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 6px 0 12px; border: 0; border-radius: var(--r-2);
   background: none; color: var(--ink); font: inherit; cursor: pointer; }
 .lg-pill .lg-act { box-shadow: none; padding: 0 4px; }
 .lg-pill:focus-visible, .lg-act:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
@@ -87,7 +87,7 @@
 .rg-timeline svg text.ax.zone { font-weight: 700; }
 /* phones: the chart keeps a readable scale and scrolls sideways instead of shrinking its labels to 5 px */
 .rg-timeline { overflow-x: auto; overscroll-behavior-x: contain; transition: opacity var(--dur-2) var(--ease-out); }
-.rg-timeline svg { min-width: 760px; display: block; }
+.rg-timeline svg { min-width: 960px; display: block; } /* 13-unit labels in a 1040-wide viewBox: 12 px at 960 */
 .rg-timeline.is-updating { opacity: 0.55; }
 .rg-tl-plot { position: relative; }
 .rg-tl-plot svg { cursor: crosshair; touch-action: pan-x pan-y; }

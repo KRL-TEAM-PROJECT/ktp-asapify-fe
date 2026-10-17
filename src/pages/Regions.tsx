@@ -37,6 +37,38 @@ const SORTS: Record<Sort, (a: RegionSummary, b: RegionSummary) => number> = {
   verified: (a, b) => (b.verification?.at ?? '').localeCompare(a.verification?.at ?? ''), // ISO UTC sorts as text
 };
 
+type T = (key: string, vars?: Record<string, string | number>) => string;
+
+/** The map's hover tooltip for one region, built as DOM (text only, nothing parsed as HTML). */
+function tipNode(r: RegionSummary, t: T, view: string | null, live: boolean): HTMLElement {
+  const root = document.createElement('div');
+  const add = (cls: string, text: string) => {
+    const el = document.createElement('div');
+    el.className = cls;
+    el.textContent = text;
+    root.appendChild(el);
+  };
+  add('tip-id mono', r.id);
+  add('tip-sub', `${t(`prov.${r.province}`)} · ${t('rg.peat', { km2: fmtNum(r.peat_km2, 0) })}`);
+  add(`tip-status pill st-${(r.status ?? 'none').toLowerCase()}`, r.status ? t(STATUS_KEY[r.status]) : t('rg.unprocessed'));
+  const i = r.inputs;
+  if (i?.delta_t_k != null) {
+    add('tip-row mono', i.delta_t_max_k != null && i.delta_t_max_k > i.delta_t_k
+      ? t('map.tip_dt_max', { dt: fmtSigned(i.delta_t_k, 1), max: fmtSigned(i.delta_t_max_k, 1) })
+      : t('map.tip_dt', { dt: fmtSigned(i.delta_t_k, 1) }));
+  }
+  if (live && i && (i.relative_humidity_pct != null || i.cloud_cover_pct != null)) {
+    add('tip-row mono', t('map.tip_env', {
+      rh: i.relative_humidity_pct != null ? `${fmtNum(i.relative_humidity_pct, 0)}%` : '–',
+      cloud: i.cloud_cover_pct != null ? `${fmtNum(i.cloud_cover_pct, 0)}%` : '–',
+    }));
+  }
+  if (view) add('tip-row', view);
+  if (r.verification) add('tip-row', `${t('ver.title')}: ${t(`vs.${r.verification.validation_status}`)}`);
+  add('tip-hint', t('map.tip_hint'));
+  return root;
+}
+
 // A day nothing was archived on (404) is an empty day, not an error.
 const orNone = <T,>(p: Promise<T>) => p.catch((e) => { if (e instanceof ApiError && e.status === 404) return null; throw e; });
 
@@ -142,6 +174,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
   };
 
   // ---------- map ----------
+  const describe = useRef<(id: string) => HTMLElement | null>(() => null);
   const onSelect = useRef<(id: string | null) => void>(() => {});
   onSelect.current = (id) => {
     setSelected(id);
@@ -149,7 +182,9 @@ export function RegionsPage({ dark }: { dark: boolean }) {
     if (id && window.matchMedia('(max-width: 1023px)').matches) setSheetOpen(true);
   };
   useEffect(() => {
-    const c = new RegionMapController(mapEl.current!, { dark, lite, onSelect: (id) => onSelect.current(id) });
+    const c = new RegionMapController(mapEl.current!, {
+      dark, lite, onSelect: (id) => onSelect.current(id), describe: (id) => describe.current(id),
+    });
     ctl.current = c;
     return () => { c.destroy(); ctl.current = null; };
     // created once; later changes go through the controller
@@ -182,6 +217,10 @@ export function RegionsPage({ dark }: { dark: boolean }) {
     return r.night != null ? `${view} · ${t(r.night ? 'rgt.night' : 'rgt.day')}` : view;
   };
   const detail = (id: string) => (atLatest || !viewDay ? `/regions/${id}` : `/regions/${id}?date=${viewDay}`);
+  describe.current = (id) => {
+    const r = shown.find((x) => x.id === id);
+    return r ? tipNode(r, t, viewTag(r), atLatest) : null;
+  };
 
   const focus = (r: RegionSummary) => {
     setSelected(r.id);
@@ -308,22 +347,24 @@ export function RegionsPage({ dark }: { dark: boolean }) {
               </AnimatePresence>
             </ul>
           )}
-
-          <details className="legend">
-            <summary>{t('map.legend')}</summary>
-            <ul>
-              {(['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE'] as Status[]).map((s) => <li key={s}><StatusBadge status={s} /> {t(`rg.legend.${s}`)}</li>)}
-              <li><i className="lg-line thin" />{t('rg.legend.cell')}</li>
-              <li><i className="lg-px himawari9" />{t('rg.legend.himawari9')}</li>
-              <li><i className="lg-px gk2a" />{t('rg.legend.gk2a')}</li>
-              <li><i className="lg-px viirs" />{t('rg.legend.viirs')}</li>
-            </ul>
-            <p className="muted small">{t('rg.sources')}</p>
-          </details>
         </Sheet>
 
         <div className="map-wrap">
           <div ref={mapEl} className="map" role="region" aria-label={t('rg.map_aria')} />
+          {/* the legend sits on the map, top right beside the zoom buttons: open on wide screens, one tap on phones */}
+          <div className="map-overlay top-right">
+            <details className="legend map-legend" open={!isSheet}>
+              <summary>{t('map.legend')}</summary>
+              <ul>
+                {(['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE'] as Status[]).map((s) => <li key={s}><StatusBadge status={s} /> {t(`rg.legend.${s}`)}</li>)}
+                <li><i className="lg-line thin" />{t('rg.legend.cell')}</li>
+                <li><i className="lg-px himawari9" />{t('rg.legend.himawari9')}</li>
+                <li><i className="lg-px gk2a" />{t('rg.legend.gk2a')}</li>
+                <li><i className="lg-px viirs" />{t('rg.legend.viirs')}</li>
+              </ul>
+              <p className="muted small">{t('rg.sources')}</p>
+            </details>
+          </div>
           {viewDay && index.data?.first && index.data.last && (
             <div className="map-overlay bottom">
               <DayPlayer

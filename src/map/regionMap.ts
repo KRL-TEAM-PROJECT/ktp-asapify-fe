@@ -1,5 +1,5 @@
 import {
-  AttributionControl, FullscreenControl, Map as MlMap, NavigationControl, ScaleControl, setWorkerUrl,
+  AttributionControl, FullscreenControl, Map as MlMap, NavigationControl, Popup, ScaleControl, setWorkerUrl,
   type ExpressionSpecification, type LngLatBoundsLike,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -14,10 +14,11 @@ import { localizeBasemap, styleFor, updateSource } from './layers';
 setWorkerUrl(`${import.meta.env.BASE_URL}maplibre/maplibre-gl-worker.mjs`);
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
-// brand manual: Canopy Emerald = SAFE, Warning Ochre = WARNING, Thermal Amber = ALERT and heat marks, Peat Charcoal = ink
+// statuses green / yellow / red (styles.css --moss / --amber / --ember); data marks in hues no status uses, so a hot
+// pixel or a VIIRS dot never reads as a status: Himawari-9 blue, VIIRS magenta, GK2A an ink ring
 const PALETTE = {
-  light: { SAFE: '#1B4D3E', WARNING: '#D97706', ALERT: '#EA580C', NO_OBSERVABLE: '#94A3B8', none: '#CBD5E1', ink: '#1E293B', halo: '#FFFFFF', hot: '#EA580C' },
-  dark: { SAFE: '#5FA88A', WARNING: '#F59E0B', ALERT: '#FB8B55', NO_OBSERVABLE: '#64748B', none: '#334155', ink: '#F8FAFC', halo: '#0F172A', hot: '#FB8B55' },
+  light: { SAFE: '#15803D', WARNING: '#CA8A04', ALERT: '#DC2626', NO_OBSERVABLE: '#94A3B8', none: '#CBD5E1', ink: '#1E293B', halo: '#FFFFFF', himawari: '#2563EB', viirs: '#C026D3' },
+  dark: { SAFE: '#4ADE80', WARNING: '#FACC15', ALERT: '#F87171', NO_OBSERVABLE: '#64748B', none: '#334155', ink: '#F8FAFC', halo: '#0F172A', himawari: '#60A5FA', viirs: '#F0ABFC' },
 };
 
 /** A square marker at 2x for crisp edges: satellite pixels are drawn as what they are, square footprints. */
@@ -37,6 +38,8 @@ export interface RegionMapOptions {
   dark: boolean;
   lite: boolean;
   onSelect(id: string | null): void;
+  /** Tooltip content for a region under the pointer; null = no tooltip. */
+  describe(id: string): HTMLElement | null;
 }
 
 type CellProps = { id: string; status: string | null };
@@ -90,6 +93,8 @@ export class RegionMapController {
   private provinces: ProvinceBoundary = EMPTY;
   private hot: Record<string, DayHot> = {};
   private selected: string | null = null;
+  private hovered: string | null = null;
+  private readonly tip = new Popup({ closeButton: false, closeOnClick: false, className: 'rg-tip', offset: 14, maxWidth: '280px' });
   private ready = false;
   // phones: the day player and the sheet's peek cover the bottom of the map, so framing leaves room for them
   private readonly narrow = window.matchMedia('(max-width: 1023px)').matches;
@@ -135,7 +140,23 @@ export class RegionMapController {
       o.onSelect(f ? String(f.properties?.id) : null);
     });
     this.map.on('mouseenter', 'cell-fill', () => { this.map.getCanvas().style.cursor = 'pointer'; });
-    this.map.on('mouseleave', 'cell-fill', () => { this.map.getCanvas().style.cursor = ''; });
+    // hover tooltip (pointer devices): the region under the cursor, its status and what the satellites measured
+    this.map.on('mousemove', 'cell-fill', (e) => {
+      const id = e.features?.[0]?.properties?.id;
+      if (id == null) return;
+      if (String(id) !== this.hovered) {
+        this.hovered = String(id);
+        const node = o.describe(this.hovered);
+        if (!node) { this.tip.remove(); return; }
+        this.tip.setDOMContent(node);
+      }
+      this.tip.setLngLat(e.lngLat).addTo(this.map);
+    });
+    this.map.on('mouseleave', 'cell-fill', () => {
+      this.map.getCanvas().style.cursor = '';
+      this.tip.remove();
+      this.hovered = null;
+    });
   }
 
   private install() {
@@ -150,7 +171,7 @@ export class RegionMapController {
       this.map.addImage('rg-hatch', g.getImageData(0, 0, 8, 8));
     }
     // Himawari-9: a filled heat square; GK2A: an open square around it, so pixels both satellites saw read as one mark
-    if (!this.map.hasImage('px-h')) this.map.addImage('px-h', square(10, c.hot, c.ink, 1.5), { pixelRatio: 2 });
+    if (!this.map.hasImage('px-h')) this.map.addImage('px-h', square(10, c.himawari, c.halo, 1.5), { pixelRatio: 2 });
     if (!this.map.hasImage('px-g')) this.map.addImage('px-g', square(16, null, c.ink, 1.5), { pixelRatio: 2 });
     this.map.addSource('rg-provinces', { type: 'geojson', data: this.provinces });
     this.map.addSource('rg-cells', { type: 'geojson', data: cells(this.regions) });
@@ -189,12 +210,12 @@ export class RegionMapController {
     });
     marker('px-gk2a', 'gk2a', 'px-g');
     marker('px-himawari9', 'himawari9', 'px-h');
-    // VIIRS (375 m) as small heat dots: a different shape from the 2-4 km geostationary squares
+    // VIIRS (375 m) as small magenta dots: a different shape and hue from the 2-4 km geostationary squares
     this.map.addLayer({
       id: 'px-viirs', type: 'circle', source: 'rg-viirs',
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 10, 4],
-        'circle-color': c.hot, 'circle-stroke-color': c.halo, 'circle-stroke-width': 1.2,
+        'circle-color': c.viirs, 'circle-stroke-color': c.halo, 'circle-stroke-width': 1.2,
       },
     });
     this.map.addLayer({
@@ -206,6 +227,7 @@ export class RegionMapController {
 
   setRegions(regions: RegionSummary[]) {
     this.regions = regions;
+    this.hovered = null; // the next pointer move redraws the tooltip with the new data
     if (!this.ready) return;
     updateSource(this.map, 'rg-cells', cells(regions));
     updateSource(this.map, 'rg-peat', peatWithStatus(this.peat, regions));
@@ -246,5 +268,5 @@ export class RegionMapController {
   }
 
   resize() { this.map.resize(); }
-  destroy() { this.map.remove(); }
+  destroy() { this.tip.remove(); this.map.remove(); }
 }

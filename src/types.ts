@@ -62,6 +62,8 @@ export interface ViirsNear { lat: number; lon: number; acquired_at: string; conf
 
 export interface RegionInputs {
   delta_t_k: number | null; // brightness-temperature anomaly the satellites confirm, K; null = not observable
+  delta_t_max_k?: number | null; // the stronger satellite's anomaly when both see (since 17 Oct 2026); null with one view
+  max_validity?: number | null; // 0–1: how much the rules trusted that view (its clear share; 0 without a hot pixel)
   cloud_cover_pct: number | null; // share of the cell under cloud in the clearest view
   relative_humidity_pct: number | null; // Open-Meteo model value for the slot's hour
   dry_z?: number | null; // how much drier the air is than its NASA POWER normal, in σ; absent in older records
@@ -81,6 +83,11 @@ export interface SlotAdjust {
   rh_shift_k: number; // + up to 1 K when the air is drier than its normal (− when wetter)
   sun_shift_k: number; // − up to 1 K for the sun: reflected sunlight also raises the 3.9 µm channel
   delta_t_eff_k: number; // ΔT counted = delta_t_k + rh_shift_k − sun_shift_k
+  // with two views (17 Oct 2026 on): the strongest view, moved the same way, and its share of the utility
+  delta_t_max_k?: number;
+  delta_t_max_eff_k?: number;
+  max_validity?: number;
+  max_weight?: number; // 0–0.4: the max's share in U = (0.6 μ(mean) + 0.4 v μ(max)) / (0.6 + 0.4 v)
 }
 
 /** One satellite slot, rated every 15 minutes: the audit record the rules engine keeps. */
@@ -97,7 +104,7 @@ export interface SlotRecord {
   sources: Record<string, string | null>; // dryness: null when no dryness was used
   status: Status;
   utilities: Partial<Record<RatedStatus, number>>; // empty when NO_OBSERVABLE
-  memberships: Record<string, number>; // delta_t_low/medium/high (+ support); older records: humidity_low/high too
+  memberships: Record<string, number>; // delta_t_low/medium/high, max_low/medium/high (two views), + support
   adjust?: SlotAdjust | null; // absent in records older than the shifted curves; null when NO_OBSERVABLE
   reason: string;
 }
@@ -106,7 +113,7 @@ export interface SlotRecord {
 export interface PowerSupport {
   observed_at: string;
   skin_temperature_k: number | null;
-  baseline_k: number | null; // mean skin temperature, same UTC hour ±15 days, 2021–2025
+  baseline_k: number | null; // mean skin temperature, same UTC hour ±15 days, the two years before (five until 17 Oct 2026)
   baseline_std_k: number | null;
   baseline_samples: number;
   baseline: string;

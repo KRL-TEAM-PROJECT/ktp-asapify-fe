@@ -3,20 +3,22 @@ import type { SatelliteName, SlotRecord, Status } from '../types';
 import { useI18n } from '../i18n';
 import { dayOf } from '../lib/days';
 import { fmtDate, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
-import { m } from '../motion';
 import { STATUS_KEY } from './StatusBadge';
 
-const W = 640, PL = 56, PR = 10;
-const STRIP = { y: 6, h: 12 };
-const DT = { y: 30, h: 92 };
-const RH = { y: 136, h: 58 };
-const CLOUD = { y: 208, h: 50 };
-const H = CLOUD.y + CLOUD.h + 26;
+// Wide on purpose: the chart spans both columns of the region page, so one slot is still a visible step on a day.
+const W = 1040, PL = 64, PR = 84;
+const STRIP = { y: 6, h: 16 };
+const DT = { y: 36, h: 150 };
+const RH = { y: 204, h: 72 };
+const CLOUD = { y: 294, h: 62 };
+const H = CLOUD.y + CLOUD.h + 28;
 const STEP = 900_000; // one rated slot every 15 minutes; scans are 10 minutes apart, so the gaps alternate 10 and 20
 const MAX_HALF = 600_000; // a slot reaches at most 10 minutes either side: a longer gap stays visible as a gap
 const FILL: Record<Status, string> = { SAFE: 'var(--moss)', WARNING: 'var(--amber)', ALERT: 'var(--ember)', NO_OBSERVABLE: '' };
-// the map's colours: Himawari-9 in thermal amber, GK2A in ink
-const SAT: [SatelliteName, string, string][] = [['himawari9', 'H', 'var(--ember)'], ['gk2a', 'G', 'var(--ink-dim)']];
+// status boundaries of the counted ΔT with the default curves and safety margin (backend rules.py)
+const SAFE_MAX = 1.95, WARNING_MAX = 6.95;
+// the map's marks: Himawari-9 blue, GK2A ink
+const SAT: [SatelliteName, string, string][] = [['himawari9', 'H', 'var(--sat-h)'], ['gk2a', 'G', 'var(--ink-dim)']];
 
 /** Line through the slots that have a value; breaks where a value is missing. */
 function path(points: ({ x: number; y: number } | null)[]) {
@@ -33,11 +35,11 @@ function path(points: ({ x: number; y: number } | null)[]) {
 /**
  * Slot by slot: rules-engine status (strip), the ΔT the rules counted (bold line: measured ΔT moved by dry air and the
  * sun) over the measured ΔT (thin line) with each satellite's own anomaly (dots: H Himawari-9, G GK2A), relative
- * humidity and cloud cover. Day slots are shaded: there the sun raises the bar. Dashed lines are the status boundaries
- * of the counted ΔT (about 2 K and 7 K) and the cloud limit (60 %). Older records have no counted ΔT: the bold line
- * falls back to the measured one.
+ * humidity and cloud cover. The ΔT panel is banded by the status the counted ΔT falls in (Safe below about 2 K, Alert
+ * above about 7 K), so the line reads against the zones; day slots are shaded grey. Lines draw at once: no entrance
+ * animation can leave them blank, and `updating` dims the chart while a refresh is on its way.
  */
-export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
+export function RegionTimeline({ slots, updating = false }: { slots: SlotRecord[]; updating?: boolean }) {
   const { t } = useI18n();
   const hatch = `rg-hatch-${useId().replace(/:/g, '')}`;
   if (!slots.length) return <p className="muted">{t('rgt.empty')}</p>;
@@ -56,8 +58,12 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
   const values = slots.flatMap((s) => [s.inputs.delta_t_k, counted(s), ...SAT.map(([n]) => s.views[n]?.max_anomaly_k ?? null)])
     .filter((v): v is number => v != null);
   const lo = Math.min(-2, ...values), hi = Math.max(10, ...values);
-  const yDt = (v: number) => DT.y + (1 - (v - lo) / (hi - lo)) * DT.h;
+  // symmetric log scale: the 0-7 K where the status changes keeps its room even when a fire reads 40 K
+  const sl = (v: number) => Math.sign(v) * Math.log1p(Math.abs(v) / 2);
+  const yDt = (v: number) => DT.y + (1 - (sl(Math.min(Math.max(v, lo), hi)) - sl(lo)) / (sl(hi) - sl(lo))) * DT.h;
   const yPct = (band: { y: number; h: number }, v: number) => band.y + (1 - v / 100) * band.h;
+  const dtTicks = [0, SAFE_MAX, WARNING_MAX, ...[15, 30, 60, 100].filter((v) => v <= hi * 0.95)].filter((v) => v >= lo && v <= hi);
+  const zones: [Status, number, number][] = [['SAFE', lo, SAFE_MAX], ['WARNING', SAFE_MAX, WARNING_MAX], ['ALERT', WARNING_MAX, hi]];
 
   // Day labels at local midnight (UTC+7), as everywhere else in the UI.
   const days = slots.map((_, i) => i).filter((i) => i > 0 && dayOf(slots[i].observed_at) !== dayOf(slots[i - 1].observed_at));
@@ -67,7 +73,7 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
   }).join(' / ');
 
   return (
-    <figure className="chart rg-timeline">
+    <figure className={`chart rg-timeline ${updating ? 'is-updating' : ''}`} aria-busy={updating}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('rgt.aria', { n: slots.length })}>
         <defs>
           <pattern id={hatch} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -82,27 +88,34 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
             fill={s.status === 'NO_OBSERVABLE' ? `url(#${hatch})` : FILL[s.status]} opacity={s.status === 'NO_OBSERVABLE' ? 0.55 : 0.9}
           />
         ))}
-        <text x={PL - 6} y={STRIP.y + 10} textAnchor="end" className="ax">{t('rgt.status')}</text>
+        <text x={PL - 8} y={STRIP.y + 12} textAnchor="end" className="ax">{t('rgt.status')}</text>
 
-        {/* panels, with day slots shaded */}
-        {[DT, RH, CLOUD].map((b, i) => <rect key={i} x={PL} y={b.y} width={W - PL - PR} height={b.h} fill="var(--surface-2)" opacity="0.5" />)}
-        {slots.map((s, i) => s.night ? null : (
-          <rect key={`day-${s.observed_at}`} x={cells[i].x0} y={DT.y} width={cells[i].w + 0.4} height={CLOUD.y + CLOUD.h - DT.y} fill="var(--amber)" opacity="0.06" />
-        ))}
-        <text x={PL - 6} y={DT.y + 10} textAnchor="end" className="ax">ΔT K</text>
-        <text x={PL - 6} y={RH.y + 10} textAnchor="end" className="ax">RH %</text>
-        <text x={PL - 6} y={CLOUD.y + 10} textAnchor="end" className="ax">{t('rgt.cloud')}</text>
-
-        {/* status boundaries of the counted ΔT: 1.95 K and 6.95 K with the default curves and safety margin */}
-        {([[1.95, 2, 'var(--amber)'], [6.95, 7, 'var(--ember)']] as const).map(([v, label, c]) => (
-          <g key={v}>
-            <line x1={PL} x2={W - PR} y1={yDt(v)} y2={yDt(v)} stroke={c} strokeDasharray="4 3" />
-            <text x={W - PR - 4} y={yDt(v) - 3} textAnchor="end" className="ax" fill={c}>{label} K</text>
+        {/* panels; the ΔT panel is banded by status zone, day slots are shaded grey */}
+        {[RH, CLOUD].map((b, i) => <rect key={i} x={PL} y={b.y} width={W - PL - PR} height={b.h} fill="var(--surface-2)" opacity="0.6" />)}
+        {zones.map(([st, a, b]) => (
+          <g key={st}>
+            <rect x={PL} y={yDt(b)} width={W - PL - PR} height={yDt(a) - yDt(b)} fill={FILL[st]} opacity="0.1" />
+            <text x={W - PR + 6} y={(yDt(a) + yDt(b)) / 2 + 4} className="ax zone" fill={FILL[st]}>{t(STATUS_KEY[st])}</text>
           </g>
         ))}
-        <line x1={PL} x2={W - PR} y1={yDt(0)} y2={yDt(0)} stroke="var(--line)" />
+        {slots.map((s, i) => s.night ? null : (
+          <rect key={`day-${s.observed_at}`} x={cells[i].x0} y={DT.y} width={cells[i].w + 0.4} height={CLOUD.y + CLOUD.h - DT.y} fill="var(--ink)" opacity="0.045" />
+        ))}
+
+        {/* axes: panel names and numbered ticks */}
+        <text x={8} y={DT.y + 12} className="ax name">{t('rgt.ax_dt')}</text>
+        <text x={8} y={RH.y + 12} className="ax name">{t('rgt.ax_rh')}</text>
+        <text x={8} y={CLOUD.y + 12} className="ax name">{t('rgt.ax_cloud')}</text>
+        {dtTicks.map((v) => (
+          <g key={`dt-${v}`}>
+            <line x1={PL} x2={W - PR} y1={yDt(v)} y2={yDt(v)} stroke="var(--line-strong)" strokeDasharray={v === 0 ? undefined : '4 3'} />
+            <text x={PL - 8} y={yDt(v) + 4} textAnchor="end" className="ax mono">{fmtNum(v, v % 1 ? 2 : 0)}</text>
+          </g>
+        ))}
+        {[0, 50, 100].map((v) => <text key={`rh-${v}`} x={PL - 8} y={yPct(RH, v) + 4} textAnchor="end" className="ax mono">{v}</text>)}
+        {[0, 60, 100].map((v) => <text key={`cl-${v}`} x={PL - 8} y={yPct(CLOUD, v) + 4} textAnchor="end" className="ax mono">{v}</text>)}
         <line x1={PL} x2={W - PR} y1={yPct(CLOUD, 60)} y2={yPct(CLOUD, 60)} stroke="var(--ink-dim)" strokeDasharray="4 3" />
-        <text x={W - PR - 4} y={yPct(CLOUD, 60) - 3} textAnchor="end" className="ax">60%</text>
+        <text x={W - PR + 6} y={yPct(CLOUD, 60) + 4} className="ax">60%</text>
 
         {/* cloud bars */}
         {slots.map((s, i) => s.inputs.cloud_cover_pct == null ? null : (
@@ -116,33 +129,31 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
         {/* each satellite's own anomaly, then VIIRS support as a tick above the panel */}
         {SAT.map(([n, , c]) => slots.map((s) => {
           const v = s.views[n]?.max_anomaly_k;
-          return v == null ? null : <circle key={`${n}-${s.observed_at}`} cx={x(s.observed_at)} cy={yDt(v)} r={1.6} fill={c} opacity={0.75} />;
+          return v == null ? null : <circle key={`${n}-${s.observed_at}`} cx={x(s.observed_at)} cy={yDt(v)} r={2.4} fill={c} opacity={0.8} />;
         }))}
         {slots.map((s) => s.support.viirs_support == null ? null : (
-          <line key={`v-${s.observed_at}`} x1={x(s.observed_at)} x2={x(s.observed_at)} y1={DT.y + 1} y2={DT.y + 7} stroke="var(--ember)" strokeWidth="1.4" />
+          <line key={`v-${s.observed_at}`} x1={x(s.observed_at)} x2={x(s.observed_at)} y1={DT.y + 1} y2={DT.y + 9} stroke="var(--viirs)" strokeWidth="2" />
         ))}
 
-        {/* measured ΔT, the ΔT the rules counted and humidity draw left to right */}
+        {/* measured ΔT, the ΔT the rules counted and humidity, drawn at once */}
         <path
           d={path(slots.map((s) => (s.inputs.delta_t_k == null ? null : { x: x(s.observed_at), y: yDt(s.inputs.delta_t_k) })))}
-          fill="none" stroke="var(--ink-dim)" strokeWidth="1" strokeLinejoin="round" opacity="0.7"
+          fill="none" stroke="var(--ink-dim)" strokeWidth="1.2" strokeLinejoin="round" opacity="0.7"
         />
-        <m.path
+        <path
           d={path(slots.map((s) => { const v = counted(s); return v == null ? null : { x: x(s.observed_at), y: yDt(v) }; }))}
-          fill="none" stroke="var(--ink)" strokeWidth="1.8" strokeLinejoin="round"
-          initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, ease: [0.32, 0.72, 0, 1] }}
+          fill="none" stroke="var(--ink)" strokeWidth="2.2" strokeLinejoin="round"
         />
-        <m.path
+        <path
           d={path(slots.map((s) => (s.inputs.relative_humidity_pct == null ? null : { x: x(s.observed_at), y: yPct(RH, s.inputs.relative_humidity_pct) })))}
-          fill="none" stroke="var(--sat)" strokeWidth="1.6" strokeLinejoin="round"
-          initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, ease: [0.32, 0.72, 0, 1], delay: 0.15 }}
+          fill="none" stroke="var(--sat-h)" strokeWidth="1.8" strokeLinejoin="round"
         />
 
         {/* day labels */}
         {days.map((i) => (
           <g key={slots[i].observed_at}>
-            <line x1={cells[i].x0} x2={cells[i].x0} y1={STRIP.y} y2={CLOUD.y + CLOUD.h} stroke="var(--line)" />
-            <text x={cells[i].x0 + 3} y={H - 8} className="ax">{fmtDate(slots[i].observed_at)}</text>
+            <line x1={cells[i].x0} x2={cells[i].x0} y1={STRIP.y} y2={CLOUD.y + CLOUD.h} stroke="var(--line-strong)" />
+            <text x={cells[i].x0 + 4} y={H - 8} className="ax">{fmtDate(slots[i].observed_at)}</text>
           </g>
         ))}
 
@@ -163,8 +174,22 @@ export function RegionTimeline({ slots }: { slots: SlotRecord[] }) {
       </svg>
       <figcaption>
         {t('rgt.caption', { range: `${fmtSlot(slots[0].observed_at)} – ${fmtSlot(slots[slots.length - 1].observed_at)}` })}{' '}
-        <span className="rg-key"><i className="line" />{t('rgt.counted')} <i className="line thin" />{t('rgt.measured')} <i style={{ background: 'var(--ember)' }} />H Himawari-9 <i style={{ background: 'var(--ink-dim)' }} />G GK2A <i className="tick" />{t('rgt.viirs')}</span>
+        <span className="rg-key">
+          <i className="line" />{t('rgt.counted')} <i className="line thin" />{t('rgt.measured')}
+          <i style={{ background: 'var(--sat-h)', borderRadius: '50%' }} />H Himawari-9 <i style={{ background: 'var(--ink-dim)', borderRadius: '50%' }} />G GK2A
+          <i className="line rh" />RH <i className="tick" />{t('rgt.viirs')}
+        </span>
       </figcaption>
+      <details className="rg-howto">
+        <summary>{t('rgt.howto')}</summary>
+        <ol className="small">
+          <li>{t('rgt.howto_1')}</li>
+          <li>{t('rgt.howto_2')}</li>
+          <li>{t('rgt.howto_3')}</li>
+          <li>{t('rgt.howto_4')}</li>
+          <li>{t('rgt.howto_5')}</li>
+        </ol>
+      </details>
     </figure>
   );
 }

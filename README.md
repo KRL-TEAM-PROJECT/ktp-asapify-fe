@@ -57,9 +57,9 @@ Everything on the map and the region pages comes from these public sources, proc
 
 | Data | What it shows in the app | Link |
 |---|---|---|
-| Himawari-9 (JMA), bands 7 and 13, NOAA Open Data on AWS | Hot pixels (blue squares), ΔT, cloud | [registry](https://registry.opendata.aws/noaa-himawari/) |
-| GEO-KOMPSAT-2A (KMA), SW038 and IR105, NOAA Open Data on AWS | Hot pixels (ink rings), ΔT, cloud | [registry](https://registry.opendata.aws/noaa-gk2a-pds/) |
-| NASA FIRMS, VIIRS NOAA-20 / NOAA-21 | VIIRS detections (magenta dots), the Gemini AI Analysis hotspots | [FIRMS](https://firms.modaps.eosdis.nasa.gov/) |
+| Himawari-9 (JMA), bands 7 and 13, NOAA Open Data on AWS | Hot pixels (cyan squares), ΔT, cloud | [registry](https://registry.opendata.aws/noaa-himawari/) |
+| GEO-KOMPSAT-2A (KMA), SW038 and IR105, NOAA Open Data on AWS | Hot pixels (white square rings), ΔT, cloud | [registry](https://registry.opendata.aws/noaa-gk2a-pds/) |
+| NASA FIRMS, VIIRS NOAA-20 / NOAA-21 | VIIRS detections (dark dots in a white ring), the Gemini AI Analysis hotspots | [FIRMS](https://firms.modaps.eosdis.nasa.gov/) |
 | NASA GIBS, VIIRS NOAA-20 corrected reflectance | The two satellite images in the Gemini AI Analysis | [GIBS API docs](https://nasa-gibs.github.io/gibs-api-docs/) · [Worldview](https://worldview.earthdata.nasa.gov/) |
 | NASA POWER, hourly skin temperature and humidity | The dry-air shift and POWER support | [POWER](https://power.larc.nasa.gov/) |
 | Open-Meteo (CC BY 4.0) | Humidity (RH) and the weather at the hot pixel | [open-meteo.com](https://open-meteo.com/) |

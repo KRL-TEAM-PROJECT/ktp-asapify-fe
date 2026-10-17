@@ -23,19 +23,53 @@
   background: var(--sat-soft); color: var(--ink); }
 .rg-archive .link-btn { min-height: 32px; padding: 0; }
 
-/* map legend: the markers as the map draws them (satellite pixels are squares, VIIRS detections dots) */
-.lg-px { display: inline-block; flex: none; margin: 0 7px; }
-.lg-px.himawari9 { width: 10px; height: 10px; margin: 0 8px; background: var(--sat-h); box-shadow: 0 0 0 1.5px var(--surface); }
-.lg-px.gk2a { width: 14px; height: 14px; margin: 0 6px; border: 2px solid var(--ink); }
-.lg-px.viirs { width: 7px; height: 7px; margin: 0 9.5px; border-radius: 50%; background: var(--viirs); box-shadow: 0 0 0 1.5px var(--surface); }
-
-/* the legend on the map, top right beside the zoom buttons (MapLibre's control column is about 50 px wide) */
-.map-overlay.top-right { top: 10px; right: 52px; max-width: min(320px, calc(100% - 64px)); }
-.map-legend { background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--line); border-radius: var(--r-2);
-  padding: 0 12px; box-shadow: var(--shadow-pop); max-height: calc(100dvh - var(--topbar) - 140px); overflow-y: auto; }
-.map-legend summary { min-height: 36px; }
-.map-legend ul { gap: 6px; font-size: var(--fs-xs); }
-.map-legend p { padding-bottom: 8px; font-size: var(--fs-xs); }
+/* ---------- map legend (components/MapLegend): top left, clear of the zoom toolbar (top right); open by default as
+   two short columns (status fills | detection marks), folding into one button. ---------- */
+/* phones: it stops above the day player (about 180 px over the sheet's peek), so the open details scroll inside it */
+.map-overlay.top-left { top: 8px; left: 8px; right: 68px; bottom: calc(var(--peek, 64px) + 196px);
+  display: flex; flex-direction: column; align-items: flex-start; }
+.map-legend { min-width: 0; max-width: 100%; max-height: min(100%, 60dvh); display: flex; flex-direction: column;
+  background: color-mix(in srgb, var(--surface) 95%, transparent); border: 1px solid var(--line-strong); border-radius: var(--r-2);
+  box-shadow: var(--shadow-pop); }
+.lg-head { flex: none; display: flex; align-items: center; gap: 6px; padding: 2px 2px 0 12px; min-height: 44px; }
+.lg-head .lg-title { margin-right: auto; }
+.lg-title { font-size: var(--fs-sm); font-weight: 700; color: var(--ink); }
+/* the two header buttons and the folded pill: worded, with a hairline box, so it is plain that they act */
+.lg-act { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 10px; border: 0; border-radius: var(--r-1);
+  background: none; color: var(--ink-dim); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--line-strong); transition: color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
+.lg-act:hover, .lg-pill:hover .lg-act { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink-dim); }
+.lg-act[aria-expanded="true"]:not([aria-controls="lg-body"]) { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.lg-pill { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 6px 0 12px; border: 0; border-radius: var(--r-2);
+  background: none; color: var(--ink); font: inherit; cursor: pointer; }
+.lg-pill .lg-act { box-shadow: none; padding: 0 4px; }
+.lg-pill:focus-visible, .lg-act:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.chev { transition: transform var(--dur-2) var(--ease-out); }
+.chev.up { transform: rotate(180deg); }
+.lg-body { display: grid; gap: 8px; padding: 0 12px 10px; overflow-y: auto; overscroll-behavior: contain; }
+/* four rows, filled column by column: statuses on the left, the marks on the right */
+.lg-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-rows: repeat(4, auto); grid-auto-flow: column;
+  grid-auto-columns: max-content; gap: 5px 18px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink); }
+.lg-grid li { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+/* the keys as the map draws them: status fills at the map's own strength, then the detection marks (--mk-*) */
+.lg-sw { flex: none; display: inline-block; width: 12px; height: 12px; border-radius: 1px; }
+.lg-sw.alert { background: color-mix(in srgb, var(--ember) 85%, var(--surface)); }
+.lg-sw.warning { background: color-mix(in srgb, var(--amber) 70%, var(--surface)); }
+.lg-sw.safe { background: color-mix(in srgb, var(--moss) 35%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--moss) 70%, transparent); }
+.lg-sw.no_observable { background: var(--hatch); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.lg-px { flex: none; display: inline-block; }
+.lg-px.himawari9 { width: 11px; height: 11px; margin: 0 1.5px; background: var(--mk-himawari); box-shadow: 0 0 0 1.5px var(--mk-dark); }
+.lg-px.gk2a { width: 14px; height: 14px; border: 2.5px solid var(--mk-light); box-shadow: 0 0 0 1px var(--mk-dark), inset 0 0 0 1px var(--mk-dark); }
+.lg-px.viirs { width: 9px; height: 9px; margin: 0 2.5px; border-radius: 50%; background: var(--mk-dark);
+  box-shadow: 0 0 0 2px var(--mk-light), 0 0 0 3px color-mix(in srgb, var(--mk-dark) 40%, transparent); }
+.lg-cell { flex: none; display: inline-block; width: 14px; height: 11px; border: 1px solid var(--ink-dim); border-radius: 1px; }
+.lg-desc { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.lg-desc dl { margin: 0; display: grid; gap: 8px; font-size: var(--fs-xs); }
+.lg-desc dl div { display: grid; gap: 2px; }
+.lg-desc dt { display: flex; align-items: center; gap: 7px; font-weight: 700; }
+.lg-desc dd { margin: 0 0 0 21px; color: var(--ink-dim); line-height: 1.45; }
+.lg-desc p { font-size: var(--fs-xs); }
+@media (prefers-reduced-motion: reduce) { .chev, .lg-act { transition: none; } }
 
 /* hover tooltip on a map cell (MapLibre popup) */
 .rg-tip .maplibregl-popup-content { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--r-2);
@@ -53,7 +87,7 @@
 .rg-timeline svg text.ax.zone { font-weight: 700; }
 /* phones: the chart keeps a readable scale and scrolls sideways instead of shrinking its labels to 5 px */
 .rg-timeline { overflow-x: auto; overscroll-behavior-x: contain; transition: opacity var(--dur-2) var(--ease-out); }
-.rg-timeline svg { min-width: 760px; display: block; }
+.rg-timeline svg { min-width: 960px; display: block; } /* 13-unit labels in a 1040-wide viewBox: 12 px at 960 */
 .rg-timeline.is-updating { opacity: 0.55; }
 .rg-tl-plot { position: relative; }
 .rg-tl-plot svg { cursor: crosshair; touch-action: pan-x pan-y; }
@@ -113,12 +147,15 @@
 .rg-scale-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .rg-scale-axis span:first-child { transform: none; }
 .rg-scale-axis span:last-child { transform: translateX(-100%); }
-.rg-adjust { margin: 0; display: grid; gap: 4px; padding: 8px 10px; background: var(--surface-2); border-radius: var(--r-2); }
-.rg-adjust div { display: flex; justify-content: space-between; gap: 8px; font-size: var(--fs-sm); }
+.rg-adjust { margin: 0; display: grid; gap: 8px; padding: 10px 12px; background: var(--surface-2); border-radius: var(--r-2); }
+.rg-adjust div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 8px; font-size: var(--fs-sm); }
 .rg-adjust dt { color: var(--ink-dim); min-width: 0; }
 .rg-adjust dd { margin: 0; white-space: nowrap; }
-.rg-adjust .sum { border-top: 1px solid var(--line); padding-top: 4px; }
+.rg-adjust .sum { border-top: 1px solid var(--line); padding-top: 8px; }
 .rg-adjust .sum dt { color: var(--ink); font-weight: 600; }
+/* where each number comes from: the slot's own values in the equation, under the line it explains */
+.rg-adjust .why { grid-column: 1 / -1; margin: 0; display: grid; gap: 2px; font-size: var(--fs-xs); line-height: 1.5; color: var(--ink-dim); }
+.rg-adjust .why span { overflow-wrap: anywhere; }
 .rg-images { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .rg-images figure { margin: 0; display: grid; gap: 4px; }
 .rg-images img { display: block; width: 100%; height: auto; border-radius: var(--r-2); background: var(--surface-2); }
@@ -129,6 +166,8 @@
 .rg-facts div { background: var(--surface-2); border-radius: var(--r-2); padding: 6px 10px; display: grid; gap: 2px; }
 .rg-facts dt { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-dim); }
 .rg-facts dd { margin: 0; font-size: var(--fs-md); }
+.rg-facts dd.sub { font-size: var(--fs-xs); color: var(--ink-dim); line-height: 1.4; }
+.rg-conf { display: grid; gap: 4px; padding: 8px 12px; border-left: 3px solid var(--line-strong); background: var(--surface-2); border-radius: 0 var(--r-1) var(--r-1) 0; }
 .rg-checks { margin: 0; color: var(--amber-ink); }
 .rg-draft { margin: 0; padding: 8px 12px; border-left: 3px solid var(--ink-dim); background: var(--sat-soft); border-radius: 0 var(--r-1) var(--r-1) 0; font-size: var(--fs-sm); }
 .rg-table-wrap { overflow-x: auto; }
@@ -164,10 +203,13 @@
 }
 
 @media (min-width: 640px) {
-  .map-overlay.top-right { max-width: 320px; }
+  .map-overlay.top-left { right: auto; width: 360px; }
+  .lg-grid { gap: 6px 24px; }
   .rg-images { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
+  .map-overlay.top-left { top: 12px; left: 12px; bottom: 168px; width: 340px; } /* above the day player */
+  .lg-grid { font-size: var(--fs-sm); }
   .rg-timeline svg { min-width: 0; } /* both columns wide: the whole day fits */
   .rg-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

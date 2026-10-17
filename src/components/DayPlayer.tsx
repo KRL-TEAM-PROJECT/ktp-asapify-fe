@@ -3,7 +3,7 @@ import { AnimatePresence } from 'motion/react';
 import type { DaySlot, SatelliteName } from '../types';
 import { useI18n } from '../i18n';
 import { fmtDay } from '../lib/format';
-import { DAY_SLOTS, countStatus, slotTime } from '../lib/days';
+import { DAY_SLOTS, countStatus, dayOf, slotTime } from '../lib/days';
 import { DayCalendar } from './DayCalendar';
 import { IconCalendar } from './icons';
 
@@ -32,7 +32,7 @@ const SATS: [string, SatelliteName][] = [['H', 'himawari9'], ['G', 'gk2a']];
  */
 export function DayPlayer({ day, slots, live, slot, last, first, lastDay, playing, onSlot, onPlay, onDay }: Props) {
   const { t } = useI18n();
-  const counts = useMemo(() => slots.map((s) => (s ? { a: countStatus(s, 'A'), w: countStatus(s, 'W') } : null)), [slots]);
+  const counts = useMemo(() => slots.map((s) => (s ? { a: countStatus(s, 'A'), w: countStatus(s, 'W'), s: countStatus(s, 'S') } : null)), [slots]);
   const most = Math.max(1, ...counts.map((c) => (c ? c.a + c.w : 0)));
   const [calOpen, setCalOpen] = useState(false);
   const closeCal = useCallback(() => setCalOpen(false), []);
@@ -40,7 +40,9 @@ export function DayPlayer({ day, slots, live, slot, last, first, lastDay, playin
   const atLatest = live && slot === last;
   const prev = shiftDay(day, -1), next = shiftDay(day, 1);
   const title = fmtDay(day);
-  const dayLabel = day === lastDay ? t('player.day_latest', { date: title }) : title;
+  // "(today)" only on today's WIB date; after a stall or just past midnight the newest archived day is "(latest)"
+  const dayLabel = day === dayOf(new Date().toISOString()) ? t('player.day_latest', { date: title })
+    : day === lastDay ? t('player.day_last', { date: title }) : title;
   const time = last < 0 ? '–' : `${slotTime(slot)} UTC+7`;
 
   return (
@@ -83,7 +85,7 @@ export function DayPlayer({ day, slots, live, slot, last, first, lastDay, playin
           <span className="ribbon-cells" aria-hidden="true">
             {counts.map((c, i) => (
               <i
-                key={i} className={!c ? '' : c.a ? 'alert' : c.w ? 'hot' : 'zero'}
+                key={i} className={!c ? '' : c.a ? 'alert' : c.w ? 'hot' : c.s ? 'zero' : 'unrated'}
                 style={c && c.a + c.w ? { ['--a' as string]: 0.35 + (0.65 * (c.a + c.w)) / most } : undefined}
               />
             ))}

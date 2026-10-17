@@ -15,7 +15,10 @@
   --amber: #CA8A04; --amber-ink: #854D0E; --amber-soft: #FEF9C3;
   --ember: #DC2626; --ember-ink: #B91C1C; --ember-soft: #FEE2E2;
   --ember-solid: #B91C1C; /* solid ALERT surfaces with white text, in both themes (6.5:1) */
-  --sat-h: #2563EB; --viirs: #C026D3; /* Himawari-9 hot pixel, VIIRS detection */
+  --sat-h: #2563EB; --viirs: #C026D3; /* Himawari-9 hot pixel, VIIRS detection (charts) */
+  /* map marks (map/regionMap.ts MARK), the same in both themes: cyan and the two lightness extremes, which no status
+     fill uses; each mark wears a rim of the opposite lightness, so it reads on red, yellow, green and both basemaps */
+  --mk-himawari: #67E8F9; --mk-dark: #0B1220; --mk-light: #FFFFFF;
   --sat: #475569; --sat-soft: #EEF2F6; /* secondary data ink: the second satellite, info notes */
   --hatch: repeating-linear-gradient(45deg, var(--surface-2) 0 3px, var(--line-strong) 3px 4.5px);
   /* shape: square-ish, instruments not toys */
@@ -230,11 +233,6 @@ button { font: inherit; color: inherit; }
 .qi-id { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.02em; }
 .qi-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sm); }
 .qi-link { display: flex; align-items: center; justify-content: flex-end; min-height: 44px; padding: 0 12px; font-size: var(--fs-sm); font-weight: 600; }
-.legend summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-dim); min-height: 44px; display: flex; align-items: center; }
-.legend ul { list-style: none; padding: 0; margin: 4px 0 8px; display: grid; gap: 8px; font-size: var(--fs-sm); }
-.legend li { display: flex; align-items: center; gap: 8px; }
-.lg-line { width: 26px; border-top: 2px solid var(--ink); display: inline-block; }
-.lg-line.thin { border-top: 1px solid var(--ink-dim); }
 
 /* ---------- region detail ---------- */
 .detail-head { display: grid; gap: 8px; }
@@ -258,6 +256,10 @@ button { font: inherit; color: inherit; }
 .field-label span:last-child { font-family: var(--font-mono); font-weight: 500; }
 .field-label .over { color: var(--ember-ink); font-weight: 700; }
 .dec-summary { background: var(--surface-2); border-radius: var(--r-2); padding: 8px 12px; display: grid; gap: 2px; font-size: var(--fs-sm); }
+/* what the bot adds under the caption: read-only, as the group will read it */
+.dec-details { display: grid; gap: 4px; }
+.dec-details pre { margin: 0; padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-xs); line-height: 1.5;
+  color: var(--ink-dim); background: var(--surface-2); border: 1px dashed var(--line-strong); border-radius: var(--r-2); }
 .expand { display: grid; gap: 10px; } /* label + field entering/leaving as one block */
 .confirm { background: var(--amber-soft); color: var(--ink); border-left: 3px solid var(--amber); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 8px 12px; font-size: var(--fs-sm); }
 .decided { display: flex; align-items: center; gap: 8px; font-weight: 700; }
@@ -317,6 +319,11 @@ button { font: inherit; color: inherit; }
 .maplibregl-ctrl-group { background: var(--surface) !important; border: 1px solid var(--line-strong); border-radius: var(--r-2) !important; box-shadow: none !important; }
 .maplibregl-ctrl-group button + button { border-top-color: var(--line) !important; }
 .maplibregl-ctrl-group button { width: 40px !important; height: 40px !important; }
+/* zoom in/out and full screen read as one toolbar: the second group joins the first without a gap */
+.maplibregl-ctrl-top-right .maplibregl-ctrl-group + .maplibregl-ctrl-group { margin-top: -1px !important;
+  border-top-left-radius: 0 !important; border-top-right-radius: 0 !important; }
+.maplibregl-ctrl-top-right .maplibregl-ctrl-group:has(+ .maplibregl-ctrl-group) { border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important; }
+.maplibregl-ctrl-top-right .maplibregl-ctrl-group { box-shadow: var(--shadow-pop) !important; }
 .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: var(--ctrl-icon-filter, none); }
 .maplibregl-ctrl-scale { background: color-mix(in srgb, var(--surface) 85%, transparent) !important; color: var(--ink) !important; border-color: var(--ink) !important;
   font-family: var(--font-mono); font-size: 12px !important; }

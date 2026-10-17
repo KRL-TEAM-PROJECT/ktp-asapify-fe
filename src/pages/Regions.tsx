@@ -19,6 +19,7 @@ import { ValidationBadge } from '../components/VerificationCard';
 import { Select } from '../components/Select';
 import { Sheet } from '../components/Sheet';
 import { DayPlayer } from '../components/DayPlayer';
+import { MapLegend } from '../components/MapLegend';
 import { StatusIcon } from '../components/icons';
 import { LiteMotion, m, spring } from '../motion';
 import '../regions.css';
@@ -118,13 +119,14 @@ export function RegionsPage({ dark }: { dark: boolean }) {
       if (document.visibilityState !== 'visible') return;
       polled.current = Date.now();
       regions.reload(); agent.reload();
+      if (!index.data) index.reload();
       if (live) archive.reload();
     };
     const id = setInterval(refresh, REFRESH_MS);
     const onShow = () => { if (Date.now() - polled.current >= REFRESH_MS) refresh(); };
     document.addEventListener('visibilitychange', onShow);
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onShow); };
-  }, [regions.reload, agent.reload, archive.reload, live]);
+  }, [regions.reload, agent.reload, archive.reload, index.reload, index.data, live]);
 
   // Statuses and ΔT of the open slot; the live list keeps everything the API sends.
   const shown = useMemo<RegionSummary[]>(() => {
@@ -234,7 +236,9 @@ export function RegionsPage({ dark }: { dark: boolean }) {
       <div className={`map-page ${sheetOpen ? 'sheet-open' : ''} ${lite ? 'is-lite' : ''}`} style={{ ['--peek' as string]: `${peekPx}px` }}>
         <Sheet
           open={sheetOpen} onOpenChange={setSheetOpen} enabled={isSheet} label={t('rg.panel')} onPeekHeight={setPeekPx}
-          peek={<>
+          peek={!regions.data ? (
+            <span className={regions.error ? 'sw stale' : 'muted'}>{t(regions.error ? 'rg.peek_error' : 'rg.peek_loading')}</span>
+          ) : <>
             <span className="sw alert">{t('rg.peek_alert', { n: counts.ALERT })}</span>
             <span className="sw warning">{t('rg.peek_warning', { n: counts.WARNING })}</span>
             {(atLatest ? latestSlot : shownSlot?.at) && <span className="when">{fmtSlot((atLatest ? latestSlot : shownSlot?.at)!)}</span>}
@@ -297,7 +301,7 @@ export function RegionsPage({ dark }: { dark: boolean }) {
               <button className="link-btn" onClick={regions.reload}>{t('retry')}</button>
             </div>
           )}
-          {archive.error && !atLatest && (
+          {archive.error && (
             <div className="error" role="alert">
               {t('load_error', { msg: errorText(archive.error, t) })}{' '}
               <button className="link-btn" onClick={archive.reload}>{t('retry')}</button>
@@ -351,19 +355,9 @@ export function RegionsPage({ dark }: { dark: boolean }) {
 
         <div className="map-wrap">
           <div ref={mapEl} className="map" role="region" aria-label={t('rg.map_aria')} />
-          {/* the legend sits on the map, top right beside the zoom buttons: open on wide screens, one tap on phones */}
-          <div className="map-overlay top-right">
-            <details className="legend map-legend" open={!isSheet}>
-              <summary>{t('map.legend')}</summary>
-              <ul>
-                {(['ALERT', 'WARNING', 'NO_OBSERVABLE', 'SAFE'] as Status[]).map((s) => <li key={s}><StatusBadge status={s} /> {t(`rg.legend.${s}`)}</li>)}
-                <li><i className="lg-line thin" />{t('rg.legend.cell')}</li>
-                <li><i className="lg-px himawari9" />{t('rg.legend.himawari9')}</li>
-                <li><i className="lg-px gk2a" />{t('rg.legend.gk2a')}</li>
-                <li><i className="lg-px viirs" />{t('rg.legend.viirs')}</li>
-              </ul>
-              <p className="muted small">{t('rg.sources')}</p>
-            </details>
+          {/* the legend sits top left, clear of the zoom buttons (top right): open by default, with a Hide button */}
+          <div className="map-overlay top-left">
+            <MapLegend />
           </div>
           {viewDay && index.data?.first && index.data.last && (
             <div className="map-overlay bottom">

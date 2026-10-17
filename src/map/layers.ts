@@ -19,7 +19,7 @@ export function styleFor(basemap: 'streets' | 'plain', dark: boolean): string | 
   };
 }
 
-const OWN_SOURCES = new Set(['rg-provinces', 'rg-cells', 'rg-peat', 'rg-pixels', 'rg-viirs']);
+const OWN_SOURCES = new Set(['rg-provinces', 'rg-cells', 'rg-labels', 'rg-peat', 'rg-pixels', 'rg-viirs']);
 
 /**
  * Vector basemap labels (OpenFreeMap/OpenMapTiles) in English: name:en, falling back to the

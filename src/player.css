@@ -63,6 +63,7 @@
 .ribbon-cells i.have { background: color-mix(in srgb, var(--ink-dim) 55%, var(--surface-2)); }
 .ribbon-cells i.gap { background: repeating-linear-gradient(45deg, var(--surface-2) 0 2px, var(--amber) 2px 3px); }
 .ribbon-cells i.zero { background: color-mix(in srgb, var(--moss) 35%, var(--surface-2)); }
+.ribbon-cells i.unrated { background: repeating-linear-gradient(45deg, var(--surface-2) 0 2px, var(--line-strong) 2px 3px); } /* only cloud or no data: not Safe */
 .ribbon-cells i.hot { background: color-mix(in srgb, var(--amber) calc(var(--a) * 100%), var(--surface-2)); } /* WARNING only */
 .ribbon-cells i.alert { background: color-mix(in srgb, var(--ember) calc(var(--a) * 100%), var(--surface-2)); }
 .ribbon-now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); pointer-events: none;

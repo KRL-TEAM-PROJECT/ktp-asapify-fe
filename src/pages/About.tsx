@@ -14,6 +14,7 @@ const RULES: [string, string][] = [
   ['about.r_hot', 'ΔBT ≥ 3 K and ≥ 3σ · 3.9 µm ≥ 2 K and ≥ 3σ'],
   ['about.r_agree', '≤ 8 km (quality flag only)'],
   ['about.r_fuse', 'ΔT = mean of the satellites that see, weighted by clear fraction'],
+  ['about.r_maut', 'U = (0.6·μ(ΔT mean) + 0.4·v·μ(ΔT max)) / (0.6 + 0.4·v), v = clear share of the stronger satellite'],
   ['about.r_dry', '+1 K · tanh(z / 2), z = (POWER normal RH − RH) / σ'],
   ['about.r_sun', '−1 K · sin(sun elevation), by day'],
   ['about.r_dt_low', '−∞ … 1–3 K'],
@@ -21,9 +22,9 @@ const RULES: [string, string][] = [
   ['about.r_dt_high', '6–8 K … ∞'],
   ['about.r_bounds', 'Safe < 1.95 K ≤ Warning < 6.95 K ≤ Alert'],
   ['about.r_cloud', '> 60 %'],
-  ['about.r_support', 'ALERT + 0.2·VIIRS + 0.1·POWER, upward only, only when ΔT high > 0'],
+  ['about.r_support', '(U Alert + 0.2·VIIRS + 0.1·POWER) / (1 + their weights), upward only, only when U Alert > 0'],
   ['about.r_margin', '0.05'],
-  ['about.r_agent', '24 h · 20 / day'],
+  ['about.r_agent', '24 h · 20 per UTC day (resets 07:00 UTC+7)'],
 ];
 const SOURCES: [string, string][] = [
   ['Himawari-9 AHI', 'about.src_himawari'],

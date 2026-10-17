@@ -55,6 +55,27 @@
 .rg-timeline { overflow-x: auto; overscroll-behavior-x: contain; transition: opacity var(--dur-2) var(--ease-out); }
 .rg-timeline svg { min-width: 760px; display: block; }
 .rg-timeline.is-updating { opacity: 0.55; }
+.rg-tl-plot { position: relative; }
+.rg-tl-plot svg { cursor: crosshair; touch-action: pan-x pan-y; }
+.rg-tl-plot svg:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--r-1); }
+.rg-tip { position: absolute; z-index: 2; width: max-content; min-width: 210px; max-width: 280px; padding: 8px 10px;
+  display: grid; gap: 6px; font-size: var(--fs-xs); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: var(--r-2); box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+  pointer-events: none; }
+.rg-tip-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rg-tip dl { margin: 0; display: grid; gap: 3px; }
+.rg-tip dl div { display: grid; grid-template-columns: 14px auto 1fr; align-items: center; gap: 8px; }
+.rg-tip dd { order: 1; margin: 0; font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+.rg-tip dt { order: 2; color: var(--ink-dim); }
+.rg-tip i { order: 0; display: block; justify-self: center; width: 12px; height: 2px; }
+.rg-tip i.line { background: var(--ink); height: 2.5px; }
+.rg-tip i.line.thin { background: var(--ink-dim); height: 1px; }
+.rg-tip i.line.rh { background: var(--sat-h); height: 2px; }
+.rg-tip i.dot { width: 7px; height: 7px; border-radius: 50%; }
+.rg-tip i.dot.h { background: var(--sat-h); }
+.rg-tip i.dot.g { background: var(--ink-dim); }
+.rg-tip i.box { width: 7px; height: 9px; border-radius: 1px; background: var(--ink-dim); opacity: 0.6; }
+.rg-tip i.tick { width: 2px; height: 10px; background: var(--viirs); }
 .rg-howto summary { cursor: pointer; font-size: var(--fs-sm); font-weight: 600; min-height: 40px; display: flex; align-items: center; }
 .rg-howto ol { margin: 0 0 4px; padding-left: 20px; display: grid; gap: 4px; }
 .rg-key { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }

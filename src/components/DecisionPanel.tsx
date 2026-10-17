@@ -14,7 +14,7 @@ export function DecisionState({ decision }: { decision: Decision | null }) {
   const { t } = useI18n();
   if (!decision) return <span className="dec-state"><IconClock size={12} />{t('decision.pending')}</span>;
   return decision.action === 'publish'
-    ? <span className="dec-state"><IconSend size={12} />{t('decision.published')}</span>
+    ? <span className="dec-state"><IconSend size={12} />{t(decision.auto ? 'decision.auto' : 'decision.published')}</span>
     : <span className="dec-state"><IconX size={12} />{t('decision.rejected')}</span>;
 }
 
@@ -27,6 +27,8 @@ interface Props {
   submit(body: DecisionRequest): Promise<unknown>;
   onDecided(): void;
   publishBlocked?: string | null; // why publishing is not possible; rejecting still is
+  /** When the backend publishes this verification itself if nobody decides (backend publication.py); null = never. */
+  autoAt?: string | null;
 }
 
 type Mode = 'idle' | 'confirm' | 'reject';
@@ -39,7 +41,7 @@ const slide = {
 };
 
 /** Two buttons only: Publish (caption editable) or Reject (reason required). Used for region verifications. */
-export function DecisionPanel({ decision: d, province, summary, caption: initialCaption, details, submit: send, onDecided, publishBlocked }: Props) {
+export function DecisionPanel({ decision: d, province, summary, caption: initialCaption, details, submit: send, onDecided, publishBlocked, autoAt }: Props) {
   const { t } = useI18n();
   const [caption, setCaption] = useState(initialCaption);
   const [reason, setReason] = useState('');
@@ -55,8 +57,10 @@ export function DecisionPanel({ decision: d, province, summary, caption: initial
         <h2 id="dec-h">{t('dec.title')}</h2>
         <p className="decided">
           {d.action === 'publish' ? <IconCheck /> : <IconX />}
-          {t(d.action === 'publish' ? 'dec.published_by' : 'dec.rejected_by', { by: d.by, when: fmtSlot(d.at) })}
+          {d.auto ? t('dec.published_auto', { when: fmtSlot(d.at) })
+            : t(d.action === 'publish' ? 'dec.published_by' : 'dec.rejected_by', { by: d.by, when: fmtSlot(d.at) })}
         </p>
+        {d.auto && <p className="muted small">{t('dec.auto_why')}</p>}
         {d.alert_id && <p className="muted">{t('dec.alert', { id: d.alert_id })}</p>}
         {d.notifications && <p className="muted" role="status">{
           d.notifications.state === 'fanout_pending' ? t('dec.outbox_pending')
@@ -113,6 +117,12 @@ export function DecisionPanel({ decision: d, province, summary, caption: initial
         </div>
       )}
       {publishBlocked && <p className="callout info small">{publishBlocked}</p>}
+      {!publishBlocked && autoAt && (
+        <p className="callout info small" role="note">
+          <IconClock size={14} />
+          <span>{Date.parse(autoAt) <= Date.now() ? t('dec.auto_now') : t('dec.auto_at', { when: fmtSlot(autoAt) })}</span>
+        </p>
+      )}
 
       {/* Blocks that appear/disappear fade in and out; elements below them (layout="position") slide to their new place. */}
       <AnimatePresence initial={false}>

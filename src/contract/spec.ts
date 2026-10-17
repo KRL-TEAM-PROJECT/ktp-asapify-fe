@@ -80,7 +80,7 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'FORBIDDEN', http: 403, when: 'User is not an operator, or the Google email is not verified' },
   { code: 'NOT_FOUND', http: 404, when: 'Region or alert does not exist' },
   { code: 'VALIDATION', http: 400, when: 'Malformed parameter/body (e.g. `date` is not YYYY-MM-DD)' },
-  { code: 'ALREADY_DECIDED', http: 409, when: 'Verification already published/rejected by another operator' },
+  { code: 'ALREADY_DECIDED', http: 409, when: 'Verification already published/rejected by another operator, or published automatically' },
   { code: 'REASON_REQUIRED', http: 422, when: 'Reject without `reason`' },
   { code: 'CAPTION_INVALID', http: 422, when: 'Publish with an empty caption or > 1,024 characters' },
   { code: 'TELEGRAM_NOT_CONFIGURED', http: 503, when: 'The Telegram bot is not set up in the backend' },
@@ -89,6 +89,7 @@ export const ERRORS: { code: string; http: number; when: string }[] = [
   { code: 'AGENT_QUOTA_EXHAUSTED', http: 429, when: 'The daily agent quota is used up; resets at 00:00 UTC' },
   { code: 'VERIFIED_RECENTLY', http: 409, when: 'The region was verified less than 5 minutes ago' },
   { code: 'VERIFICATION_REJECTED', http: 409, when: 'Publish on a verification the agent rejected' },
+  { code: 'VERIFICATION_STALE', http: 409, when: 'Publish on a verification more than 12 hours past its slot (since 18 Oct 2026); reject still works' },
   { code: 'CANNOT_REMOVE_SELF', http: 409, when: 'An operator tried to remove their own operator access' },
   { code: 'ADMIN_ONLY', http: 403, when: 'A self-registered (judging) operator called an Admin route: operator access or Telegram groups' },
   { code: 'SIGNUP_ENDED', http: 403, when: 'A self-registered operator after the judging window (OPERATOR_SIGNUP_UNTIL) has passed' },
@@ -118,10 +119,11 @@ export const SCHEMAS: Schema[] = [
   },
   {
     name: 'Decision', origin: 'backend',
-    desc: 'Operator decision on one verification (once per verification).',
+    desc: 'Operator decision on one verification (once per verification), or the automatic publication.',
     fields: [
       { name: 'action', type: "'publish' | 'reject'", req: true, desc: 'Publish to the linked Telegram groups, or reject.' },
-      { name: 'by', type: 'string (email)', req: true, desc: 'Operator email.' },
+      { name: 'by', type: 'string (email)', req: true, desc: 'Operator email; `automatic` for the automatic publication.' },
+      { name: 'auto', type: 'true', req: false, desc: 'Since 18 Oct 2026: published by the backend because Gemini confirmed and no operator decided within 2 hours while the region was still ALERT; the message starts with "[Automatic] Not yet reviewed by an ASAPify operator." Kept in the public views.' },
       { name: 'at', type: ISO, req: true, desc: 'Decision time.' },
       { name: 'reason', type: 'string | null', req: true, desc: 'Required for reject; null for publish.' },
       { name: 'alert_id', type: 'string | null', req: true, desc: '`A-{MMDD}-{nnn}` when published.' },
@@ -180,6 +182,7 @@ export const SCHEMAS: Schema[] = [
       { name: 'utilities', type: '{ SAFE?, WARNING?, ALERT?: number } | null', req: true, desc: 'Fuzzy MAUT utilities 0–1; empty when NO_OBSERVABLE.' },
       { name: 'verification', type: 'VerificationBrief | null', req: true, desc: 'Latest agent result: id, validation_status, confidence_score, trigger, at, observed_at, error, decision.' },
       { name: 'inputs, quality, reason, flags, night', type: 'RegionInputs, SlotQuality, string, string[], boolean', req: true, desc: 'From the latest slot; see SlotRecord.' },
+      { name: 'adjust', type: 'SlotAdjust | null', req: false, desc: 'From the latest slot (since 18 Oct 2026): the ΔT the rules counted, for the map\'s tooltip; see SlotRecord.' },
     ],
   },
   {
@@ -228,7 +231,9 @@ export const SCHEMAS: Schema[] = [
       { name: 'slots[].key, slots[].at', type: `'HHMM' (UTC+7), ${ISO}`, req: true, desc: 'Slot time; oldest first.' },
       { name: 'slots[].satellites', type: "('himawari9' | 'gk2a')[]", req: true, desc: 'Satellites read in that slot.' },
       { name: 'slots[].status', type: 'string', req: true, desc: 'One code per region: S, W, A, N; `-` = not assessed in that slot.' },
-      { name: 'slots[].delta_t', type: '(number | null)[]', req: true, desc: 'ΔT per region, K, one decimal.' },
+      { name: 'slots[].delta_t', type: '(number | null)[]', req: true, desc: 'ΔT measured per region, K, one decimal.' },
+      { name: 'slots[].delta_t_eff', type: '(number | null)[]', req: false, desc: 'ΔT the rules counted (after dry air and the sun) per region, K, one decimal; since 18 Oct 2026.' },
+      { name: 'slots[].delta_t_max_eff', type: '(number | null)[]', req: false, desc: 'The strongest view\'s counted ΔT where it carried weight, else null; only in slots where some region has one.' },
       { name: 'slots[].hot', type: '{ [region]: { himawari9, gk2a, viirs, view } }', req: true, desc: 'Regions with a hot pixel: pixels `[lat, lon, ΔBT K]` (≤ 5 per satellite), VIIRS `[lat, lon, minutes from the slot]` (≤ 5), the fusion flag.' },
       { name: 'slots[].trimmed', type: 'boolean', req: false, desc: 'True when pixel detail was cut to keep the slot under 7,000 characters; statuses are never cut.' },
     ],
@@ -254,6 +259,8 @@ export const SCHEMAS: Schema[] = [
       { name: 'tool_calls, evidence', type: 'object[], Hotspot[]', req: true, desc: 'Every FIRMS query and up to 15 hotspots (lat, lon, acquired_at, distance_km, confidence, frp_mw, brightness_k).' },
       { name: 'model, usage, duration_s', type: 'string, object, number', req: true, desc: 'Cost trail.' },
       { name: 'decision', type: 'Decision | null', req: true, desc: 'Operator decision on this verification.' },
+      { name: 'publish_until', type: `${ISO} | null`, req: false, desc: 'Region detail only (since 18 Oct 2026): 12 hours after the slot under review; later only reject works.' },
+      { name: 'auto_publish_at', type: `${ISO} | null`, req: false, desc: 'Region detail, latest verification only: CONFIRMED, undecided and without error, it is published automatically at this time (2 hours after the run) if its region is still ALERT; null otherwise.' },
     ],
   },
   {
@@ -356,12 +363,12 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'region-decision', method: 'POST', path: '/operator/regions/{id}/decision', auth: 'operator',
     title: 'Publish / reject a verification',
-    purpose: 'Once per verification, audited (audit_log). Publish needs a caption: the decision is saved, then one queued message per linked Telegram group; having no group never fails a decision. Reject needs a reason. A REJECTED verification can only be rejected.',
+    purpose: 'Once per verification, audited (audit_log). Publish needs a caption: the decision is saved, then one queued message per linked Telegram group; having no group never fails a decision. Reject needs a reason. A REJECTED verification can only be rejected, and so can one more than 12 hours past its slot. A CONFIRMED verification nobody decided on within 2 hours is published by the backend itself while its region is still ALERT (decision `auto`).',
     usedBy: 'Region detail → DecisionPanel.',
     params: [{ name: 'id', type: 'path · string', req: true, desc: 'Region id.' }],
     body: { schema: 'RegionDecisionRequest', example: 'regionDecisionReq' },
     responses: [{ code: 201, schema: 'DecisionResponse', example: 'regionDecisionRes' }],
-    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ALREADY_DECIDED', 'VERIFICATION_REJECTED', 'REASON_REQUIRED', 'CAPTION_INVALID'],
+    errors: ['UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'ALREADY_DECIDED', 'VERIFICATION_REJECTED', 'VERIFICATION_STALE', 'REASON_REQUIRED', 'CAPTION_INVALID'],
   },
   {
     id: 'operator-access', method: 'GET', path: '/operator/access', auth: 'operator',
@@ -426,7 +433,7 @@ export const ENDPOINTS: Endpoint[] = [
   {
     id: 'join-links', method: 'GET', path: '/telegram/join', auth: 'public',
     title: 'Telegram groups to join',
-    purpose: 'Title and invite link of every linked group that has one. Public: no sign-in, nothing else about the group.',
+    purpose: 'The team\'s alert group first (the backend keeps its link: TEAM_GROUP, or TELEGRAM_JOIN_URL), then the title and invite link of every linked group that has one; a linked group saved with the team\'s link takes its place. Public: no sign-in, nothing else about the group.',
     usedBy: 'Get alerts page (/join).',
     responses: [{ code: 200, schema: '{ title, invite_url }[]', example: 'joinLinks' }],
     errors: [],
@@ -526,7 +533,8 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   dayArchive: {
     date: '2026-10-12', regions: ['R3.50S105.625E', 'R2.50S113.750E', 'R0.50S101.875E'],
     slots: [{
-      key: '0110', at: '2026-10-11T18:10:00Z', satellites: ['himawari9', 'gk2a'], status: 'ASW', delta_t: [39.4, 0.2, 9.1],
+      key: '0110', at: '2026-10-11T18:10:00Z', satellites: ['himawari9', 'gk2a'], status: 'ASW', delta_t: [39.4, 0.2, 5.4],
+      delta_t_eff: [39.4, 0.5, 5.9], delta_t_max_eff: [42.3, null, 9.6],
       hot: {
         'R3.50S105.625E': {
           himawari9: [[-3.577, 105.723, 39.4], [-3.561, 105.741, 31.2]], gk2a: [[-3.566, 105.734, 42.3]],
@@ -574,7 +582,7 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   accessRes: { email: 'judge@example.org', state: 'pending', added_by: 'operator@example.org', added_at: '2026-10-14T09:12:00Z', activated_at: null },
   activateRes: { role: 'operator', changed: true },
   tgGroups: [{ id: '9c1f…4be2', title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456', linked_by: 'operator@example.org', linked_at: '2026-10-15T03:20:00Z' }],
-  joinLinks: [{ title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456' }],
+  joinLinks: [{ title: 'ASAPify alert group', invite_url: 'https://t.me/+dWeL0KTSkbYxOTE9' }, { title: 'ASAPify Notified', invite_url: 'https://t.me/+AbCdEf123456' }],
   tgInviteReq: { invite_url: 'https://t.me/+AbCdEf123456' },
   tgGroupLink: { url: 'https://t.me/asapify_alert_bot?startgroup=Qm9…x7Ze', expires_in_seconds: 600 },
   health: { status: 'ok', version: '0.1.0', time: '2023-09-24T15:10:03Z' },

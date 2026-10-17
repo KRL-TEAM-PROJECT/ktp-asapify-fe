@@ -16,6 +16,8 @@ export interface Decision {
   at: string;
   reason: string | null;
   alert_id: string | null;
+  /** Published by the backend itself: Gemini confirmed and no operator decided within 2 hours (since 18 Oct 2026). */
+  auto?: boolean;
   /** A saved decision is not proof of delivery. */
 }
 
@@ -216,6 +218,10 @@ export interface Verification {
   weather?: VerificationWeather | null;
   checks: string[]; // why the backend downgraded the agent's answer
   error: string | null;
+  /** Region detail only (since 18 Oct 2026): publishing closes 12 h after the slot under review. */
+  publish_until?: string | null;
+  /** Region detail, latest verification only: when a CONFIRMED one nobody decided on goes out by itself (if still Alert). */
+  auto_publish_at?: string | null;
   tool_calls: AgentToolCall[];
   evidence: Hotspot[];
   model: string;
@@ -251,13 +257,14 @@ export interface RegionSummary {
   last_agent_at: string | null;
   verification: VerificationBrief | null;
   inputs: RegionInputs | null; // from the latest slot
+  adjust?: SlotAdjust | null; // from the latest slot (since 18 Oct 2026): the ΔT the rules counted
   quality: SlotQuality | null;
   reason: string | null;
   flags: string[] | null;
   night: boolean | null;
 }
 
-export interface RegionDetail extends Omit<RegionSummary, 'inputs' | 'quality' | 'reason' | 'flags' | 'night'> {
+export interface RegionDetail extends Omit<RegionSummary, 'inputs' | 'adjust' | 'quality' | 'reason' | 'flags' | 'night'> {
   last_error: string | null;
   latest?: SlotRecord;
   slots: SlotRecord[]; // oldest first, 4 per hour (6 in records older than 16 October 2026)
@@ -331,7 +338,9 @@ export interface DaySlot {
   at: string; // scan start, UTC
   satellites: SatelliteName[]; // read in this slot
   status: string; // one code per region in DayArchive.regions order: S, W, A, N; - = not assessed
-  delta_t: (number | null)[]; // same order
+  delta_t: (number | null)[]; // ΔT measured, same order
+  delta_t_eff?: (number | null)[]; // ΔT the rules counted (dry air, sun), same order; since 18 Oct 2026
+  delta_t_max_eff?: (number | null)[]; // the strongest view's counted ΔT where it carried weight; absent when none did
   hot: Record<string, DayHot>; // regions where a satellite saw a hot pixel
   trimmed?: boolean; // some detail was left out to keep the day under 1 MiB
 }

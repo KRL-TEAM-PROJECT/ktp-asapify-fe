@@ -11,6 +11,7 @@ const W = 1040, PL = 64, PR = 84;
 // Each panel's name sits in the gap above it, clear of the tick numbers on the left.
 const STRIP = { y: 6, h: 16 };
 const DT = { y: 50, h: 150 };
+const LANE = 12; // the top of the ΔT panel is the VIIRS ticks' own lane, so the highest line never runs through them
 const RH = { y: 232, h: 72 };
 const CLOUD = { y: 336, h: 62 };
 const H = CLOUD.y + CLOUD.h + 28;
@@ -22,6 +23,10 @@ const FILL: Record<Status, string> = { SAFE: 'var(--moss)', WARNING: 'var(--ambe
 const SAFE_MAX = 1.95, WARNING_MAX = 6.95;
 // the map's marks: Himawari-9 blue, GK2A ink
 const SAT: [SatelliteName, string, string][] = [['himawari9', 'H', 'var(--sat-h)'], ['gk2a', 'G', 'var(--ink-dim)']];
+// backend fusion.py: a satellite's value counts when it has a verdict and at least 40 % of the cell is clear
+const MIN_CLEAR = 0.4;
+type View = SlotRecord['views'][SatelliteName];
+const counts = (v: View) => v != null && v.max_anomaly_k != null && 1 - v.cloud_fraction >= MIN_CLEAR;
 
 /** Line through the slots that have a value; breaks where a value is missing. */
 function path(points: ({ x: number; y: number } | null)[]) {
@@ -44,10 +49,13 @@ function nearest(centres: number[], vx: number): number {
 
 /**
  * Slot by slot: rules-engine status (strip), the ΔT the rules counted (bold line: measured ΔT moved by dry air and the
- * sun) over the measured ΔT (thin line) with each satellite's own anomaly (dots: H Himawari-9, G GK2A), relative
- * humidity and cloud cover. The ΔT panel is banded by the status the counted ΔT falls in (Safe below about 2 K, Alert
- * above about 7 K), so the line reads against the zones; day slots are shaded grey. Lines draw at once: no entrance
- * animation can leave them blank, and `updating` dims the chart while a refresh is on its way.
+ * sun) over the measured ΔT (thin line) with each satellite's own anomaly (dots: H Himawari-9, G GK2A; hollow when
+ * that satellite saw under 40 % of the cell clear, so it was shown but not counted), relative humidity and cloud
+ * cover. With two views the stronger one, counted the same way, is a dashed line: it weighs up to 40 % of the rating,
+ * which is how a slot turns Alert a little below the red band. The ΔT panel is banded by the status the counted ΔT
+ * falls in (Safe below about 2 K, Alert above about 7 K), so the line reads against the zones; day slots are shaded
+ * grey. Lines draw at once: no entrance animation can leave them blank, and `updating` dims the chart while a refresh
+ * is on its way.
  */
 export function RegionTimeline({ slots, updating = false }: { slots: SlotRecord[]; updating?: boolean }) {
   const { t } = useI18n();
@@ -66,12 +74,13 @@ export function RegionTimeline({ slots, updating = false }: { slots: SlotRecord[
   const cells = at.map((v, i) => ({ x0: X(v - left[i]), w: X(v + right[i]) - X(v - left[i]) }));
 
   const counted = (s: SlotRecord) => s.adjust?.delta_t_eff_k ?? s.inputs.delta_t_k; // adjust may be {} in early records
-  const values = slots.flatMap((s) => [s.inputs.delta_t_k, counted(s), ...SAT.map(([n]) => s.views[n]?.max_anomaly_k ?? null)])
+  const strongest = (s: SlotRecord) => s.adjust?.delta_t_max_eff_k ?? null; // only where it carried weight
+  const values = slots.flatMap((s) => [s.inputs.delta_t_k, counted(s), strongest(s), ...SAT.map(([n]) => s.views[n]?.max_anomaly_k ?? null)])
     .filter((v): v is number => v != null);
   const lo = Math.min(-2, ...values), hi = Math.max(10, ...values);
   // symmetric log scale: the 0-7 K where the status changes keeps its room even when a fire reads 40 K
   const sl = (v: number) => Math.sign(v) * Math.log1p(Math.abs(v) / 2);
-  const yDt = (v: number) => DT.y + (1 - (sl(Math.min(Math.max(v, lo), hi)) - sl(lo)) / (sl(hi) - sl(lo))) * DT.h;
+  const yDt = (v: number) => DT.y + LANE + (1 - (sl(Math.min(Math.max(v, lo), hi)) - sl(lo)) / (sl(hi) - sl(lo))) * (DT.h - LANE);
   const yPct = (band: { y: number; h: number }, v: number) => band.y + (1 - v / 100) * band.h;
   const dtTicks = [0, SAFE_MAX, WARNING_MAX, ...[15, 30, 60, 100].filter((v) => v <= hi * 0.95)].filter((v) => v >= lo && v <= hi);
   const zones: [Status, number, number][] = [['SAFE', lo, SAFE_MAX], ['WARNING', SAFE_MAX, WARNING_MAX], ['ALERT', WARNING_MAX, hi]];
@@ -153,20 +162,33 @@ export function RegionTimeline({ slots, updating = false }: { slots: SlotRecord[
           />
         ))}
 
-        {/* each satellite's own anomaly, then VIIRS support as a tick above the panel */}
+        {/* each satellite's own anomaly (hollow: shown, not counted), then VIIRS support as a tick above the panel */}
         {SAT.map(([n, , c]) => slots.map((s) => {
-          const v = s.views[n]?.max_anomaly_k;
-          return v == null ? null : <circle key={`${n}-${s.observed_at}`} cx={x(s.observed_at)} cy={yDt(v)} r={2.4} fill={c} opacity={0.8} />;
+          const view = s.views[n], v = view?.max_anomaly_k;
+          if (v == null) return null;
+          return counts(view)
+            ? <circle key={`${n}-${s.observed_at}`} cx={x(s.observed_at)} cy={yDt(v)} r={2.4} fill={c} opacity={0.8} />
+            : <circle key={`${n}-${s.observed_at}`} cx={x(s.observed_at)} cy={yDt(v)} r={2.4} fill="none" stroke={c} strokeWidth={1.3} opacity={0.9} />;
         }))}
         {slots.map((s) => s.support.viirs_support == null ? null : (
           <line key={`v-${s.observed_at}`} x1={x(s.observed_at)} x2={x(s.observed_at)} y1={DT.y + 1} y2={DT.y + 9} stroke="var(--viirs)" strokeWidth="2" />
         ))}
 
-        {/* measured ΔT, the ΔT the rules counted and humidity, drawn at once */}
+        {/* measured ΔT, the strongest view and the ΔT the rules counted, and humidity, drawn at once */}
         <path
           d={path(slots.map((s) => (s.inputs.delta_t_k == null ? null : { x: x(s.observed_at), y: yDt(s.inputs.delta_t_k) })))}
           fill="none" stroke="var(--ink-dim)" strokeWidth="1.2" strokeLinejoin="round" opacity="0.7"
         />
+        <path
+          d={path(slots.map((s) => { const v = strongest(s); return v == null ? null : { x: x(s.observed_at), y: yDt(v) }; }))}
+          fill="none" stroke="var(--ink)" strokeWidth="1.5" strokeDasharray="5 3" strokeLinejoin="round" opacity="0.85"
+        />
+        {/* a slot whose neighbours have no strongest view would be a dash of nothing: a small ring marks it */}
+        {slots.map((s, i) => {
+          const v = strongest(s);
+          if (v == null || (i > 0 && strongest(slots[i - 1]) != null) || (i + 1 < slots.length && strongest(slots[i + 1]) != null)) return null;
+          return <circle key={`mx-${s.observed_at}`} cx={x(s.observed_at)} cy={yDt(v)} r={2.6} fill="var(--surface)" stroke="var(--ink)" strokeWidth={1.4} />;
+        })}
         <path
           d={path(slots.map((s) => { const v = counted(s); return v == null ? null : { x: x(s.observed_at), y: yDt(v) }; }))}
           fill="none" stroke="var(--ink)" strokeWidth="2.2" strokeLinejoin="round"
@@ -186,12 +208,13 @@ export function RegionTimeline({ slots, updating = false }: { slots: SlotRecord[
 
         {/* crosshair on the slot under the pointer, with its values marked on each line */}
         {cur != null && (() => {
-          const s = slots[cur], cx = centres[cur], c = counted(s);
+          const s = slots[cur], cx = centres[cur], c = counted(s), mx = strongest(s);
           return (
             <g pointerEvents="none">
               <rect x={cells[cur].x0} y={STRIP.y} width={cells[cur].w} height={STRIP.h} fill="none" stroke="var(--ink)" strokeWidth="1.5" />
               <line x1={cx} x2={cx} y1={STRIP.y + STRIP.h} y2={CLOUD.y + CLOUD.h} stroke="var(--ink)" strokeWidth="1" opacity="0.55" />
               {s.inputs.delta_t_k != null && <circle cx={cx} cy={yDt(s.inputs.delta_t_k)} r={3.5} fill="var(--ink-dim)" stroke="var(--surface)" strokeWidth="2" />}
+              {mx != null && <circle cx={cx} cy={yDt(mx)} r={4} fill="var(--surface)" stroke="var(--ink)" strokeWidth="1.8" />}
               {c != null && <circle cx={cx} cy={yDt(c)} r={5} fill="var(--ink)" stroke="var(--surface)" strokeWidth="2" />}
               {s.inputs.relative_humidity_pct != null && (
                 <circle cx={cx} cy={yPct(RH, s.inputs.relative_humidity_pct)} r={4} fill="var(--sat-h)" stroke="var(--surface)" strokeWidth="2" />
@@ -207,7 +230,9 @@ export function RegionTimeline({ slots, updating = false }: { slots: SlotRecord[
         · {t('rgt.hover')}{' '}
         <span className="rg-key">
           <i className="line" />{t('rgt.counted')} <i className="line thin" />{t('rgt.measured')}
+          <i className="line dash" />{t('rgt.strongest')}
           <i style={{ background: 'var(--sat-h)', borderRadius: '50%' }} />H Himawari-9 <i style={{ background: 'var(--ink-dim)', borderRadius: '50%' }} />G GK2A
+          <i className="hollow" />{t('rgt.not_counted')}
           <i className="line rh" />RH <i className="tick" />{t('rgt.viirs')}
         </span>
       </figcaption>
@@ -234,17 +259,23 @@ function SlotTip({ s, side, at, top }: { s: SlotRecord; side: 'left' | 'right'; 
     const v = s.views[n];
     return v == null ? t('rgi.no_data') : v.max_anomaly_k == null ? t('rgt.no_view') : k(v.max_anomaly_k, 1);
   };
+  // a satellite with a verdict but under 40 % of the cell clear is shown and not counted
+  const satLabel = (n: SatelliteName, name: string) => {
+    const v = s.views[n];
+    return v != null && v.max_anomaly_k != null && !counts(v)
+      ? t('rgt.sat_not_counted', { sat: name, cloud: fmtNum(v.cloud_fraction * 100, 0) }) : name;
+  };
   const view = agreement(s.flags);
   const rows: [string, string, string][] = [
     ['line', k(s.adjust?.delta_t_eff_k ?? s.inputs.delta_t_k), t('rgt.counted')],
     ['line thin', k(s.inputs.delta_t_k), t('rgt.tip_measured')],
     ...(s.adjust?.delta_t_max_eff_k != null   // the stronger view, a second attribute when both satellites see
-      ? [['', k(s.adjust.delta_t_max_eff_k), t('rgt.tip_max', { w: fmtNum((s.adjust.max_weight ?? 0) * 100, 0) })] as [string, string, string]]
+      ? [['line dash', k(s.adjust.delta_t_max_eff_k), t('rgt.tip_max', { w: fmtNum((s.adjust.max_weight ?? 0) * 100, 0) })] as [string, string, string]]
       : []),
-    ['dot h', sat('himawari9'), 'Himawari-9'],
-    ['dot g', sat('gk2a'), 'GK2A'],
+    [counts(s.views.himawari9) ? 'dot h' : 'dot h hollow', sat('himawari9'), satLabel('himawari9', 'Himawari-9')],
+    [counts(s.views.gk2a) ? 'dot g' : 'dot g hollow', sat('gk2a'), satLabel('gk2a', 'GK2A')],
     ...(s.adjust?.delta_t_eff_k != null
-      ? [['', `${k(s.adjust.rh_shift_k)} / ${k(-s.adjust.sun_shift_k)}`, t('rgt.tip_shift')] as [string, string, string]]
+      ? [['', `${s.adjust.dry_z == null ? '–' : k(s.adjust.rh_shift_k)} / ${k(-s.adjust.sun_shift_k)}`, t('rgt.tip_shift')] as [string, string, string]]
       : []),
     ['line rh', pct(s.inputs.relative_humidity_pct), 'RH'],
     ['box', pct(s.inputs.cloud_cover_pct), t('rgt.cloud')],

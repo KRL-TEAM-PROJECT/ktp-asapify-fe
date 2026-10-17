@@ -1,8 +1,7 @@
 import type { SlotRecord } from '../types';
 import { useI18n } from '../i18n';
-import { fmtSigned } from '../lib/format';
+import { fmtNum, fmtSigned } from '../lib/format';
 import { plainReason } from '../lib/reason';
-import { m, springSoft } from '../motion';
 import { STATUS_KEY, StatusBadge } from './StatusBadge';
 
 // Status boundaries of the counted ΔT with the default curves and safety margin (backend rules.py, About → Rules).
@@ -12,8 +11,9 @@ const pct = (k: number) => ((Math.min(Math.max(k, LO), HI) - LO) / (HI - LO)) * 
 
 /**
  * Fuzzy MAUT result of one slot: how dry air and the sun moved the measured ΔT, and where the counted ΔT falls on
- * the Safe | Warning | Alert scale. The utilities themselves are not shown: with one attribute they equal the
- * curves' memberships, which sit at 1 and 0 across most of the range and read as more certain than they are.
+ * the Safe | Warning | Alert scale. Since 17 Oct 2026, when both satellites see, the stronger one is a second
+ * attribute: its counted ΔT is a hollow mark on the scale and its weight is listed, and the utilities are shown
+ * because two attributes make them graded (one attribute leaves them at 1 and 0 across most of the range).
  */
 export function RegionUtilities({ record }: { record: SlotRecord }) {
   const { t } = useI18n();
@@ -28,7 +28,10 @@ export function RegionUtilities({ record }: { record: SlotRecord }) {
   const a = record.adjust?.delta_t_eff_k != null ? record.adjust : null; // absent in records older than 16 Oct
   const src = record.inputs.dry_source;
   const counted = a?.delta_t_eff_k ?? null;
-  const raised = record.status === 'ALERT' && counted != null && counted < WARNING_MAX; // VIIRS / POWER support
+  const maxEff = a?.delta_t_max_eff_k ?? null; // only when two views carried weight
+  const raised = record.status === 'ALERT' && counted != null && counted < WARNING_MAX
+    && (maxEff == null || maxEff < WARNING_MAX); // VIIRS / POWER support
+  const graded = maxEff != null && Object.keys(record.utilities).length > 0;
   return (
     <div className="rg-util">
       {a && (
@@ -40,6 +43,12 @@ export function RegionUtilities({ record }: { record: SlotRecord }) {
           </div>
           <div><dt>{t('rgu.a.sun')}</dt><dd className="mono">{fmtSigned(-a.sun_shift_k, 2)} K</dd></div>
           <div className="sum"><dt>{t('rgu.a.counted')}</dt><dd className="mono"><b>{fmtSigned(a.delta_t_eff_k, 2)} K</b></dd></div>
+          {maxEff != null && a.delta_t_max_k != null && (
+            <div className="sum">
+              <dt>{t('rgu.a.max', { w: fmtNum((a.max_weight ?? 0) * 100, 0), v: fmtNum(a.max_validity ?? 0, 2) })}</dt>
+              <dd className="mono">{fmtSigned(a.delta_t_max_k, 2)} → <b>{fmtSigned(maxEff, 2)} K</b></dd>
+            </div>
+          )}
         </dl>
       )}
       <div className="rg-result">
@@ -52,10 +61,8 @@ export function RegionUtilities({ record }: { record: SlotRecord }) {
             <span className="z z-safe" style={{ left: 0, width: `${pct(SAFE_MAX)}%` }} />
             <span className="z z-warning" style={{ left: `${pct(SAFE_MAX)}%`, width: `${pct(WARNING_MAX) - pct(SAFE_MAX)}%` }} />
             <span className="z z-alert" style={{ left: `${pct(WARNING_MAX)}%`, right: 0 }} />
-            <m.i
-              className="mark" initial={{ left: '0%' }} whileInView={{ left: `${pct(counted)}%` }}
-              viewport={{ once: true }} transition={{ ...springSoft, delay: 0.1 }}
-            />
+            {maxEff != null && <i className="mark max" style={{ left: `${pct(maxEff)}%` }} title={t('rgu.max_mark')} />}
+            <i className="mark" style={{ left: `${pct(counted)}%` }} />
           </div>
           <div className="rg-scale-axis small mono" aria-hidden="true">
             <span style={{ left: '0%' }}>{LO} K</span>
@@ -65,6 +72,17 @@ export function RegionUtilities({ record }: { record: SlotRecord }) {
           </div>
         </div>
       )}
+      {graded && (
+        <dl className="rg-utils small mono" aria-label={t('rgu.utilities')}>
+          {(['SAFE', 'WARNING', 'ALERT'] as const).map((st) => (
+            <div key={st}>
+              <dt>{t(STATUS_KEY[st])}</dt>
+              <dd><span className={`bar b-${st.toLowerCase()}`} style={{ width: `${(record.utilities[st] ?? 0) * 100}%` }} />{fmtNum(record.utilities[st] ?? 0, 2)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {graded && <p className="small">{t('rgu.two_views')}</p>}
       {raised && <p className="small">{t('rgu.raised')}</p>}
       {!a && record.reason && <p className="small">{plainReason(record.reason)}</p>}
       <p className="muted small">{t('rgu.note')}</p>

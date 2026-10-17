@@ -21,7 +21,6 @@ CAPTCHA, without the Admin page (docs/GCP.md).
 - Engine and rules: `docs/ENGINE.md` in the backend repository, and the in-app About page
 - Briefing site: `../asapify/` (`ui.html` screens, `backend.html` API, `cloud.html`, `runbook.html`); the contract
   tab stays the reference for the API
-- Demo video script: [docs/VIDEO_SCRIPT.md](docs/VIDEO_SCRIPT.md)
 - The interface, code and API are English only.
 
 ## Running
@@ -50,6 +49,25 @@ Open the **API contract** tab in the app (`/api-contract`, operators only). It l
 coordinates, errors), the error code table, every `asapify-api` endpoint (parameters, body, responses,
 errors, the UI screens that use it), schemas, the static map files, and the internal endpoints.
 JSON examples are static samples in `src/contract/spec.ts`.
+
+## Data sources
+
+Everything on the map and the region pages comes from these public sources, processed by the backend
+(`KRL-TEAM-PROJECT/ktp-asapify-be`, `docs/ENGINE.md`):
+
+| Data | What it shows in the app | Link |
+|---|---|---|
+| Himawari-9 (JMA), bands 7 and 13, NOAA Open Data on AWS | Hot pixels (blue squares), ΔT, cloud | [registry](https://registry.opendata.aws/noaa-himawari/) |
+| GEO-KOMPSAT-2A (KMA), SW038 and IR105, NOAA Open Data on AWS | Hot pixels (ink rings), ΔT, cloud | [registry](https://registry.opendata.aws/noaa-gk2a-pds/) |
+| NASA FIRMS, VIIRS NOAA-20 / NOAA-21 | VIIRS detections (magenta dots), the Gemini AI Analysis hotspots | [FIRMS](https://firms.modaps.eosdis.nasa.gov/) |
+| NASA GIBS, VIIRS NOAA-20 corrected reflectance | The two satellite images in the Gemini AI Analysis | [GIBS API docs](https://nasa-gibs.github.io/gibs-api-docs/) · [Worldview](https://worldview.earthdata.nasa.gov/) |
+| NASA POWER, hourly skin temperature and humidity | The dry-air shift and POWER support | [POWER](https://power.larc.nasa.gov/) |
+| Open-Meteo (CC BY 4.0) | Humidity (RH) and the weather at the hot pixel | [open-meteo.com](https://open-meteo.com/) |
+| KHG peat hydrological units (KLHK) | The peat inside each of the 65 regions | shapefile in the backend repository (`tools/khg/`) |
+| geoBoundaries IDN ADM1 (ODbL) | Province boundaries | [geoboundaries.org](https://www.geoboundaries.org/) |
+| OpenFreeMap / OpenStreetMap | Basemap | [openfreemap.org](https://openfreemap.org/) · [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright) |
+| Gemini on Gemini Enterprise Agent Platform (formerly Vertex AI), Agent Development Kit | The Gemini AI Analysis | [Agent Platform](https://docs.cloud.google.com/gemini-enterprise-agent-platform/) · [ADK](https://google.github.io/adk-docs/) |
+| Telegram | The alert group behind Get alerts | [Bot API](https://core.telegram.org/bots/api) |
 
 ## Light map
 

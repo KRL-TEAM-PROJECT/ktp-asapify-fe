@@ -9,10 +9,13 @@
   --charcoal: #1E293B; --emerald: #1B4D3E; --thermal: #EA580C; --ochre: #D97706;
   --bg: #F8FAFC; --surface: #FFFFFF; --surface-2: #F1F5F9; --line: #E2E8F0; --line-strong: #CBD5E1;
   --ink: var(--charcoal); --ink-dim: #475569;
-  --moss: var(--emerald); --moss-soft: #E3EFEA;
-  --amber: var(--ochre); --amber-ink: #A44E07; --amber-soft: #FDF0DC;
-  --ember: var(--thermal); --ember-ink: #C2410C; --ember-soft: #FDE8DD;
-  --ember-solid: #C2410C; /* solid ALERT surfaces with white text, in both themes (5.2:1) */
+  /* status palette: green / yellow / red, three hues apart so the map, the legend and the charts never confuse a
+     WARNING with an ALERT; the brand colours stay on the logo. Data marks use hues no status uses. */
+  --moss: #15803D; --moss-soft: #DCFCE7;
+  --amber: #CA8A04; --amber-ink: #854D0E; --amber-soft: #FEF9C3;
+  --ember: #DC2626; --ember-ink: #B91C1C; --ember-soft: #FEE2E2;
+  --ember-solid: #B91C1C; /* solid ALERT surfaces with white text, in both themes (6.5:1) */
+  --sat-h: #2563EB; --viirs: #C026D3; /* Himawari-9 hot pixel, VIIRS detection */
   --sat: #475569; --sat-soft: #EEF2F6; /* secondary data ink: the second satellite, info notes */
   --hatch: repeating-linear-gradient(45deg, var(--surface-2) 0 3px, var(--line-strong) 3px 4.5px);
   /* shape: square-ish, instruments not toys */
@@ -29,8 +32,9 @@
     --ctrl-icon-filter: invert(1);
     --bg: #0F172A; --surface: #1E293B; --surface-2: #26334A; --line: #334155; --line-strong: #475569;
     --ink: #F8FAFC; --ink-dim: #A5B4C8;
-    --moss: #5FA88A; --moss-soft: #1C3A33; --amber: #F59E0B; --amber-ink: #FBBF4D; --amber-soft: #3B2D14;
-    --ember: #FB8B55; --ember-ink: #FDA27A; --ember-soft: #43241A; --sat: #CBD5E1; --sat-soft: #26334A;
+    --moss: #4ADE80; --moss-soft: #14532D; --amber: #FACC15; --amber-ink: #FDE047; --amber-soft: #422006;
+    --ember: #F87171; --ember-ink: #FCA5A5; --ember-soft: #450A0A; --sat: #CBD5E1; --sat-soft: #26334A;
+    --sat-h: #60A5FA; --viirs: #F0ABFC;
     --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink);
     --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
   }
@@ -40,8 +44,9 @@
   --ctrl-icon-filter: invert(1);
   --bg: #0F172A; --surface: #1E293B; --surface-2: #26334A; --line: #334155; --line-strong: #475569;
   --ink: #F8FAFC; --ink-dim: #A5B4C8;
-  --moss: #5FA88A; --moss-soft: #1C3A33; --amber: #F59E0B; --amber-ink: #FBBF4D; --amber-soft: #3B2D14;
-  --ember: #FB8B55; --ember-ink: #FDA27A; --ember-soft: #43241A; --sat: #CBD5E1; --sat-soft: #26334A;
+  --moss: #4ADE80; --moss-soft: #14532D; --amber: #FACC15; --amber-ink: #FDE047; --amber-soft: #422006;
+  --ember: #F87171; --ember-ink: #FCA5A5; --ember-soft: #450A0A; --sat: #CBD5E1; --sat-soft: #26334A;
+  --sat-h: #60A5FA; --viirs: #F0ABFC;
   --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--ink);
   --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.4);
 }
@@ -108,7 +113,7 @@ button { font: inherit; color: inherit; }
 .card ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
-.callout { border-left: 3px solid var(--ochre); background: var(--amber-soft); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 8px 12px; font-size: var(--fs-sm); display: flex; gap: 8px; align-items: flex-start; }
+.callout { border-left: 3px solid var(--amber); background: var(--amber-soft); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 8px 12px; font-size: var(--fs-sm); display: flex; gap: 8px; align-items: flex-start; }
 .callout svg { color: var(--amber-ink); flex: none; margin-top: 3px; }
 .callout.info { border-left-color: var(--ink-dim); background: var(--sat-soft); }
 .error { color: var(--ember-ink); background: var(--ember-soft); border-left: 3px solid var(--ember); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 8px 12px; font-size: var(--fs-sm); }
@@ -123,7 +128,7 @@ button { font: inherit; color: inherit; }
 .pill.grey { background: var(--surface-2); color: var(--ink-dim); font-weight: 600; }
 .pill.outline { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink-dim); font-weight: 600; }
 .st-safe { background: var(--moss-soft); color: var(--moss); }
-.st-warning { background: var(--amber-soft); color: var(--amber-ink); box-shadow: inset 0 0 0 1px var(--ochre); }
+.st-warning { background: var(--amber-soft); color: var(--amber-ink); box-shadow: inset 0 0 0 1px var(--amber); }
 .st-alert { background: var(--ember-solid); color: #fff; }
 .st-no_observable { background: var(--hatch); color: var(--ink); }
 .dec-state { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-sm); color: var(--ink-dim); }
@@ -254,7 +259,7 @@ button { font: inherit; color: inherit; }
 .field-label .over { color: var(--ember-ink); font-weight: 700; }
 .dec-summary { background: var(--surface-2); border-radius: var(--r-2); padding: 8px 12px; display: grid; gap: 2px; font-size: var(--fs-sm); }
 .expand { display: grid; gap: 10px; } /* label + field entering/leaving as one block */
-.confirm { background: var(--amber-soft); color: var(--ink); border-left: 3px solid var(--ochre); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 8px 12px; font-size: var(--fs-sm); }
+.confirm { background: var(--amber-soft); color: var(--ink); border-left: 3px solid var(--amber); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 8px 12px; font-size: var(--fs-sm); }
 .decided { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .decision blockquote { margin: 0; padding: 6px 12px; border-left: 3px solid var(--line-strong); color: var(--ink-dim); }
 

@@ -165,6 +165,7 @@ export function RegionPage() {
   const v = r.verifications[0] ?? null;
   const prov = t(`prov.${r.province}`);
   const reload = () => { q.reload(); agent.reload(); };
+  const updating = q.loading; // a refresh while the page already shows data: dim the chart, say so on the button
 
   return (
     <div className="wrap detail">
@@ -205,15 +206,19 @@ export function RegionPage() {
         {r.last_error && <p className="error" role="alert">{t('rg.last_error', { code: r.last_error })}</p>}
       </m.header>
 
+      {/* the timeline spans both columns: a day of 15-minute slots needs the width to stay readable */}
+      <m.section className="card rg-timeline-card" aria-labelledby="tl-h" {...reveal(1)}>
+        <div className="card-head">
+          <h2 id="tl-h">{date ? t('rg.timeline_day', { date: fmtDay(date) }) : t('rg.timeline')}</h2>
+          <button className="link-btn" onClick={reload} disabled={updating} aria-live="polite">
+            {updating ? t('rg.updating') : t('rg.refresh')}
+          </button>
+        </div>
+        <RegionTimeline slots={slots} updating={updating} />
+      </m.section>
+
       <div className="detail-grid">
         <div className="col">
-          <m.section className="card" aria-labelledby="tl-h" {...reveal(1)}>
-            <div className="card-head">
-              <h2 id="tl-h">{date ? t('rg.timeline_day', { date: fmtDay(date) }) : t('rg.timeline')}</h2>
-              <button className="link-btn" onClick={reload}>{t('rg.refresh')}</button>
-            </div>
-            <RegionTimeline slots={slots} />
-          </m.section>
           {latest && (
             <m.section className="card" aria-labelledby="in-h" {...reveal(2)}>
               <h2 id="in-h">{t('rg.inputs', { when: fmtSlot(latest.observed_at) })}</h2>

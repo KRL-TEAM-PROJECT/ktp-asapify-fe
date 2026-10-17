@@ -238,6 +238,9 @@ function SlotTip({ s, side, at, top }: { s: SlotRecord; side: 'left' | 'right'; 
   const rows: [string, string, string][] = [
     ['line', k(s.adjust?.delta_t_eff_k ?? s.inputs.delta_t_k), t('rgt.counted')],
     ['line thin', k(s.inputs.delta_t_k), t('rgt.tip_measured')],
+    ...(s.adjust?.delta_t_max_eff_k != null   // the stronger view, a second attribute when both satellites see
+      ? [['', k(s.adjust.delta_t_max_eff_k), t('rgt.tip_max', { w: fmtNum((s.adjust.max_weight ?? 0) * 100, 0) })] as [string, string, string]]
+      : []),
     ['dot h', sat('himawari9'), 'Himawari-9'],
     ['dot g', sat('gk2a'), 'GK2A'],
     ...(s.adjust?.delta_t_eff_k != null

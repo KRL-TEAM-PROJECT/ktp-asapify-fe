@@ -351,6 +351,7 @@
   "rgt.counted": "ΔT counted",
   "rgt.measured": "measured",
   "rgt.tip_measured": "ΔT measured",
+  "rgt.tip_max": "Strongest view counted ({w}% weight)",
   "rgt.tip_shift": "Dry air / sun shift",
   "rgt.hover": "Hover or tap the chart for a slot's details.",
   "rgt.keys": "Focus it and use the left and right arrow keys to read each slot",

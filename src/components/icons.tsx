@@ -27,6 +27,10 @@ export const IconCalendar = ({ size }: P) => (
 );
 export const IconClock = ({ size }: P) => <svg {...base(size)}><circle cx="8" cy="8" r="6.2" /><path d="M8 4.5V8l2.3 1.5" /></svg>;
 export const IconArrowLeft = ({ size }: P) => <svg {...base(size)}><path d="M13 8H3M7 4L3 8l4 4" /></svg>;
+/** A chevron pointing down (closed: "more below") or up (open: "fold away"). */
+export const IconChevron = ({ size, up = false }: P & { up?: boolean }) => (
+  <svg {...base(size)} className={`chev${up ? ' up' : ''}`}><path d="M4 6.2l4 4 4-4" /></svg>
+);
 
 export function StatusIcon({ status, size }: { status: Status; size?: number }) {
   switch (status) {

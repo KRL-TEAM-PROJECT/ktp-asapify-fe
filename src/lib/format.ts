@@ -50,6 +50,3 @@ export function fmtSigned(n: number, digits: number): string {
   const s = fmtNum(Math.abs(n), digits);
   return `${n < 0 && Number(s.replace(/,/g, '')) !== 0 ? '−' : '+'}${s}`;
 }
-
-/** Brightness temperature K → "38.4 °C". */
-export const fmtC = (k: number) => `${fmtNum(k - 273.15, 1)} °C`;

@@ -14,22 +14,30 @@ import { localizeBasemap, styleFor, updateSource } from './layers';
 setWorkerUrl(`${import.meta.env.BASE_URL}maplibre/maplibre-gl-worker.mjs`);
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
-// statuses green / yellow / red (styles.css --moss / --amber / --ember); data marks in hues no status uses, so a hot
-// pixel or a VIIRS dot never reads as a status: Himawari-9 blue, VIIRS magenta, GK2A an ink ring
+// statuses green / yellow / red (styles.css --moss / --amber / --ember)
 const PALETTE = {
-  light: { SAFE: '#15803D', WARNING: '#CA8A04', ALERT: '#DC2626', NO_OBSERVABLE: '#94A3B8', none: '#CBD5E1', ink: '#1E293B', halo: '#FFFFFF', himawari: '#2563EB', viirs: '#C026D3' },
-  dark: { SAFE: '#4ADE80', WARNING: '#FACC15', ALERT: '#F87171', NO_OBSERVABLE: '#64748B', none: '#334155', ink: '#F8FAFC', halo: '#0F172A', himawari: '#60A5FA', viirs: '#F0ABFC' },
+  light: { SAFE: '#15803D', WARNING: '#CA8A04', ALERT: '#DC2626', NO_OBSERVABLE: '#94A3B8', none: '#CBD5E1', ink: '#1E293B', halo: '#FFFFFF' },
+  dark: { SAFE: '#4ADE80', WARNING: '#FACC15', ALERT: '#F87171', NO_OBSERVABLE: '#64748B', none: '#334155', ink: '#F8FAFC', halo: '#0F172A' },
 };
+// Data marks sit on red, yellow, green and grey fills and on both basemaps, so they use what no fill has: cyan (the
+// complement of the Alert red) and the two lightness extremes, each with a rim of the opposite lightness. On every
+// status fill and both basemaps one of the two tones reaches at least 4.5:1 (WCAG); the old magenta VIIRS dot had
+// 2.1:1 on the dark Alert fill. The same colours in both themes, as styles.css --mk-* for the legend:
+// Himawari-9 = cyan square with a dark rim; GK2A = white square ring with dark edges; VIIRS = dark dot with a white ring.
+const MARK = { himawari: '#67E8F9', dark: '#0B1220', light: '#FFFFFF' };
 
 /** A square marker at 2x for crisp edges: satellite pixels are drawn as what they are, square footprints. */
-function square(size: number, fill: string | null, stroke: string, width: number): ImageData {
-  const px = size * 2, w = width * 2;
+function square(size: number, fill: string | null, rings: [string, number][]): ImageData {
+  const px = size * 2;
   const cv = document.createElement('canvas');
   cv.width = cv.height = px;
   const g = cv.getContext('2d')!;
-  if (fill) { g.fillStyle = fill; g.fillRect(w / 2, w / 2, px - w, px - w); }
-  g.strokeStyle = stroke; g.lineWidth = w;
-  g.strokeRect(w / 2, w / 2, px - w, px - w);
+  const outer = Math.max(...rings.map(([, w]) => w)) * 2; // every ring is centred on the same square path
+  if (fill) { g.fillStyle = fill; g.fillRect(outer / 2, outer / 2, px - outer, px - outer); }
+  for (const [color, width] of rings) { // widest first: a narrower ring on top leaves the wider one as its edges
+    g.strokeStyle = color; g.lineWidth = width * 2;
+    g.strokeRect(outer / 2, outer / 2, px - outer, px - outer);
+  }
   return g.getImageData(0, 0, px, px);
 }
 const S: ExpressionSpecification = ['coalesce', ['get', 'status'], 'none'];
@@ -51,6 +59,14 @@ function cells(regions: RegionSummary[]): FeatureCollection<Polygon, CellProps> 
       const [w, s, e, n] = r.bounds;
       return { type: 'Feature', properties: { id: r.id, status: r.status }, geometry: { type: 'Polygon', coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] } };
     }),
+  };
+}
+
+/** One label point per region, at its cell centre: a polygon label repeats on every tile the cell crosses. */
+function labels(regions: RegionSummary[]): FeatureCollection<Point, { id: string }> {
+  return {
+    type: 'FeatureCollection',
+    features: regions.map((r) => ({ type: 'Feature', properties: { id: r.id }, geometry: { type: 'Point', coordinates: [r.lon, r.lat] } })),
   };
 }
 
@@ -96,9 +112,10 @@ export class RegionMapController {
   private hovered: string | null = null;
   private readonly tip = new Popup({ closeButton: false, closeOnClick: false, className: 'rg-tip', offset: 14, maxWidth: '280px' });
   private ready = false;
-  // phones: the day player and the sheet's peek cover the bottom of the map, so framing leaves room for them
+  // Framing leaves room for what floats on the map: the legend (top left), the zoom buttons (top right) and the day
+  // player (bottom; on phones also the sheet's peek), so no region starts under them.
   private readonly narrow = window.matchMedia('(max-width: 1023px)').matches;
-  private readonly inset = this.narrow ? { top: 16, right: 56, bottom: 250, left: 16 } : null;
+  private readonly inset = this.narrow ? { top: 124, right: 56, bottom: 250, left: 16 } : { top: 132, right: 64, bottom: 168, left: 32 };
 
   constructor(container: HTMLElement, o: RegionMapOptions) {
     this.dark = o.dark;
@@ -107,7 +124,7 @@ export class RegionMapController {
       container,
       style: styleFor(o.lite ? 'plain' : 'streets', o.dark),
       bounds: REGION as LngLatBoundsLike,
-      fitBoundsOptions: { padding: this.inset ?? 24 },
+      fitBoundsOptions: { padding: this.inset },
       attributionControl: false,
       pixelRatio: o.lite ? 1 : window.devicePixelRatio,
       fadeDuration: o.lite ? 0 : 200,
@@ -120,15 +137,22 @@ export class RegionMapController {
     });
     this.map.touchZoomRotate.disableRotation();
     this.map.keyboard.disableRotation();
+    // zoom and full screen form one toolbar (styles.css joins the two groups) at the top right; the legend owns the top left
     this.map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
     this.map.addControl(new FullscreenControl(), 'top-right');
-    // on phones the bottom of the map sits under the sheet, so the credits and the scale move to the top
-    this.map.addControl(new ScaleControl({ unit: 'metric' }), this.narrow ? 'top-left' : 'bottom-left');
+    // on phones the bottom of the map sits under the sheet, so the credits and the scale join the toolbar's column
+    this.map.addControl(new ScaleControl({ unit: 'metric', maxWidth: this.narrow ? 80 : 100 }), this.narrow ? 'top-right' : 'bottom-left');
     this.map.addControl(new AttributionControl({
       compact: true,
       customAttribution: '© OpenStreetMap contributors · KHG peat units (KLHK) · NASA POWER · Weather data by Open-Meteo.com (CC BY 4.0) · NASA FIRMS · geoBoundaries',
-    }), this.narrow ? 'top-left' : 'bottom-right');
+    }), this.narrow ? 'top-right' : 'bottom-right');
 
+    // MapLibre opens the compact credits on load and folds them at the first drag; folded from the start, they leave
+    // the map clear (the (i) button opens them)
+    this.map.once('load', () => {
+      const credits = this.map.getContainer().querySelector('.maplibregl-ctrl-attrib.maplibregl-compact-show');
+      if (credits) { credits.setAttribute('open', ''); credits.classList.remove('maplibregl-compact-show'); }
+    });
     this.map.on('style.load', () => {
       this.install();
       localizeBasemap(this.map);
@@ -170,11 +194,12 @@ export class RegionMapController {
       g.beginPath(); g.moveTo(-2, 10); g.lineTo(10, -2); g.moveTo(-2, 2); g.lineTo(2, -2); g.moveTo(6, 10); g.lineTo(10, 6); g.stroke();
       this.map.addImage('rg-hatch', g.getImageData(0, 0, 8, 8));
     }
-    // Himawari-9: a filled heat square; GK2A: an open square around it, so pixels both satellites saw read as one mark
-    if (!this.map.hasImage('px-h')) this.map.addImage('px-h', square(10, c.himawari, c.halo, 1.5), { pixelRatio: 2 });
-    if (!this.map.hasImage('px-g')) this.map.addImage('px-g', square(16, null, c.ink, 1.5), { pixelRatio: 2 });
+    // Himawari-9: a filled cyan square; GK2A: a white ring around it, so pixels both satellites saw read as one mark
+    if (!this.map.hasImage('px-h')) this.map.addImage('px-h', square(11, MARK.himawari, [[MARK.dark, 1.5]]), { pixelRatio: 2 });
+    if (!this.map.hasImage('px-g')) this.map.addImage('px-g', square(20, null, [[MARK.dark, 4.5], [MARK.light, 2.5]]), { pixelRatio: 2 });
     this.map.addSource('rg-provinces', { type: 'geojson', data: this.provinces });
     this.map.addSource('rg-cells', { type: 'geojson', data: cells(this.regions) });
+    this.map.addSource('rg-labels', { type: 'geojson', data: labels(this.regions) });
     this.map.addSource('rg-peat', { type: 'geojson', data: peatWithStatus(this.peat, this.regions) });
     this.map.addSource('rg-pixels', { type: 'geojson', data: pixelPoints(this.hot) });
     this.map.addSource('rg-viirs', { type: 'geojson', data: viirsPoints(this.hot) });
@@ -210,16 +235,17 @@ export class RegionMapController {
     });
     marker('px-gk2a', 'gk2a', 'px-g');
     marker('px-himawari9', 'himawari9', 'px-h');
-    // VIIRS (375 m) as small magenta dots: a different shape and hue from the 2-4 km geostationary squares
+    // VIIRS (375 m) as small dark dots in a white ring: a different shape and lightness from the 2-4 km squares
     this.map.addLayer({
       id: 'px-viirs', type: 'circle', source: 'rg-viirs',
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2, 10, 4],
-        'circle-color': c.viirs, 'circle-stroke-color': c.halo, 'circle-stroke-width': 1.2,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 10, 4.5],
+        'circle-color': MARK.dark, 'circle-stroke-color': MARK.light,
+        'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 4, 1.2, 10, 2],
       },
     });
     this.map.addLayer({
-      id: 'cell-label', type: 'symbol', source: 'rg-cells', minzoom: 7.5,
+      id: 'cell-label', type: 'symbol', source: 'rg-labels', minzoom: 7.5,
       layout: { 'text-field': ['get', 'id'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-allow-overlap': false },
       paint: { 'text-color': c.ink, 'text-halo-color': c.halo, 'text-halo-width': 1.5 },
     });
@@ -230,6 +256,7 @@ export class RegionMapController {
     this.hovered = null; // the next pointer move redraws the tooltip with the new data
     if (!this.ready) return;
     updateSource(this.map, 'rg-cells', cells(regions));
+    updateSource(this.map, 'rg-labels', labels(regions));
     updateSource(this.map, 'rg-peat', peatWithStatus(this.peat, regions));
   }
 
@@ -264,7 +291,7 @@ export class RegionMapController {
   }
 
   fitBounds(b: LngLatBoundsLike, maxZoom = 9) {
-    this.map.fitBounds(b, { padding: this.inset ?? 48, duration: this.lite ? 0 : 700, maxZoom });
+    this.map.fitBounds(b, { padding: this.inset, duration: this.lite ? 0 : 700, maxZoom });
   }
 
   resize() { this.map.resize(); }

@@ -200,6 +200,10 @@ export interface Verification {
   at: string;
   observed_at: string; // the slot under review
   region_status: Status;
+  /** The point the verification is about (absent before 17 Oct 2026): the hot pixel, else the strongest pixel or the cell centre. */
+  location?: { lat: number; lon: number; point: 'hot_pixel' | 'strongest_pixel' | 'region_centre' } | null;
+  /** The lines the bot adds under the operator's message in Telegram (region, coordinates, map link, slot, FIRMS). */
+  telegram_details?: string | null;
   validation_status: ValidationStatus; // after the backend checks
   agent_validation_status: ValidationStatus | null; // what the agent answered
   confidence_score: number | null;

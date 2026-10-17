@@ -253,7 +253,7 @@ export function RegionPage() {
           {v && operator && (
             <DecisionPanel
               key={`${v.id}-${v.decision?.at ?? 'open'}`} decision={v.decision} province={r.province}
-              caption={caption(r, v, prov, t)}
+              caption={caption(r, v, prov, t)} details={v.telegram_details}
               summary={<>
                 {r.status ? t(STATUS_KEY[r.status]) : '–'} · {t(`vs.${v.validation_status}`)} ·{' '}
                 {t('rg.dec_hotspots', { n: v.supporting_data?.firms_hotspot_count ?? 0 })} · {t('rg.dec_slot', { when: fmtSlot(v.observed_at) })}

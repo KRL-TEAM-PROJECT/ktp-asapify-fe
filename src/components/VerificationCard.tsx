@@ -3,7 +3,7 @@ import type { AgentInfo, Verification, ValidationStatus, VerificationWeather } f
 import { api } from '../api';
 import { useI18n } from '../i18n';
 import { errorText } from '../lib/errors';
-import { fmtC, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { fmtNum, fmtSigned, fmtSlot } from '../lib/format';
 import { m, reveal } from '../motion';
 import { IconSpark } from './icons';
 
@@ -30,6 +30,16 @@ function imageSize(url: string): { width?: number; height?: number } {
   } catch {
     return {};
   }
+}
+
+// VIIRS I-4 (3.7 µm) saturates at about 367 K: a hotspot at that value is a pixel at the sensor's limit, not a fire temperature
+const I4_SATURATION_K = 367;
+
+/** The FIRMS tool result the verdict's numbers come from (the last one with the same hotspot count), else null. */
+function usedCall(v: Verification) {
+  const count = v.supporting_data?.firms_hotspot_count;
+  if (count == null) return null;
+  return [...v.tool_calls].reverse().find((c) => !c.error && c.hotspot_count === count) ?? null;
 }
 
 /** The weather line, or null when Open-Meteo gave nothing for that hour. */
@@ -60,6 +70,8 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
   const images = (v?.imagery?.images ?? []).filter((img) => !failed.includes(img.url));
   const viewName = (k: string) => { const key = `agent.image_view.${k}`; const s = t(key); return s === key ? k : s; };
   const weather = weatherText(v?.weather, t);
+  const call = v ? usedCall(v) : null;
+  const brightest = v?.supporting_data?.highest_brightness_temp ?? null;
 
   async function verify() {
     setBusy(true);
@@ -87,7 +99,7 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
         </button>
         {agent && (
           <span className="muted small">
-            {t('agent.quota', { left: agent.remaining, total: agent.daily_quota })} · <span className="mono">{agent.model}</span>
+            {t('agent.quota', { left: agent.remaining, total: agent.daily_quota })} · {t('agent.quota_reset')} · <span className="mono">{agent.model}</span>
           </span>
         )}
       </div>}
@@ -114,16 +126,27 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
           <p>{v.analysis}</p>
           <dl className="rg-facts">
             <div><dt>{t('agent.confidence')}</dt><dd className="mono">{v.confidence_score != null ? fmtNum(v.confidence_score, 2) : '–'}</dd></div>
-            <div><dt>{t('agent.hotspots')}</dt><dd className="mono">{v.supporting_data ? fmtNum(v.supporting_data.firms_hotspot_count, 0) : '–'}</dd></div>
+            <div>
+              <dt>{t('agent.hotspots')}</dt>
+              <dd className="mono">{v.supporting_data ? fmtNum(v.supporting_data.firms_hotspot_count, 0) : '–'}</dd>
+              {call?.confident_count != null && <dd className="sub">{t('agent.hotspots_confident', { c: fmtNum(call.confident_count, 0) })}</dd>}
+            </div>
             <div>
               <dt>{t('agent.brightest')}</dt>
-              <dd className="mono">
-                {v.supporting_data?.highest_brightness_temp != null
-                  ? `${fmtNum(v.supporting_data.highest_brightness_temp, 1)} K (${fmtC(v.supporting_data.highest_brightness_temp)})` : '–'}
-              </dd>
+              <dd className="mono">{brightest != null ? `${fmtNum(brightest, 1)} K` : '–'}</dd>
+              {brightest != null && brightest >= I4_SATURATION_K - 0.5 && <dd className="sub">{t('agent.brightest_saturated')}</dd>}
             </div>
           </dl>
-          <p className="muted small">{t('agent.confidence_note')}</p>
+          <div className="rg-conf small">
+            <p>{t('agent.confidence_source')}</p>
+            {call && call.hotspot_count != null && (
+              <p>{t('agent.confidence_basis', {
+                n: fmtNum(call.hotspot_count, 0), c: fmtNum(call.confident_count ?? 0, 0),
+                h: call.hours_window ?? '–', km: call.buffer_km != null ? fmtNum(call.buffer_km, 0) : '–',
+              })}</p>
+            )}
+            <p className="muted">{t('agent.confidence_note')}</p>
+          </div>
 
           {images.length > 0 && v.imagery && (
             <>
@@ -152,6 +175,11 @@ export function VerificationCard({ regionId, latest: v, agent, onVerified, readO
                 <div><dt>{t('agent.visual.burn_scar')}</dt><dd>{t(`agent.seen.${v.visual_evidence.burn_scar}`)}</dd></div>
               </dl>
               {v.visual_evidence.notes && <p className="small">{v.visual_evidence.notes}</p>}
+              {v.imagery?.date && v.imagery.images.length > 0 && (
+                <p className="muted small">{t('agent.visual_when', {
+                  date: v.imagery.date, h: v.imagery.hours_before_observation != null ? fmtNum(v.imagery.hours_before_observation, 1) : '–',
+                })}</p>
+              )}
             </>
           )}
           {weather && <p className="small">{weather}</p>}

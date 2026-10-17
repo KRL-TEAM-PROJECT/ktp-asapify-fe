@@ -23,6 +23,7 @@ interface Props {
   province: ProvinceCode;
   summary: ReactNode; // one line under "Summary": what the operator is deciding on
   caption: string; // starting text of the notification
+  details?: string | null; // lines the backend adds under the caption (coordinates, map link, slot), shown as a preview
   submit(body: DecisionRequest): Promise<unknown>;
   onDecided(): void;
   publishBlocked?: string | null; // why publishing is not possible; rejecting still is
@@ -30,12 +31,15 @@ interface Props {
 
 type Mode = 'idle' | 'confirm' | 'reject';
 
+// the last line the worker adds to every message (backend asapify_api/notification_delivery.py, text_message)
+const FOOTER = 'ALERT is an indication, not a confirmed fire.';
+
 const slide = {
   initial: { opacity: 0, y: -8 }, animate: { opacity: 1, y: 0, transition: spring }, exit: { opacity: 0, transition: exitFast },
 };
 
 /** Two buttons only: Publish (caption editable) or Reject (reason required). Used for region verifications. */
-export function DecisionPanel({ decision: d, province, summary, caption: initialCaption, submit: send, onDecided, publishBlocked }: Props) {
+export function DecisionPanel({ decision: d, province, summary, caption: initialCaption, details, submit: send, onDecided, publishBlocked }: Props) {
   const { t } = useI18n();
   const [caption, setCaption] = useState(initialCaption);
   const [reason, setReason] = useState('');
@@ -102,6 +106,12 @@ export function DecisionPanel({ decision: d, province, summary, caption: initial
         id="caption" value={caption} rows={8} disabled={busy || mode === 'reject' || !!publishBlocked}
         onChange={(e) => setCaption(e.target.value)} aria-invalid={tooLong}
       />
+      {details && (
+        <div className="dec-details">
+          <span className="lbl">{t('dec.details')}</span>
+          <pre className="mono small">{`${details}\n${FOOTER}`}</pre>
+        </div>
+      )}
       {publishBlocked && <p className="callout info small">{publishBlocked}</p>}
 
       {/* Blocks that appear/disappear fade in and out; elements below them (layout="position") slide to their new place. */}

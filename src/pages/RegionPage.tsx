@@ -277,7 +277,9 @@ export function RegionPage() {
                 {r.status ? t(STATUS_KEY[r.status]) : '–'} · {t(`vs.${v.validation_status}`)} ·{' '}
                 {t('rg.dec_hotspots', { n: v.supporting_data?.firms_hotspot_count ?? 0 })} · {t('rg.dec_slot', { when: fmtSlot(v.observed_at) })}
               </>}
-              publishBlocked={v.validation_status === 'REJECTED' ? t('rg.publish_rejected') : null}
+              publishBlocked={v.validation_status === 'REJECTED' ? t('rg.publish_rejected')
+                : v.publish_until && Date.parse(v.publish_until) <= Date.now() ? t('rg.publish_stale') : null}
+              autoAt={r.status === 'ALERT' ? v.auto_publish_at : null}
               submit={(body) => api.decideRegion(r.id, { ...body, verification_id: v.id })} onDecided={reload}
             />
           )}

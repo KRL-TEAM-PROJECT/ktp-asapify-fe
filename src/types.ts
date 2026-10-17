@@ -16,6 +16,8 @@ export interface Decision {
   at: string;
   reason: string | null;
   alert_id: string | null;
+  /** Published by the backend itself: Gemini confirmed and no operator decided within 2 hours (since 18 Oct 2026). */
+  auto?: boolean;
   /** A saved decision is not proof of delivery. */
 }
 
@@ -216,6 +218,10 @@ export interface Verification {
   weather?: VerificationWeather | null;
   checks: string[]; // why the backend downgraded the agent's answer
   error: string | null;
+  /** Region detail only (since 18 Oct 2026): publishing closes 12 h after the slot under review. */
+  publish_until?: string | null;
+  /** Region detail, latest verification only: when a CONFIRMED one nobody decided on goes out by itself (if still Alert). */
+  auto_publish_at?: string | null;
   tool_calls: AgentToolCall[];
   evidence: Hotspot[];
   model: string;

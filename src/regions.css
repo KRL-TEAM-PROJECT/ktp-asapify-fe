@@ -131,8 +131,10 @@
 .rg-key i.line { width: 14px; height: 2px; border-radius: 0; background: var(--ink); }
 .rg-key i.line.thin { height: 1px; background: var(--ink-dim); }
 .rg-key i.line.rh { background: var(--sat-h); }
+.rg-key i.hollow { border-radius: 50%; background: none; box-shadow: inset 0 0 0 1.4px var(--ink-dim); }
 .rg-sats td:first-child { font-weight: 600; }
 .rg-sats .na { color: var(--ink-dim); }
+.rg-sats .rg-not-counted { color: var(--amber-ink); font-weight: 600; }
 .rg-kv dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--ink); }
 .rg-kv dd .small { color: var(--ink-dim); }
 .pill.q-ok { color: var(--moss); }

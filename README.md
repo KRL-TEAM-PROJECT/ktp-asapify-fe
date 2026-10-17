@@ -9,7 +9,8 @@ the operator custom claim and the Cloud Run API; the app sends the Firebase toke
 
 ASAPify web app (Google Cloud AI Builder Cup 2026). **Public, no sign-in:** a map of 65 peat regions that the
 backend's risk engine rates every 15 minutes from Himawari-9 and GK2A (SAFE < WARNING < ALERT, plus NO_OBSERVABLE),
-with each slot's hot pixels and the VIIRS detections beside them, a day player that opens any archived day, read-only
+with each slot's hot pixels and the VIIRS detections beside them (hover or tap one to read its value), a day player
+that opens any archived day, read-only
 region pages (ΔT, humidity and cloud timeline, how dry air and the sun moved ΔT, Fuzzy MAUT utilities, status
 changes, the Gemini AI Analysis with the NASA GIBS images it looked at and the weather at the hot pixel), the Get
 alerts page for the Telegram group, and About. **Operators** (Google sign-in with the `role=operator` claim) also run

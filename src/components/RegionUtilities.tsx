@@ -5,6 +5,7 @@ import { fmtNum, fmtSigned } from '../lib/format';
 import { plainReason } from '../lib/reason';
 import { SATELLITE_NAMES } from '../lib/satellites';
 import { STATUS_KEY, StatusBadge } from './StatusBadge';
+import { IconAlert } from './icons';
 
 // Status boundaries of the counted ΔT with the default curves and safety margin (backend rules.py, About → Rules).
 const SAFE_MAX = 1.95, WARNING_MAX = 6.95;
@@ -117,6 +118,8 @@ export function RegionUtilities({ record }: { record: SlotRecord }) {
   const graded = maxEff != null && Object.keys(record.utilities).length > 0;
   return (
     <div className="rg-util">
+      {/* the dry-air shift needs NASA POWER's humidity normal; without one it is 0, which the operator should know */}
+      {a && a.dry_z == null && <p className="callout" role="note"><IconAlert size={14} /> <span>{t('rgu.dry_missing')}</span></p>}
       {a && (
         <dl className="rg-adjust" aria-label={t('rgu.adjust')}>
           <Row label={t('rgu.a.measured')} value={`${fmtSigned(a.delta_t_k, 2)} K`} why={measuredWhy(record, a, t)} />

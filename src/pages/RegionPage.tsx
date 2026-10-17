@@ -20,6 +20,7 @@ import '../regions.css';
 
 const Q_CLASS: Record<Quality, string> = { ACCEPTED: 'q-ok', DEGRADED: 'q-mid', REJECTED: 'q-bad', MISSING: 'q-bad' };
 const SATS: SatelliteName[] = ['himawari9', 'gk2a'];
+const MIN_CLEAR = 0.4; // backend fusion.py: a satellite's value counts when at least 40 % of the cell is clear
 
 function QualityTag({ q }: { q: Quality }) {
   const { t } = useI18n();
@@ -57,6 +58,15 @@ function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | 
             <tr><td>{t('rgi.cloud_sat')}</td>{SATS.map((n) => {
               const v = s.views[n];
               return <td key={n} className={v ? 'mono' : 'na'}>{v ? `${fmtNum(v.cloud_fraction * 100, 0)}%` : t('rgi.no_data')}</td>;
+            })}</tr>
+            {/* backend fusion.py: a view counts with a verdict and at least 40 % of the cell clear */}
+            <tr><td>{t('rgi.counted')}</td>{SATS.map((n) => {
+              const v = s.views[n];
+              if (!v || v.max_anomaly_k == null) return <td key={n} className="na">–</td>;
+              const clear = 1 - v.cloud_fraction;
+              return clear >= MIN_CLEAR
+                ? <td key={n}>{t('rgi.counted_yes')}</td>
+                : <td key={n} className="rg-not-counted">{t('rgi.counted_no', { clear: fmtNum(clear * 100, 0) })}</td>;
             })}</tr>
           </tbody>
         </table>
@@ -192,7 +202,9 @@ export function RegionPage() {
               <dt>ΔT</dt>
               <dd>
                 {latest.inputs.delta_t_k != null ? `${fmtSigned(latest.inputs.delta_t_k, 1)} K` : '–'}
-                {latest.adjust?.delta_t_eff_k != null && <span className="small"> ({t('rgt.counted')} {fmtSigned(latest.adjust.delta_t_eff_k, 1)} K)</span>}
+                {latest.adjust?.delta_t_eff_k != null && latest.inputs.delta_t_k != null
+                  && Math.abs(latest.adjust.delta_t_eff_k - latest.inputs.delta_t_k) >= 0.05
+                  && <span className="small"> ({t('map.counted', { dt: fmtSigned(latest.adjust.delta_t_eff_k, 1) })})</span>}
               </dd>
             </div>
             <div className="rg-fact-text"><dt>{t('rg.f_view')}</dt><dd><ViewText flags={latest.flags} /> · {t(latest.night ? 'rgt.night' : 'rgt.day')}</dd></div>
@@ -265,7 +277,9 @@ export function RegionPage() {
                 {r.status ? t(STATUS_KEY[r.status]) : '–'} · {t(`vs.${v.validation_status}`)} ·{' '}
                 {t('rg.dec_hotspots', { n: v.supporting_data?.firms_hotspot_count ?? 0 })} · {t('rg.dec_slot', { when: fmtSlot(v.observed_at) })}
               </>}
-              publishBlocked={v.validation_status === 'REJECTED' ? t('rg.publish_rejected') : null}
+              publishBlocked={v.validation_status === 'REJECTED' ? t('rg.publish_rejected')
+                : v.publish_until && Date.parse(v.publish_until) <= Date.now() ? t('rg.publish_stale') : null}
+              autoAt={r.status === 'ALERT' ? v.auto_publish_at : null}
               submit={(body) => api.decideRegion(r.id, { ...body, verification_id: v.id })} onDecided={reload}
             />
           )}

@@ -32,9 +32,20 @@ export function lastSlot(slots: (DaySlot | null)[]): number {
   return -1;
 }
 
+/** One region in one archived slot: its status, ΔT measured and, from 18 Oct 2026, ΔT as the rules counted it. */
+export interface RegionAt {
+  status: Status | null;
+  delta_t: number | null;
+  delta_t_eff: number | null; // null in days archived before
+  delta_t_max_eff: number | null; // the strongest view's counted ΔT where it carried weight
+}
+
 /** Status and ΔT of every region in one slot. */
-export function regionsAt(a: DayArchive, s: DaySlot): Map<string, { status: Status | null; delta_t: number | null }> {
-  return new Map(a.regions.map((id, i) => [id, { status: CODE[s.status[i]] ?? null, delta_t: s.delta_t[i] ?? null }]));
+export function regionsAt(a: DayArchive, s: DaySlot): Map<string, RegionAt> {
+  return new Map(a.regions.map((id, i) => [id, {
+    status: CODE[s.status[i]] ?? null, delta_t: s.delta_t[i] ?? null,
+    delta_t_eff: s.delta_t_eff?.[i] ?? null, delta_t_max_eff: s.delta_t_max_eff?.[i] ?? null,
+  }]));
 }
 
 /** How many regions were at `code` (A, W, S, N) in a slot. */

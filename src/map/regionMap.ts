@@ -1,6 +1,6 @@
 import {
   AttributionControl, FullscreenControl, Map as MlMap, NavigationControl, Popup, ScaleControl, setWorkerUrl,
-  type ExpressionSpecification, type LngLatBoundsLike,
+  type ExpressionSpecification, type LngLat, type LngLatBoundsLike, type PointLike,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { FeatureCollection, MultiPolygon, Point, Polygon } from 'geojson';
@@ -42,12 +42,27 @@ function square(size: number, fill: string | null, rings: [string, number][]): I
 }
 const S: ExpressionSpecification = ['coalesce', ['get', 'status'], 'none'];
 
+/** One satellite mark on the map: a hot pixel of a geostationary satellite, or a VIIRS detection near one. */
+export interface Mark {
+  kind: SatelliteName | 'viirs';
+  region: string;
+  lat: number;
+  lon: number;
+  value: number; // pixels: ΔBT above the cell's background, K; VIIRS: minutes from the slot (negative = before)
+}
+
+const MARK_LAYERS = ['px-himawari9', 'px-gk2a', 'px-viirs'];
+const KIND_ORDER: Record<Mark['kind'], number> = { himawari9: 0, gk2a: 1, viirs: 2 };
+
 export interface RegionMapOptions {
   dark: boolean;
   lite: boolean;
-  onSelect(id: string | null): void;
+  /** `fromMark`: the click or tap landed on a satellite mark, whose values the tooltip now shows. */
+  onSelect(id: string | null, fromMark?: boolean): void;
   /** Tooltip content for a region under the pointer; null = no tooltip. */
   describe(id: string): HTMLElement | null;
+  /** Tooltip content for the marks under the pointer or finger (satellites first, strongest first); null = none. */
+  describeMarks(marks: Mark[]): HTMLElement | null;
 }
 
 type CellProps = { id: string; status: string | null };
@@ -80,25 +95,31 @@ function peatWithStatus(peat: PeatRegions, regions: RegionSummary[]): FeatureCol
 
 const SATS: SatelliteName[] = ['himawari9', 'gk2a'];
 
-/** Hot pixels of both satellites in one slot (archive arrays: [lat, lon, ΔBT K]). */
-function pixelPoints(hot: Record<string, DayHot>): FeatureCollection<Point, { sat: SatelliteName; k: number }> {
+type MarkProps = { kind: Mark['kind']; region: string; lat: number; lon: number; value: number };
+
+/** Hot pixels of both satellites in one slot (archive arrays: [lat, lon, ΔBT K]); `kind` is the satellite. */
+function pixelPoints(hot: Record<string, DayHot>): FeatureCollection<Point, MarkProps> {
   return {
     type: 'FeatureCollection',
-    features: Object.values(hot).flatMap((h) => SATS.flatMap((sat) => h[sat].map(([lat, lon, k]) => ({
-      type: 'Feature' as const, properties: { sat, k }, geometry: { type: 'Point' as const, coordinates: [lon, lat] },
+    features: Object.entries(hot).flatMap(([region, h]) => SATS.flatMap((kind) => h[kind].map(([lat, lon, value]) => ({
+      type: 'Feature' as const, properties: { kind, region, lat, lon, value },
+      geometry: { type: 'Point' as const, coordinates: [lon, lat] },
     })))),
   };
 }
 
 /** VIIRS detections near those pixels (archive arrays: [lat, lon, minutes from the slot]). */
-function viirsPoints(hot: Record<string, DayHot>): FeatureCollection<Point, { min: number }> {
+function viirsPoints(hot: Record<string, DayHot>): FeatureCollection<Point, MarkProps> {
   return {
     type: 'FeatureCollection',
-    features: Object.values(hot).flatMap((h) => h.viirs.map(([lat, lon, min]) => ({
-      type: 'Feature' as const, properties: { min }, geometry: { type: 'Point' as const, coordinates: [lon, lat] },
+    features: Object.entries(hot).flatMap(([region, h]) => h.viirs.map(([lat, lon, value]) => ({
+      type: 'Feature' as const, properties: { kind: 'viirs' as const, region, lat, lon, value },
+      geometry: { type: 'Point' as const, coordinates: [lon, lat] },
     }))),
   };
 }
+
+const markKey = (m: Mark) => `${m.kind}:${m.lat}:${m.lon}:${m.value}`;
 
 export class RegionMapController {
   readonly map: MlMap;
@@ -109,8 +130,14 @@ export class RegionMapController {
   private provinces: ProvinceBoundary = EMPTY;
   private hot: Record<string, DayHot> = {};
   private selected: string | null = null;
-  private hovered: string | null = null;
+  private hovered: string | null = null; // what the tooltip shows: `r:<region id>` or `m:<marks>`
+  private tipNode: HTMLElement | null = null;
   private readonly tip = new Popup({ closeButton: false, closeOnClick: false, className: 'rg-tip', offset: 14, maxWidth: '280px' });
+  // a finger needs a wider target than a mouse pointer to hit a 6-14 px mark
+  private readonly hitPx = window.matchMedia('(pointer: coarse)').matches ? 14 : 6;
+  // what moved last: a mouse (or pen) gets hover tooltips; a finger only taps, and the mouse events a browser makes up
+  // after a tap (a move, then an exit once the finger lifts) must neither show nor hide one
+  private pointer = 'mouse';
   private ready = false;
   // Framing leaves room for what floats on the map: the legend (top left), the zoom buttons (top right) and the day
   // player (bottom; on phones also the sheet's peek), so no region starts under them.
@@ -158,29 +185,71 @@ export class RegionMapController {
       localizeBasemap(this.map);
       this.ready = true;
     });
+    // A click or tap on a satellite mark shows its values (phones have no hover) and selects its region; anywhere
+    // else in a cell selects the cell.
     this.map.on('click', (e) => {
       if (!this.ready) return;
+      const marks = this.marksAt(e.point);
+      if (marks.length) {
+        this.show(`m:${marks.map(markKey).join(',')}`, e.lngLat, () => o.describeMarks(marks));
+        o.onSelect(marks[0].region, true);
+        return;
+      }
+      if (this.hovered?.startsWith('m:')) this.leave();
       const f = this.map.queryRenderedFeatures(e.point, { layers: ['cell-fill'] })[0];
       o.onSelect(f ? String(f.properties?.id) : null);
     });
-    this.map.on('mouseenter', 'cell-fill', () => { this.map.getCanvas().style.cursor = 'pointer'; });
-    // hover tooltip (pointer devices): the region under the cursor, its status and what the satellites measured
-    this.map.on('mousemove', 'cell-fill', (e) => {
-      const id = e.features?.[0]?.properties?.id;
-      if (id == null) return;
-      if (String(id) !== this.hovered) {
-        this.hovered = String(id);
-        const node = o.describe(this.hovered);
-        if (!node) { this.tip.remove(); return; }
-        this.tip.setDOMContent(node);
+    // Hover tooltip (pointer devices): the marks under the cursor with their readings, else the region under it with
+    // its status and what the satellites measured. Marks come first: they sit on top of the cells.
+    const box = this.map.getContainer();
+    const seen = (e: PointerEvent) => { this.pointer = e.pointerType; };
+    box.addEventListener('pointerdown', seen, true);
+    box.addEventListener('pointermove', seen, true);
+    this.map.on('mouseout', () => { if (this.pointer !== 'touch') this.leave(); }); // off the map, or onto a control
+    this.map.on('mousemove', (e) => {
+      if (!this.ready || this.pointer === 'touch') return;
+      const marks = this.marksAt(e.point);
+      if (marks.length) {
+        this.show(`m:${marks.map(markKey).join(',')}`, e.lngLat, () => o.describeMarks(marks));
+        return;
       }
-      this.tip.setLngLat(e.lngLat).addTo(this.map);
+      const id = this.map.queryRenderedFeatures(e.point, { layers: ['cell-fill'] })[0]?.properties?.id;
+      if (id == null) { this.leave(); return; }
+      this.show(`r:${id}`, e.lngLat, () => o.describe(String(id)));
     });
-    this.map.on('mouseleave', 'cell-fill', () => {
-      this.map.getCanvas().style.cursor = '';
-      this.tip.remove();
-      this.hovered = null;
-    });
+  }
+
+  /** The satellite marks within reach of a point on the screen, satellites first, strongest first, VIIRS by time. */
+  private marksAt(p: { x: number; y: number }): Mark[] {
+    const r = this.hitPx;
+    const box: [PointLike, PointLike] = [[p.x - r, p.y - r], [p.x + r, p.y + r]];
+    const seen = new Map<string, Mark>();
+    for (const f of this.map.queryRenderedFeatures(box, { layers: MARK_LAYERS })) {
+      const q = f.properties as MarkProps;
+      const m: Mark = { kind: q.kind, region: String(q.region), lat: Number(q.lat), lon: Number(q.lon), value: Number(q.value) };
+      seen.set(markKey(m), m);
+    }
+    return [...seen.values()].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]
+      || (a.kind === 'viirs' ? Math.abs(a.value) - Math.abs(b.value) : b.value - a.value));
+  }
+
+  /** Show the tooltip for `key` at `at`, building its content only when what it is about changes. */
+  private show(key: string, at: LngLat, build: () => HTMLElement | null) {
+    this.map.getCanvas().style.cursor = 'pointer';
+    if (key !== this.hovered) {
+      this.hovered = key;
+      this.tipNode = build();
+      if (this.tipNode) this.tip.setDOMContent(this.tipNode);
+    }
+    if (this.tipNode) this.tip.setLngLat(at).addTo(this.map);
+    else this.tip.remove();
+  }
+
+  private leave() {
+    this.map.getCanvas().style.cursor = '';
+    this.tip.remove();
+    this.hovered = null;
+    this.tipNode = null;
   }
 
   private install() {
@@ -227,7 +296,7 @@ export class RegionMapController {
       paint: { 'line-color': c.ink, 'line-width': 3 },
     });
     const marker = (id: string, sat: SatelliteName, image: string) => this.map.addLayer({
-      id, type: 'symbol', source: 'rg-pixels', filter: ['==', ['get', 'sat'], sat],
+      id, type: 'symbol', source: 'rg-pixels', filter: ['==', ['get', 'kind'], sat],
       layout: {
         'icon-image': image, 'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.55, 10, 1.3],
         'icon-allow-overlap': true, 'icon-ignore-placement': true,
@@ -253,7 +322,7 @@ export class RegionMapController {
 
   setRegions(regions: RegionSummary[]) {
     this.regions = regions;
-    this.hovered = null; // the next pointer move redraws the tooltip with the new data
+    if (this.hovered?.startsWith('r:')) this.hovered = null; // the next pointer move redraws it with the new data
     if (!this.ready) return;
     updateSource(this.map, 'rg-cells', cells(regions));
     updateSource(this.map, 'rg-labels', labels(regions));
@@ -273,6 +342,7 @@ export class RegionMapController {
   /** Hot pixels and VIIRS of the open slot, per region. */
   setPixels(hot: Record<string, DayHot>) {
     this.hot = hot;
+    if (this.hovered?.startsWith('m:')) this.leave(); // those marks may be gone in the new slot
     if (!this.ready) return;
     updateSource(this.map, 'rg-pixels', pixelPoints(hot));
     updateSource(this.map, 'rg-viirs', viirsPoints(hot));

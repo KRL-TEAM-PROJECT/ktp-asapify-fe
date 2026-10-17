@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { AnimatePresence } from 'motion/react';
-import { ApiError, type ProvinceCode, type RegionSummary, type Status } from '../types';
+import { ApiError, type DayHot, type ProvinceCode, type RegionSummary, type Status } from '../types';
 import { api } from '../api';
 import { useI18n } from '../i18n';
 import { useLoad } from '../lib/useLoad';
 import { errorText } from '../lib/errors';
-import { fmtDay, fmtNum, fmtSigned, fmtSlot } from '../lib/format';
+import { fmtDay, fmtNum, fmtSigned, fmtSlot, fmtTime } from '../lib/format';
 import { useStaleAge } from '../lib/stale';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { detectLite, loadLitePref } from '../lib/device';
 import { ISLANDS, PROVINCES, REGION, provincesOf } from '../lib/provinces';
-import { agreement } from '../lib/satellites';
+import { agreement, SATELLITE_NAMES } from '../lib/satellites';
 import { bySlot, dayOf, lastSlot, regionsAt, slotTime } from '../lib/days';
-import { RegionMapController } from '../map/regionMap';
+import { RegionMapController, type Mark } from '../map/regionMap';
 import { StatusBadge, STATUS_KEY } from '../components/StatusBadge';
 import { ValidationBadge } from '../components/VerificationCard';
 import { Select } from '../components/Select';
@@ -40,8 +40,18 @@ const SORTS: Record<Sort, (a: RegionSummary, b: RegionSummary) => number> = {
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
+/** ΔT as the rules counted it (dry air, sun) and the strongest view's counted ΔT where it carried weight. */
+type Counted = { eff: number | null; max: number | null };
+// status boundaries of the counted ΔT (backend rules.py, as on the region page)
+const SAFE_MAX = 1.95, WARNING_MAX = 6.95;
+const SEVERITY: Partial<Record<Status, number>> = { SAFE: 0, WARNING: 1, ALERT: 2 };
+const zone = (k: number) => (k < SAFE_MAX ? 0 : k < WARNING_MAX ? 1 : 2);
+/** The counted ΔT differs from the measured one enough to say so (both shown to one decimal). */
+const differs = (eff: number | null | undefined, dt: number | null | undefined): eff is number =>
+  eff != null && dt != null && Math.abs(eff - dt) >= 0.05;
+
 /** The map's hover tooltip for one region, built as DOM (text only, nothing parsed as HTML). */
-function tipNode(r: RegionSummary, t: T, view: string | null, live: boolean): HTMLElement {
+function tipNode(r: RegionSummary, t: T, view: string | null, live: boolean, c: Counted | undefined): HTMLElement {
   const root = document.createElement('div');
   const add = (cls: string, text: string) => {
     const el = document.createElement('div');
@@ -54,9 +64,16 @@ function tipNode(r: RegionSummary, t: T, view: string | null, live: boolean): HT
   add(`tip-status pill st-${(r.status ?? 'none').toLowerCase()}`, r.status ? t(STATUS_KEY[r.status]) : t('rg.unprocessed'));
   const i = r.inputs;
   if (i?.delta_t_k != null) {
-    add('tip-row mono', i.delta_t_max_k != null && i.delta_t_max_k > i.delta_t_k
-      ? t('map.tip_dt_max', { dt: fmtSigned(i.delta_t_k, 1), max: fmtSigned(i.delta_t_max_k, 1) })
+    // the status follows the counted ΔT (and the strongest view), so both are said when they differ from the measured
+    add('tip-row mono', differs(c?.eff, i.delta_t_k)
+      ? t('map.tip_dt_counted', { dt: fmtSigned(i.delta_t_k, 1), eff: fmtSigned(c!.eff!, 1) })
       : t('map.tip_dt', { dt: fmtSigned(i.delta_t_k, 1) }));
+    if (c?.max != null) add('tip-row mono', t('map.tip_max_counted', { max: fmtSigned(c.max, 1) }));
+    else if (c?.eff == null && i.delta_t_max_k != null && i.delta_t_max_k > i.delta_t_k) {
+      add('tip-row mono', t('map.tip_max', { max: fmtSigned(i.delta_t_max_k, 1) })); // data from before 18 Oct 2026
+    }
+    const sev = r.status ? SEVERITY[r.status] : undefined;
+    if (sev != null && c?.eff != null && zone(c.eff) < sev) add('tip-row muted', t('map.tip_raised'));
   }
   if (live && i && (i.relative_humidity_pct != null || i.cloud_cover_pct != null)) {
     add('tip-row mono', t('map.tip_env', {
@@ -67,6 +84,51 @@ function tipNode(r: RegionSummary, t: T, view: string | null, live: boolean): HT
   if (view) add('tip-row', view);
   if (r.verification) add('tip-row', `${t('ver.title')}: ${t(`vs.${r.verification.validation_status}`)}`);
   add('tip-hint', t('map.tip_hint'));
+  return root;
+}
+
+const MAX_MARKS = 5;
+
+/**
+ * The tooltip of the satellite marks under the pointer or finger: what each one read, where and when. A pixel of a
+ * satellite the slot did not count (under 40 % of the cell clear) says so: the map shows it, the status ignored it.
+ */
+function marksNode(marks: Mark[], t: T, slotAt: string | null, hot: Record<string, DayHot>,
+  statusOf: (id: string) => Status | null): HTMLElement {
+  const root = document.createElement('div');
+  const el = (tag: string, cls: string, text?: string) => {
+    const e = document.createElement(tag);
+    e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+  const regions = [...new Set(marks.map((m) => m.region))];
+  root.appendChild(el('div', 'tip-id mono', regions.join(' · ')));
+  if (slotAt) root.appendChild(el('div', 'tip-sub', t('mk.slot', { when: fmtSlot(slotAt) })));
+  for (const m of marks.slice(0, MAX_MARKS)) {
+    const row = el('div', 'tip-mark');
+    row.appendChild(el('i', `lg-px ${m.kind}`));
+    const body = el('div', 'tip-mark-body');
+    if (m.kind === 'viirs') {
+      body.appendChild(el('div', 'tip-mark-head', t('mk.viirs')));
+      const when = slotAt ? fmtTime(new Date(Date.parse(slotAt) + m.value * 60_000).toISOString()) : '–';
+      body.appendChild(el('div', 'tip-mark-sub', t(m.value < 0 ? 'mk.before' : m.value > 0 ? 'mk.after' : 'mk.at',
+        { time: when, min: Math.abs(m.value) })));
+    } else {
+      const sat = SATELLITE_NAMES[m.kind];
+      body.appendChild(el('div', 'tip-mark-head', t('mk.pixel', { sat, k: fmtSigned(m.value, 1) })));
+      const view = hot[m.region]?.view;
+      const single = view?.startsWith('single_satellite:') ? view.split(':')[1] : null;
+      if (statusOf(m.region) === 'NO_OBSERVABLE' || (single && single !== m.kind)) {
+        body.appendChild(el('div', 'tip-mark-note', t('mk.not_counted', { sat })));
+      }
+    }
+    body.appendChild(el('div', 'tip-mark-sub mono', `${m.lat.toFixed(3)}, ${m.lon.toFixed(3)}`));
+    row.appendChild(body);
+    root.appendChild(row);
+  }
+  if (marks.length > MAX_MARKS) root.appendChild(el('div', 'tip-sub', t('mk.more', { n: marks.length - MAX_MARKS })));
+  if (marks.some((m) => m.kind !== 'viirs')) root.appendChild(el('div', 'tip-hint', t('mk.hint')));
   return root;
 }
 
@@ -128,19 +190,26 @@ export function RegionsPage({ dark }: { dark: boolean }) {
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onShow); };
   }, [regions.reload, agent.reload, archive.reload, index.reload, index.data, live]);
 
-  // Statuses and ΔT of the open slot; the live list keeps everything the API sends.
-  const shown = useMemo<RegionSummary[]>(() => {
-    if (atLatest) return all;
+  // Statuses and ΔT of the open slot; the live list keeps everything the API sends. `counted`: the ΔT the rules
+  // counted per region, from the latest slot's `adjust` or from the archive (days archived from 18 Oct 2026).
+  const { shown, counted } = useMemo(() => {
+    const counted = new Map<string, Counted>();
+    if (atLatest) {
+      for (const r of all) counted.set(r.id, { eff: r.adjust?.delta_t_eff_k ?? null, max: r.adjust?.delta_t_max_eff_k ?? null });
+      return { shown: all, counted };
+    }
     const at = day && shownSlot ? regionsAt(day, shownSlot) : null;
-    return all.map((r) => {
+    const shown = all.map<RegionSummary>((r) => {
       const x = at?.get(r.id);
       const view = shownSlot?.hot[r.id]?.view;
+      if (x) counted.set(r.id, { eff: x.delta_t_eff, max: x.delta_t_max_eff });
       return {
-        ...r, status: x?.status ?? null, verification: null, quality: null, reason: null, night: null,
+        ...r, status: x?.status ?? null, verification: null, quality: null, reason: null, night: null, adjust: null,
         flags: view ? [view] : null,
         inputs: x ? { delta_t_k: x.delta_t, cloud_cover_pct: null, relative_humidity_pct: null, hot_lat: null, hot_lon: null } : null,
       };
     });
+    return { shown, counted };
   }, [all, atLatest, day, shownSlot]);
 
   // Player: advance to the next archived slot per tick until the day's last one, then stop.
@@ -177,15 +246,18 @@ export function RegionsPage({ dark }: { dark: boolean }) {
 
   // ---------- map ----------
   const describe = useRef<(id: string) => HTMLElement | null>(() => null);
-  const onSelect = useRef<(id: string | null) => void>(() => {});
-  onSelect.current = (id) => {
+  const describeMarks = useRef<(marks: Mark[]) => HTMLElement | null>(() => null);
+  const onSelect = useRef<(id: string | null, fromMark?: boolean) => void>(() => {});
+  onSelect.current = (id, fromMark) => {
     setSelected(id);
     if (id) document.getElementById(`rg-${id}`)?.scrollIntoView({ block: 'nearest', behavior: lite ? 'auto' : 'smooth' });
-    if (id && window.matchMedia('(max-width: 1023px)').matches) setSheetOpen(true);
+    // a tap on a mark keeps the map in view, so its readings stay readable; the list is one tap away
+    if (id && !fromMark && window.matchMedia('(max-width: 1023px)').matches) setSheetOpen(true);
   };
   useEffect(() => {
     const c = new RegionMapController(mapEl.current!, {
-      dark, lite, onSelect: (id) => onSelect.current(id), describe: (id) => describe.current(id),
+      dark, lite, onSelect: (id, fromMark) => onSelect.current(id, fromMark), describe: (id) => describe.current(id),
+      describeMarks: (marks) => describeMarks.current(marks),
     });
     ctl.current = c;
     return () => { c.destroy(); ctl.current = null; };
@@ -221,8 +293,10 @@ export function RegionsPage({ dark }: { dark: boolean }) {
   const detail = (id: string) => (atLatest || !viewDay ? `/regions/${id}` : `/regions/${id}?date=${viewDay}`);
   describe.current = (id) => {
     const r = shown.find((x) => x.id === id);
-    return r ? tipNode(r, t, viewTag(r), atLatest) : null;
+    return r ? tipNode(r, t, viewTag(r), atLatest, counted.get(id)) : null;
   };
+  describeMarks.current = (marks) => marksNode(marks, t, shownSlot?.at ?? null, shownSlot?.hot ?? {},
+    (id) => shown.find((x) => x.id === id)?.status ?? null);
 
   const focus = (r: RegionSummary) => {
     setSelected(r.id);
@@ -331,6 +405,9 @@ export function RegionsPage({ dark }: { dark: boolean }) {
                       {r.inputs && (
                         <span className="qi-row mono small">
                           ΔT {r.inputs.delta_t_k != null ? `${fmtSigned(r.inputs.delta_t_k, 1)} K` : '–'}
+                          {differs(counted.get(r.id)?.eff, r.inputs.delta_t_k) && (
+                            <> ({t('map.counted', { dt: fmtSigned(counted.get(r.id)!.eff!, 1) })})</>
+                          )}
                           {atLatest && <>
                             {' '}· RH {r.inputs.relative_humidity_pct != null ? `${fmtNum(r.inputs.relative_humidity_pct, 0)}%` : '–'} · {t('rgt.cloud')}{' '}
                             {r.inputs.cloud_cover_pct != null ? `${fmtNum(r.inputs.cloud_cover_pct, 0)}%` : '–'}

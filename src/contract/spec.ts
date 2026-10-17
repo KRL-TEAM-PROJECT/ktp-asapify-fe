@@ -180,6 +180,7 @@ export const SCHEMAS: Schema[] = [
       { name: 'utilities', type: '{ SAFE?, WARNING?, ALERT?: number } | null', req: true, desc: 'Fuzzy MAUT utilities 0–1; empty when NO_OBSERVABLE.' },
       { name: 'verification', type: 'VerificationBrief | null', req: true, desc: 'Latest agent result: id, validation_status, confidence_score, trigger, at, observed_at, error, decision.' },
       { name: 'inputs, quality, reason, flags, night', type: 'RegionInputs, SlotQuality, string, string[], boolean', req: true, desc: 'From the latest slot; see SlotRecord.' },
+      { name: 'adjust', type: 'SlotAdjust | null', req: false, desc: 'From the latest slot (since 18 Oct 2026): the ΔT the rules counted, for the map\'s tooltip; see SlotRecord.' },
     ],
   },
   {
@@ -228,7 +229,9 @@ export const SCHEMAS: Schema[] = [
       { name: 'slots[].key, slots[].at', type: `'HHMM' (UTC+7), ${ISO}`, req: true, desc: 'Slot time; oldest first.' },
       { name: 'slots[].satellites', type: "('himawari9' | 'gk2a')[]", req: true, desc: 'Satellites read in that slot.' },
       { name: 'slots[].status', type: 'string', req: true, desc: 'One code per region: S, W, A, N; `-` = not assessed in that slot.' },
-      { name: 'slots[].delta_t', type: '(number | null)[]', req: true, desc: 'ΔT per region, K, one decimal.' },
+      { name: 'slots[].delta_t', type: '(number | null)[]', req: true, desc: 'ΔT measured per region, K, one decimal.' },
+      { name: 'slots[].delta_t_eff', type: '(number | null)[]', req: false, desc: 'ΔT the rules counted (after dry air and the sun) per region, K, one decimal; since 18 Oct 2026.' },
+      { name: 'slots[].delta_t_max_eff', type: '(number | null)[]', req: false, desc: 'The strongest view\'s counted ΔT where it carried weight, else null; only in slots where some region has one.' },
       { name: 'slots[].hot', type: '{ [region]: { himawari9, gk2a, viirs, view } }', req: true, desc: 'Regions with a hot pixel: pixels `[lat, lon, ΔBT K]` (≤ 5 per satellite), VIIRS `[lat, lon, minutes from the slot]` (≤ 5), the fusion flag.' },
       { name: 'slots[].trimmed', type: 'boolean', req: false, desc: 'True when pixel detail was cut to keep the slot under 7,000 characters; statuses are never cut.' },
     ],
@@ -526,7 +529,8 @@ export const STATIC_EXAMPLES: Record<ExampleKey, unknown> = {
   dayArchive: {
     date: '2026-10-12', regions: ['R3.50S105.625E', 'R2.50S113.750E', 'R0.50S101.875E'],
     slots: [{
-      key: '0110', at: '2026-10-11T18:10:00Z', satellites: ['himawari9', 'gk2a'], status: 'ASW', delta_t: [39.4, 0.2, 9.1],
+      key: '0110', at: '2026-10-11T18:10:00Z', satellites: ['himawari9', 'gk2a'], status: 'ASW', delta_t: [39.4, 0.2, 5.4],
+      delta_t_eff: [39.4, 0.5, 5.9], delta_t_max_eff: [42.3, null, 9.6],
       hot: {
         'R3.50S105.625E': {
           himawari9: [[-3.577, 105.723, 39.4], [-3.561, 105.741, 31.2]], gk2a: [[-3.566, 105.734, 42.3]],

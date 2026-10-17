@@ -71,7 +71,7 @@ function Satellites({ s, power }: { s: SlotRecord; power: PowerSupport | null | 
         </div>
         <div>
           <dt>{t('rgi.sun')}</dt>
-          <dd>{t(s.night ? 'rgi.night' : 'rgi.day', { deg: fmtNum(s.sun_elevation_deg, 0) })}</dd>
+          <dd>{t(s.night ? 'rgi.night' : 'rgi.day', { deg: fmtNum(s.sun_elevation_deg, 0).replace('-', '−') })}</dd>
         </div>
         <div>
           <dt>{t('rgi.rh')}</dt>

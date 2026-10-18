@@ -1,9 +1,15 @@
 # Firebase Hosting + Google sign-in
 
 The app sends Firebase tokens to the Cloud Run API.
-Status at the freeze, 16 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
-Routine deploys go through GitHub Actions, not a laptop; see "Redeploy" below. Manual steps 1–5
+Status at the freeze, 18 October 2026: live at https://hack2skill-510921.web.app (project `hack2skill-510921`).
+Routine deploys go through GitHub Actions, not a laptop; see "Deploy" below. Manual steps 1–5
 are only for a new project.
+
+![ASAPify on Google Cloud: Firebase Hosting serves this app and rewrites /api/** to Cloud Run asapify-api; Firebase Authentication signs operators in; the backend's worker, queue, schedules, Firestore and Gemini sit behind the API](diagrams/gcp-infrastructure.png)
+
+The whole Google Cloud setup in one drawing (from [diagrams/asapify-diagrams.html](diagrams/asapify-diagrams.html)).
+This repository owns Firebase Hosting, the Firebase Web App and the frontend deploy; everything behind
+`asapify-api` is set up from the backend repository.
 
 1. Follow the backend setup in `ktp-asapify-be/docs/GCP.md`. The Firebase project id must match the backend.
 2. Create a Firebase Web App, enable the Google provider and Authorized domains, then fill `.env.local`:

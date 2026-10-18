@@ -1,8 +1,8 @@
 # ktp-asapify-fe
 
-> **Frozen on 16 October 2026.** Development has stopped; this repository and its docs describe the app as it
-> stands. Only fixes that keep the deployed site running belong here. The tag `freeze-2026-10-16` marks the
-> submitted state of `main`.
+> **Frozen on 18 October 2026.** Development has stopped; this repository and its docs describe the app as it
+> stands. Only fixes that keep the deployed site running belong here. The tag `freeze-2026-10-18` marks the final
+> state of `main`; `freeze-2026-10-16` marks the state submitted on 16 October.
 
 **GCP integration:** see [docs/GCP.md](docs/GCP.md) for Firebase Hosting, Google sign-in,
 the operator custom claim and the Cloud Run API; the app sends the Firebase token.
@@ -13,7 +13,8 @@ with each slot's hot pixels and the VIIRS detections beside them (hover or tap o
 that opens any archived day, read-only
 region pages (ΔT, humidity and cloud timeline, how dry air and the sun moved ΔT, Fuzzy MAUT utilities, status
 changes, the Gemini AI Analysis with the NASA GIBS images it looked at and the weather at the hot pixel), the Get
-alerts page for the Telegram group, and About. **Operators** (Google sign-in with the `role=operator` claim) also run
+alerts page for the Telegram group, and About, whose diagrams tie each step to the data it reads and to where it
+runs on Google Cloud. **Operators** (Google sign-in with the `role=operator` claim) also run
 the Gemini AI Analysis (Re-verify), publish or reject each verification, and manage Telegram groups and operator
 access on the Admin page. During the hackathon judging, a signed-in account can make itself an operator after a
 CAPTCHA, without the Admin page (docs/GCP.md).
@@ -23,6 +24,45 @@ CAPTCHA, without the Admin page (docs/GCP.md).
 - Briefing site: `../asapify/` (`ui.html` screens, `backend.html` API, `cloud.html`, `runbook.html`); the contract
   tab stays the reference for the API
 - The interface, code and API are English only.
+
+## How it works
+
+![How ASAPify works in five steps: two satellites look, the rules find unusual heat and set the status, Gemini checks the evidence, a person decides; everyone sees the live map and group members get the alerts](docs/diagrams/how-it-works.png)
+
+Every 15 minutes the backend rates 65 peat regions from Himawari-9 and GK2A, and rules alone set Safe, Warning or
+Alert. On Alert a Gemini agent reads NASA FIRMS hotspots, two NASA GIBS images and the weather for the operator; it
+cannot change a status. The operator publishes or rejects, and published alerts go to the ASAPify Telegram group. A
+confirmed alert nobody decides on within 2 hours goes out by itself, marked as not reviewed. This app shows all of
+it: the map and region pages to everyone, the decisions to operators.
+
+## On Google Cloud
+
+![ASAPify on Google Cloud: visitors and operators reach Firebase Hosting, which rewrites the API to the Cloud Run service asapify-api; Cloud Scheduler drives the private worker asapify-notify, which reads the open data, calls Gemini and posts to Telegram through Cloud Tasks; GitHub Actions deploy through Workload Identity Federation and Artifact Registry](docs/diagrams/gcp-infrastructure.png)
+
+This repository is the web app on the left of that drawing. Firebase Hosting serves it and sends `/api/**` to the
+Cloud Run service `asapify-api` on the same domain, and Firebase Authentication signs operators in with Google.
+Everything from Cloud Run rightwards lives in the backend repository (`KRL-TEAM-PROJECT/ktp-asapify-be`).
+
+![Three paths through the system: every 15 minutes the worker rates all regions and keeps the result in Firestore; when someone opens the map the Hosting CDN or asapify-api answers; when an alert is published Cloud Tasks carries one job per group to the worker, which posts it in Telegram](docs/diagrams/request-paths.png)
+
+## Inside the web app
+
+![How the web app is put together: Firebase Hosting serves the app; App.tsx routes to the public pages (Regions map, Region page, Get alerts, About) and the operator pages (Admin, API contract, Login); api.ts calls /api/v1/public and, with the Firebase ID token, /api/v1/operator through the /api rewrite to Cloud Run](docs/diagrams/frontend-structure.png)
+
+| Screen | Path | Who | What it is for |
+|---|---|---|---|
+| Regions | `/` | Everyone | The map of 65 regions by status, hot pixels and VIIRS (hover or tap one), the region list and the day player |
+| Region page | `/regions/:id` | Everyone | ΔT, humidity and cloud over time, the dry-air and sun shifts, Fuzzy MAUT, status changes, the Gemini AI Analysis; operators also run it again, publish or reject |
+| Get alerts | `/join` | Everyone | Join the ASAPify Telegram group, with the links the backend returns |
+| About | `/about` | Everyone | How it works, where it runs, statuses, rules, limits and data sources, with links between them |
+| Admin | `/admin` | Admin | Link Telegram groups and their invite links; add or remove operators |
+| API contract | `/api-contract` | Operators | Every endpoint, schema and error code, with examples |
+| Login | `/login` | Operators | Google sign-in; during the judging period a CAPTCHA makes a signed-in account an operator |
+
+All diagrams come from one slide deck, [docs/diagrams/asapify-diagrams.html](docs/diagrams/asapify-diagrams.html).
+Download it and open it in a browser; arrow keys move between its 28 slides, and `?export=1` gives the light view
+without controls that the images above were taken from. The backend README carries the same deck and the backend's
+own diagrams.
 
 ## Running
 
@@ -41,8 +81,11 @@ Needs Node ≥ 22.12 (`engines`). Copy `.env.example` to `.env.local` and fill i
 
 ## Deploy
 
+![Every merge to main ships itself: the backend workflow tests, builds the image and rolls out both Cloud Run services; the frontend workflow installs, builds and releases Firebase Hosting; both smoke-test the live site and sign in with Workload Identity Federation](docs/diagrams/deploy-pipeline.png)
+
 The judged prototype runs on Firebase Hosting at https://hack2skill-510921.web.app,
-deployed by the GitHub Actions workflow described in [docs/GCP.md](docs/GCP.md).
+deployed by the GitHub Actions workflow described in [docs/GCP.md](docs/GCP.md). A merge that changes only Markdown
+or `docs/` does not deploy.
 
 ## API contract for the BE team
 
@@ -64,7 +107,7 @@ Everything on the map and the region pages comes from these public sources, proc
 | NASA GIBS, VIIRS NOAA-20 corrected reflectance | The two satellite images in the Gemini AI Analysis | [GIBS API docs](https://nasa-gibs.github.io/gibs-api-docs/) · [Worldview](https://worldview.earthdata.nasa.gov/) |
 | NASA POWER, hourly skin temperature and humidity | The dry-air shift and POWER support | [POWER](https://power.larc.nasa.gov/) |
 | Open-Meteo (CC BY 4.0) | Humidity (RH) and the weather at the hot pixel | [open-meteo.com](https://open-meteo.com/) |
-| KHG peat hydrological units (KLHK) | The peat inside each of the 65 regions | shapefile in the backend repository (`tools/khg/`) |
+| KHG peat hydrological units (KLHK) | The peat inside each of the 65 regions | [shapefile in the backend repository](https://github.com/KRL-TEAM-PROJECT/ktp-asapify-be/tree/main/tools/khg) |
 | geoBoundaries IDN ADM1 (ODbL) | Province boundaries | [geoboundaries.org](https://www.geoboundaries.org/) |
 | OpenFreeMap / OpenStreetMap | Basemap | [openfreemap.org](https://openfreemap.org/) · [© OpenStreetMap contributors](https://www.openstreetmap.org/copyright) |
 | Gemini on Gemini Enterprise Agent Platform (formerly Vertex AI), Agent Development Kit | The Gemini AI Analysis | [Agent Platform](https://docs.cloud.google.com/gemini-enterprise-agent-platform/) · [ADK](https://google.github.io/adk-docs/) |
@@ -72,7 +115,7 @@ Everything on the map and the region pages comes from these public sources, proc
 
 ## Light map
 
-- MapLibre (±290 KB gzip) loads only on the map route; other pages are ±113 KB gzip (±17 KB of it is the motion core, see *Motion*). The region detail page also loads per route.
+- MapLibre and the map page (±295 KB gzip) load only on the map route; every page needs ±123 KB gzip first (±17 KB of it is the motion core, see *Motion*), measured on the build of 18 October 2026. The region detail page also loads per route.
 - Lite mode switches on automatically with data saver, RAM ≤ 2 GB, ≤ 2 cores (or ≤ 4 cores with RAM ≤ 4 GB),
   or reduced motion: plain basemap, no camera animation, pixel ratio 1, and interface transform
   motion off (fades only). A choice saved earlier on the device (`asapify.lite`) overrides the detection.

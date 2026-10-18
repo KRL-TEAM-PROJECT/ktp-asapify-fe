@@ -2,7 +2,7 @@
 
 > **Frozen on 18 October 2026.** Development has stopped; this repository and its docs describe the app as it
 > stands. Only fixes that keep the deployed site running belong here. The tag `freeze-2026-10-18` marks the final
-> state of `main`; `freeze-2026-10-16` marks the state submitted on 16 October.
+> state of `main`.
 
 **GCP integration:** see [docs/GCP.md](docs/GCP.md) for Firebase Hosting, Google sign-in,
 the operator custom claim and the Cloud Run API; the app sends the Firebase token.
